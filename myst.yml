@@ -5,7 +5,10 @@ site:
   template: book-theme
   options:
     logo: ./images/unrn-p1_big.svg
+    style: ./resources/footer.css
     favicon: favicon.ico
+  parts:
+    footer: footer.md
 
 project:
   github: https://github.com/INGCOM-UNRN/manual-herramientas
