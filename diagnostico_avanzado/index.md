@@ -1,6 +1,6 @@
 ---
 title: "Diagnóstico Forense y Verificación Formal"
-short_title: "Diagnóstico Forense"
+short_title: "Índice"
 subtitle: "Inyección de fallos POSIX, mutación de pruebas, cobertura MC/DC y verificación formal deductiva"
 ---
 

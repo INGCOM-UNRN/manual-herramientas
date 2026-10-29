@@ -1,6 +1,5 @@
 ---
 title: "Infraestructura de Aula y Exámenes"
-short_title: "Aula y Exámenes"
 subtitle: "Emulación de hardware bare-metal, periféricos MMIO y supervisión criptográfica de evaluaciones"
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Evaluación y Gestión Docente Masiva"
-short_title: "Evaluación y Gestión"
+short_title: "Índice"
 subtitle: "Infraestructura para autograding batch, diffing semántico AST, telemetría y cierre de notas"
 ---
 

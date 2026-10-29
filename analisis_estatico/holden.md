@@ -1,6 +1,5 @@
 ---
 title: "holden"
-short_title: "holden"
 subtitle: "Generador de mocks e inyección controlada de fallos en funciones C"
 ---
 

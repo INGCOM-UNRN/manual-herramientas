@@ -1,6 +1,6 @@
 ---
 title: "Ciclo de Trabajo Docente"
-short_title: "Ciclo Docente"
+short_title: "Índice"
 subtitle: "Planificación didáctica, autoría de consignas, ingesta masiva, autograding y cierre de actas"
 ---
 

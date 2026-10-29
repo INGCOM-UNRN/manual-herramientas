@@ -1,6 +1,6 @@
 ---
 title: "Análisis Estático Especializado"
-short_title: "Análisis Estático"
+short_title: "Índice"
 subtitle: "Satélites de cátedra para inspección algorítmica, arquitectura de memoria y estándares C"
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Manual Integral del Ciclo Docente"
-short_title: "Manual Integral"
+short_title: "Manual Docente"
 subtitle: "Planificación didáctica, autoría de exámenes, ingesta de entregas, autograding y actas"
 ---
 

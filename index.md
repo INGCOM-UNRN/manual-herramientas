@@ -1,6 +1,6 @@
 ---
 title: "Manual del Ecosistema de Herramientas Docentes"
-short_title: "Manual Docente"
+short_title: "Índice"
 subtitle: "Documentación integral del ciclo de cátedra, autoría pedagógica, evaluación masiva y supervisión técnica"
 ---
 

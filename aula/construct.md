@@ -1,6 +1,5 @@
 ---
 title: "construct"
-short_title: "construct"
 subtitle: "IDE pedagógico y orquestador de máquina virtual del ecosistema Programación 1"
 author: "Cátedra de Programación 1"
 date: "2026-10-27"

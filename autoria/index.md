@@ -1,6 +1,6 @@
 ---
 title: "Autoría y Curaduría Pedagógica"
-short_title: "Autoría Didáctica"
+short_title: "Índice"
 subtitle: "Herramientas para diseño curricular, guías prácticas, exámenes anti-copia y bancos de preguntas"
 ---
 
