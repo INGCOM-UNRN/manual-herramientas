@@ -1,0 +1,78 @@
+version: 1
+
+site:
+  title: Manual de Herramientas Docentes — UNRN Andina
+  template: book-theme
+  options:
+    logo: ./images/unrn-p1_big.svg
+    favicon: favicon.ico
+
+project:
+  github: https://github.com/INGCOM-UNRN/manual-herramientas
+  title: Manual de Herramientas Docentes
+  subtitle: Documentación integral del ecosistema para el equipo de cátedra de Programación 1
+  authors:
+    - name: Cátedra de Programación 1
+      affiliations:
+        - unrn
+  affiliations:
+    - id: unrn
+      name: Universidad Nacional de Río Negro
+      ror: 048zgak80
+  toc:
+    - file: index.md
+    - title: "1. Ciclo Docente"
+      children:
+        - file: ciclo_docente/index.md
+        - file: ciclo_docente/manual_integral.md
+    - title: "2. Autoría y Curaduría Didáctica"
+      children:
+        - file: autoria/index.md
+        - file: autoria/deckard.md
+        - file: autoria/alucard.md
+        - file: autoria/idkfa.md
+        - file: autoria/voight.md
+        - file: autoria/moodle_toolbox.md
+        - file: autoria/myst_tools.md
+        - file: autoria/keymaker.md
+        - file: autoria/scorm_tools.md
+        - file: autoria/tyrell.md
+        - file: autoria/corbel.md
+    - title: "3. Evaluación y Gestión Docente"
+      children:
+        - file: evaluacion/index.md
+        - file: evaluacion/dredd.md
+        - file: evaluacion/weyl.md
+        - file: evaluacion/cyberdeck.md
+        - file: evaluacion/meet_tools.md
+        - file: evaluacion/slide_tools.md
+        - file: evaluacion/gestion.md
+        - file: evaluacion/p1_tools.md
+    - title: "4. Infraestructura de Aula y Exámenes"
+      children:
+        - file: aula/index.md
+        - file: aula/hardboiled.md
+        - file: aula/uatu_tools.md
+    - title: "5. Diagnóstico Forense y Formal"
+      children:
+        - file: diagnostico_avanzado/index.md
+        - file: diagnostico_avanzado/callahan.md
+        - file: diagnostico_avanzado/dietrich.md
+        - file: diagnostico_avanzado/vasquez.md
+        - file: diagnostico_avanzado/vassili.md
+    - title: "6. Análisis Estático Especializado"
+      children:
+        - file: analisis_estatico/index.md
+        - file: analisis_estatico/brett.md
+        - file: analisis_estatico/crowe.md
+        - file: analisis_estatico/drake.md
+        - file: analisis_estatico/ferro.md
+        - file: analisis_estatico/giger.md
+        - file: analisis_estatico/holden.md
+        - file: analisis_estatico/kane.md
+        - file: analisis_estatico/motoko.md
+        - file: analisis_estatico/parker.md
+        - file: analisis_estatico/rachel.md
+        - file: analisis_estatico/sebastian.md
+        - file: analisis_estatico/wierzbowski.md
+        - file: analisis_estatico/zhora.md
