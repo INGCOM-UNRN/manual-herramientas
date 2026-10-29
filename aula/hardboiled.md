@@ -556,3 +556,52 @@ tipo): `gpio_out`, `gpio_in`, `gpio_irq` (botones), `uart`, `timer`, `sevenseg` 
 (`LEDS`/`led_set()`, `TIMER_CTRL`/`timer_start()`…) y los siguientes, su nombre (`BARRA`/
 `barra_set()`). En `[board]` también se configuran los avisos (`div_by_zero`, `uninitialized`:
 `"warn"`, `"break"` u `"off"`), `stack_guard` y `misaligned`.
+
+(manual-hardboiled-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Leé los switches con la función del SDK y reflejá su valor en los LEDs. Compilá y ejecutá sin TUI;
+`--switches` fija la entrada inicial y `--max-instructions` pone un límite a la corrida:
+
+```c
+#include "hardboiled.h"
+
+int main(void)
+{
+    led_set(switch_get());
+    uart_puts("LEDs configurados\n");
+    return 0;
+}
+```
+
+```bash
+hardboiled build main.c -o main.elf
+hardboiled run main.elf --headless --switches 0b0011 --max-instructions 100000
+```
+
+Así evitás codificar direcciones MMIO y accedés a los periféricos mediante el SDK. La UART debe
+emitir `LEDs configurados`; esa salida concreta es ilustrativa.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+`SWITCHES` es de sólo lectura. Aunque el compilador acepte la asignación, el emulador la detiene con
+la trampa `mmio`. Podés pedirle al runner que compruebe ese resultado:
+
+```c
+#include "hardboiled.h"
+
+int main(void)
+{
+    SWITCHES = 1;
+    return 0;
+}
+```
+
+```bash
+hardboiled test antipatron.c --expect-trap mmio
+```
+
+El diagnóstico identifica la escritura inválida y la trampa esperada; el comando de prueba termina
+con `0` si el caso coincide. La redacción exacta del diagnóstico es ilustrativa.

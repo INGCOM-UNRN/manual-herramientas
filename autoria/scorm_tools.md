@@ -60,3 +60,92 @@ scorm-tools build mi_modulo/ --output paquete_scorm.zip
 * `--version [1.2|2004]`: Selecciona el estándar SCORM de destino.
 * `--output, -o`: Ruta del archivo zip generado.
 * `--strict`: Activa validación estricta de rutas de recursos locales.
+
+---
+
+(manual-scorm-tools-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Inicializá un curso con el comando documentado por `scorm-tools` y conservá la
+referencia entre el ítem de navegación y el recurso del SCO:
+
+```{code-block} bash
+scorm-tools init mi_curso --title "Introducción a punteros" --scorm-version 2004-4ed
+scorm-tools build mi_curso/ --output mi_curso.zip
+scorm-tools validate mi_curso.zip --md
+
+```
+<!-- {code-block} bash -->
+
+El `scorm.yaml` generado incluye este vínculo coherente: `ITEM-1` referencia
+`RES-1`, y `RES-1` declara el SCO `index.html` y sus archivos locales.
+
+```{code-block} yaml
+:linenos:
+organizations:
+  - identifier: ORG-1
+    title: "Introducción a punteros"
+    items:
+      - identifier: ITEM-1
+        title: "Módulo 1"
+        resource: RES-1
+
+resources:
+  - identifier: RES-1
+    href: index.html
+    type: sco
+    files:
+      - index.html
+      - scorm-api.js
+      - style.css
+
+```
+<!-- {code-block} yaml -->
+
+La plantilla de `scorm-tools init` declara ese manifiesto y `build` empaqueta el
+contenido; `validate` verifica el paquete. El informe esperado termina con:
+
+```{code-block} text
+- **Estado:** ✓ **Válido**
+
+```
+<!-- {code-block} text -->
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+No cambies el identificador del recurso en el ítem sin actualizar su destino.
+Si reemplazás `resource: RES-1` por `resource: NOPE`, el ítem apunta a un
+identificador inexistente:
+
+```{code-block} yaml
+:linenos:
+organizations:
+  - identifier: ORG-1
+    title: "Introducción a punteros"
+    items:
+      - identifier: ITEM-1
+        title: "Módulo 1"
+        resource: NOPE
+
+```
+<!-- {code-block} yaml -->
+
+Construí el paquete sin validación automática y ejecutá la validación para ver
+el diagnóstico:
+
+```{code-block} bash
+scorm-tools build mi_curso/ --output mi_curso.zip --no-validate
+scorm-tools validate mi_curso.zip
+
+```
+<!-- {code-block} bash -->
+
+La validación rechaza la referencia e informa:
+
+```{code-block} text
+ERROR: El item 'ITEM-1' referencia el resource inexistente 'NOPE'.
+
+```
+<!-- {code-block} text -->

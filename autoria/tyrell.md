@@ -277,6 +277,51 @@ el informe de entrega.
 
 ---
 
+(manual-tyrell-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Generá dos casos enteros reproducibles y guardalos en un directorio dedicado:
+
+```{code-block} bash
+tyrell generate --count 2 --seed 7 --type integer --min 1 --max 6 --output resultados
+```
+
+La CLI acepta `integer`, toma la cantidad, la semilla y el rango de las opciones,
+y crea archivos `.in` en el directorio de destino. Con esos parámetros, la
+salida observada es:
+
+```{code-block} text
+Casos de Prueba Generados (2 archivos)
+01_case.in  ·  borde  ·  '1\n'
+02_case.in  ·  borde  ·  '6\n'
+✓ 2 testcases guardados exitosamente en: resultados
+```
+
+Usá una semilla fija cuando necesites repetir los mismos casos; sin un binario
+de referencia, Tyrell no genera archivos `.out`.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Pasar texto en una opción que requiere un entero hace que la CLI rechace la
+invocación:
+
+```{code-block} bash
+tyrell generate --count no-es-un-entero --output resultados
+```
+
+El diagnóstico real es:
+
+```{code-block} text
+Valor inválido para '--count' / '-n': 'no-es-un-entero' no es un número entero.
+```
+
+El comando termina con código `2` y no genera los casos. Pasale un entero
+positivo con `--count` para que Tyrell pueda construir la suite.
+
+---
+
 (manual-tyrell-tutorial)=
 ## 4. Tutorial Paso a Paso con Ejemplos Reales
 

@@ -116,6 +116,56 @@ holden doctor
 
 ---
 
+(manual-holden-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Mock generado con `ld --wrap`: el código bajo prueba llama a `malloc` y el
+test controla el resultado desde `__wrap_malloc`.
+
+```{code-block} c
+:caption: mock_malloc.c
+:linenos:
+#include <stdbool.h>
+#include <stddef.h>
+
+void *__real_malloc(size_t n);
+static bool fallar_proximo = false;
+
+void holden_malloc_fallar(bool v) { fallar_proximo = v; }
+
+void *__wrap_malloc(size_t n) {
+    if (fallar_proximo) {
+        fallar_proximo = false;
+        return NULL;
+    }
+    return __real_malloc(n);
+}
+```
+
+```{code-block} console
+$ holden generate malloc -o mock_malloc.c
+$ gcc -Wl,--wrap=malloc test_crear.c crear.c mock_malloc.c -o test_crear
+$ ./test_crear
+crear(): malloc -> NULL detectado, retorna ERR_MEMORIA  ✔
+holden: OK — mock enlazado con --wrap=malloc (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Se define `__wrap_malloc` pero el enlace omite `-Wl,--wrap=malloc`: el mock
+nunca se invoca y el camino de error queda sin probar.
+
+```{code-block} console
+$ gcc test_crear.c crear.c mock_malloc.c -o test_crear
+$ holden doctor --check-link ./test_crear
+mock_malloc.c:9  '__wrap_malloc' definido pero sin referencias: falta -Wl,--wrap=malloc  ✘
+crear.c:6        'malloc' resuelve a libc, no al mock                                     ✘
+holden: FALLA — mock mal wrapped, fallo inyectado inalcanzable (exit 1)
+Acción: agregá -Wl,--wrap=malloc al comando de enlace (o a LDFLAGS en el Makefile).
+```
+
 ## 4. Formatos de Salida e Integración con el Ecosistema
 
 ### Modo Interactivo / Terminal (Rich)

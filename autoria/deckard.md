@@ -328,6 +328,53 @@ memoria o arquitectura.
 
 ---
 
+(manual-deckard-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Definí la duración estimada en minutos y auditá la guía con el límite horario
+explícito. Si la guía todavía no tiene ejercicios físicos en el banco,
+`check-load` usa `tiempo_total_estimado` como dato de cálculo.
+
+```{code-block} yaml
+nombre: "Práctica de arreglos"
+tiempo_total_estimado: 90
+```
+
+```{code-block} bash
+deckard check-load guias/arreglos.yaml --max-horas 6.0
+```
+
+Esperá el resultado `✓ Carga Aceptable: Carga horaria balanceada (1.5 h <= 6.0 h).`
+y código de salida `0`. El informe muestra 90 minutos y un ejercicio en el
+nivel Bloom `APLICAR`.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Evitá declarar una carga que exceda el máximo acordado. Con 420 minutos, el
+diagnóstico compara 7 horas contra el límite de 6:
+
+```{code-block} yaml
+nombre: "Práctica de arreglos"
+tiempo_total_estimado: 420
+```
+
+```{code-block} bash
+deckard check-load guias/arreglos.yaml --max-horas 6.0
+```
+
+Deckard informa:
+
+```{code-block} text
+⚠️ Alerta de Sobrecarga: La guía acumula 7.0 horas pedagógicas, superando el límite configurado de 6.0 horas.
+```
+
+El proceso termina con código `1`. Reducí la carga a 360 minutos o menos, o
+revisá el máximo aprobado para la guía.
+
+---
+
 (manual-deckard-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

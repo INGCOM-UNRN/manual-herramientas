@@ -82,3 +82,54 @@ construct doctor
 * <kbd>F8</kbd>: Verificar estilo y antipatrones (`construct check`).
 * <kbd>Ctrl+S</kbd>: Guardar archivo y sincronizar automáticamente con la máquina virtual.
 * <kbd>Ctrl+Q</kbd>: Salir de la interfaz de terminal.
+
+(manual-construct-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Instalá/aprovisioná el entorno y verificá la VM antes de compilar y ejecutar
+un proyecto:
+
+```bash
+construct setup
+construct doctor
+construct build
+construct run
+```
+
+`setup` aprovisiona la imagen, `doctor` diagnostica aceleración y estado de la
+VM, `build` compila dentro de ella y `run` ejecuta el binario. **Salida
+esperada (ilustrativa):** diagnóstico de VM disponible, compilación exitosa y
+salida del programa. El manual no fija el texto exacto de esas salidas.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Una fuga de memoria es un caso que conviene ejecutar con la instrumentación
+AddressSanitizer/UndefinedBehaviorSanitizer documentada por `--tetsuo`:
+
+```c
+#include <stdlib.h>
+
+int main(void) {
+    int *datos = malloc(sizeof *datos);
+    if (datos == NULL) {
+        return 1;
+    }
+    datos[0] = 42;
+    return 0;
+}
+```
+
+El programa no libera `datos` antes de retornar. Compilalo y corré la
+instrumentación con los comandos que figuran en esta guía:
+
+```bash
+construct build
+construct run --tetsuo
+```
+
+**Salida esperada (ilustrativa):** el reporte del sanitizador señala una fuga
+asociada a la asignación de `datos`. La guía documenta que `--tetsuo` activa
+AddressSanitizer y UndefinedBehaviorSanitizer, pero no especifica el formato del
+reporte ni confirma la configuración del detector de fugas.

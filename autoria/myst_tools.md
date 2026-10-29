@@ -514,3 +514,55 @@ programáticamente en pipelines de CI/CD:
 
 - 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
   Plugins](plugins.md)
+
+---
+
+(manual-myst_tools-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Escribí las instrucciones de tus apuntes con voseo y auditá el archivo antes de
+publicarlo:
+
+````{code-block} markdown
+# Entrega del apunte
+
+Revisá las anclas y corregí el texto antes de compilar el sitio.
+
+````
+<!-- {code-block} markdown -->
+
+```{code-block} bash
+myst-tools check-style apunte/entrega.md
+
+```
+<!-- {code-block} bash -->
+
+El patrón conserva el estilo rioplatense del manual y usa el subcomando
+`check-style`, disponible en `myst-tools`. Si no hay infracciones, la salida es:
+
+```{code-block} text
+✓ Estilo rioplatense consistente.
+
+```
+<!-- {code-block} text -->
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+No mezcles tuteo con voseo en la prosa del apunte. Esta frase infringe el
+estilo:
+
+> Tú puedes revisar las anclas y corregir el texto antes de compilar el sitio.
+
+Al ejecutar `myst-tools check-style apunte/entrega.md`, el diagnóstico
+identifica
+el tuteo y señala la línea para que la reemplaces por una forma de voseo. Los
+mensajes emitidos para esta infracción son:
+
+```{code-block} text
+Forma de tuteo detectada ('Tú'). En estilo rioplatense se prefiere 'vos'.
+Forma de tuteo detectada ('puedes'). En estilo rioplatense se prefiere 'podés'.
+
+```
+<!-- {code-block} text -->

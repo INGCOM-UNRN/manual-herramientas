@@ -329,6 +329,85 @@ memoria o arquitectura.
 
 ---
 
+(manual-idkfa-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Usá una plantilla C con enunciado y respuesta delimitados por comentarios,
+variables declaradas en `/*var*/` e entrada simulada en `/*STDIN*/`. Este patrón
+permite que IDKFA sustituya los valores, compile cada variante y obtenga la
+respuesta del programa:
+
+````{code-block} c
+// Sumá dos valores y respondé qué imprime el programa.
+#include <stdio.h>
+int main(void) {
+    int a, b;
+    if (scanf("%d", &a) != 1 || scanf("%d", &b) != 1) return 1;
+    printf("%d\n", a + b);
+    return 0;
+}
+// Respuesta: el resultado de sumar los dos valores.
+
+/*var
+num_a: range(1, 20)
+num_b: range(1, 20)
+*/
+
+/*STDIN
+__num_a__
+__num_b__
+*/
+
+/*distractors
+__num_a__ * __num_b__
+__num_a__ - __num_b__
+__num_a__
+*/
+````
+
+Guardá el contenido como `plantillas/suma.c` y validá dos variantes sin escribir
+el XML:
+
+````{code-block} bash
+idkfa --template plantillas/suma.c --num 2 --dry-run
+````
+
+Esperá código de salida `0`, una plantilla exitosa, cero plantillas fallidas y
+dos preguntas generadas. Con `--dry-run`, IDKFA valida y compila, pero no crea
+el archivo XML.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Evitá usar `scanf` sin declarar la entrada de `/*STDIN*/`. La validación
+semántica detecta que el motor no tiene datos para ejecutar la plantilla:
+
+````{code-block} c
+// Sumá dos valores y respondé qué imprime el programa.
+#include <stdio.h>
+int main(void) {
+    int a, b;
+    if (scanf("%d", &a) != 1 || scanf("%d", &b) != 1) return 1;
+    printf("%d\n", a + b);
+    return 0;
+}
+// Respuesta: el resultado de sumar los dos valores.
+````
+
+Al procesarla con `idkfa --template plantillas/suma_sin_stdin.c --dry-run`,
+IDKFA informa:
+
+```{code-block} text
+No se pudo procesar 'plantillas/suma_sin_stdin.c'. Razón: Validación semántica fallida: el código C contiene llamadas a lectura por stdin (scanf/fgets/getchar) pero no define la sección /*STDIN*/ obligatoria.
+```
+
+La plantilla queda fallida y el proceso termina con código `1`. Agregá el bloque
+`/*STDIN*/` con los datos que debe consumir cada variante antes de volver a
+validarla.
+
+---
+
 (manual-idkfa-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

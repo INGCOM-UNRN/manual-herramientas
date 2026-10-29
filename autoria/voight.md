@@ -671,3 +671,71 @@ Ante comportamientos inesperados, verificá el estado operativo con:
 voight doctor
 ```
 Comprueba la presencia de las dependencias requeridas y la integridad de los componentes del paquete.
+
+(manual-voight-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Escribí las opciones con la sintaxis GIFT y agregá retroalimentación para cada
+respuesta y para la pregunta:
+
+````{code-block} gift
+::Paridad::¿Cuál de estos números es par? {
+~3#No: es impar.
+=4#Sí: es divisible por dos.
+~5#No: es impar.
+####Un número par es divisible por dos.
+}
+````
+
+Auditá el banco sin modificarlo:
+
+```{code-block} bash
+voight health ejemplos/paridad.gift
+```
+
+La clave `=` marca una respuesta correcta; `~` marca distractores. La
+retroalimentación cubre las tres opciones y la pregunta, y las opciones tienen
+longitud comparable. La salida verificada es:
+
+```{code-block} text
+## Resultado
+✅ Sin errores · 0 advertencias
+
+- **Preguntas:** 1
+- **Cobertura de Feedback:** 100.0%
+```
+
+Usá `health` antes de importar el banco: informa sobre la estructura y la clave
+sin escribir cambios en el archivo.
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Si marcás todas las opciones con `~`, la pregunta queda sin respuesta correcta:
+
+````{code-block} gift
+::Capital sin clave::¿Cuál es la capital de Argentina? {
+~Buenos Aires
+~Córdoba
+~Rosario
+}
+````
+
+Ejecutá la misma auditoría:
+
+```{code-block} bash
+voight health ejemplos/capital-sin-clave.gift
+```
+
+`health` detecta la infracción y sale con código `1`. El informe observado
+incluye:
+
+```{code-block} text
+❌ 1 errores · 1 advertencias
+- **Error:** 1 preguntas sin ninguna respuesta con puntaje positivo
+- **Advertencia:** 1 preguntas sin ningún feedback
+```
+
+En GIFT, al menos una opción debe tener puntaje positivo; marcá la correcta con
+`=` y agregá retroalimentación para que también desaparezca la advertencia.

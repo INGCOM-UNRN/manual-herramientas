@@ -276,6 +276,86 @@ el informe de entrega.
 
 ---
 
+(manual-alucard-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Marcá la respuesta correcta con `=` y los distractores con `~`. Auditá el
+banco sin modificarlo:
+
+````{code-block} bash
+cat <<'EOF' | alucard lint-gift /dev/stdin
+::Capital::¿Cuál es la capital de Río Negro? {=Viedma ~Bariloche}
+EOF
+
+````
+<!-- {code-block} bash -->
+
+La pregunta respeta la sintaxis GIFT que valida `lint-gift`. La herramienta
+informa una pregunta válida, sin errores ni advertencias:
+
+````{code-block} text
+============================================================
+LINTER GIFT - Analizador de Bancos de Preguntas
+============================================================
+
+============================================================
+Analizando: stdin
+============================================================
+
+✅ Archivo válido, sin errores
+
+Resumen:
+  Total preguntas: 1
+  Válidas: 1
+  Errores: 0
+  Advertencias: 0
+
+============================================================
+Total archivos: 1
+Estado: ✅ Todos sin errores
+============================================================
+
+````
+<!-- {code-block} text -->
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Si omitís `=` delante de la respuesta correcta, `lint-gift` informa que no hay
+respuesta correcta y que falta una segunda opción válida:
+
+````{code-block} bash
+cat <<'EOF' | alucard lint-gift /dev/stdin
+::Capital::¿Cuál es la capital de Río Negro? {Viedma ~Bariloche}
+EOF
+
+````
+<!-- {code-block} bash -->
+
+La salida concreta incluye estos errores:
+
+````{code-block} text
+Problemas encontrados:
+  Línea 1 (Capital): Opción múltiple sin respuesta correcta (=)
+  Línea 1 (Capital): Menos de 2 opciones
+
+Resumen:
+  Total preguntas: 1
+  Válidas: 0
+  Errores: 2
+  Advertencias: 0
+
+============================================================
+Total archivos: 1
+Estado: ⚠️  Algunos con errores
+============================================================
+
+````
+<!-- {code-block} text -->
+
+---
+
 (manual-alucard-tutorial)=
 ## 4. Tutorial Paso a Paso con Ejemplos Reales
 

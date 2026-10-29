@@ -276,6 +276,72 @@ el informe de entrega.
 
 ---
 
+(manual-corbel-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Documentá el archivo, todos los parámetros y el valor de retorno. Usá
+`--completitud` para que `corbel lint` verifique los tags Doxygen requeridos:
+
+````{code-block} bash
+cat <<'EOF' | corbel lint /dev/stdin --completitud
+/** @file cola.h */
+#include <stdbool.h>
+/**
+ * @brief Inserta un elemento al inicio de la lista.
+ * @param lista Lista destino.
+ * @param dato Dato a insertar.
+ * @return true si inserta el elemento.
+ */
+bool lista_insertar_inicio(void *lista, void *dato);
+EOF
+
+````
+<!-- {code-block} bash -->
+
+Corbel confirma que todos los elementos están documentados:
+
+````{code-block} text
+✓ 100% Documentado: Todos los elementos en 'stdin' cuentan con bloques Doxygen.
+
+````
+<!-- {code-block} text -->
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Este bloque no documenta el parámetro `dato` ni el retorno. `corbel lint
+--completitud` señala la declaración como documentación incompleta:
+
+````{code-block} bash
+cat <<'EOF' | corbel lint /dev/stdin --completitud
+/** @file cola.h */
+#include <stdbool.h>
+/**
+ * @brief Inserta un elemento al inicio de la lista.
+ * @param lista Lista destino.
+ */
+bool lista_insertar_inicio(void *lista, void *dato);
+EOF
+
+````
+<!-- {code-block} bash -->
+
+La herramienta reporta un elemento sin documentar y sugiere generar
+placeholders:
+
+````{code-block} text
+│     7 │ documentación incompleta │ bool lista_insertar_inicio(void *lista,   │
+│       │                          │ void *dato);                              │
+
+Se encontraron 1 elemento(s) sin documentar. Podés generar los placeholders con:
+  corbel scaffold /dev/stdin --in-place
+
+````
+<!-- {code-block} text -->
+
+---
+
 (manual-corbel-tutorial)=
 ## 4. Tutorial Paso a Paso con Ejemplos Reales
 

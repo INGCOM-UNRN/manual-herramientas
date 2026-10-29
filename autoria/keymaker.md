@@ -178,6 +178,44 @@ keymaker unpack parcial1.ripkg.enc -o ./examen_listo -p "PassphraseSegura2026!" 
 
 ---
 
+(manual-keymaker-ejemplos)=
+## Ejemplos y Contraejemplos
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Keymaker está retirado desde el 5 de octubre de 2026; si todavía necesitás abrir
+o generar un paquete con esta versión, usá una frase de paso fuera del historial
+del shell y verificá que la extracción conserve el contenido.
+
+```bash
+read -r -s -p "Frase de paso: " KM_PASS
+printf '\n'
+printf '%s\n' 'Solucion modelo oficial de catedra' > pauta.txt
+
+keymaker pack pauta.txt -o pauta.ripkg.enc -p "$KM_PASS"
+keymaker unpack pauta.ripkg.enc -o ./dest -p "$KM_PASS"
+```
+
+La prueba de CLI confirma código de salida `0`, la creación de `pauta.ripkg.enc`
+y la extracción de `dest/desempaquetado.dat` con el mismo texto de entrada.
+`pack` cifra el archivo y `unpack` lo descifra antes de extraerlo. La CLI avisa
+por `stderr` que Keymaker está retirado; consultá las
+[pruebas de CLI](https://github.com/INGCOM-UNRN-P1/keymaker/blob/main/tests/test_cli.py).
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+No uses `--force` sin una clave pública autorizada para verificar la firma:
+
+```bash
+keymaker unpack pauta.ripkg.enc -o ./dest -p "$KM_PASS" --force
+```
+
+La prueba de CLI comprueba que este caso termina con código `1` y que la salida
+incluye el diagnóstico `clave pública autorizada`. El flag fuerza el desbloqueo
+del Time-Lock, pero no reemplaza la autorización de la clave pública.
+
+---
+
 (manual-keymaker-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

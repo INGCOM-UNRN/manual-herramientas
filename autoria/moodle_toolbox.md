@@ -334,6 +334,66 @@ memoria o arquitectura.
 
 ---
 
+(manual-moodle_toolbox-ejemplos)=
+## Ejemplos y Contraejemplos
+
+La CLI vigente de la herramienta consolidada es `voight`; la documentación
+actual conserva la validación como `voight health`.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Guardá una pregunta GIFT con título, respuesta correcta y distractor; después
+auditá el archivo sin modificarlo:
+
+````{code-block} gift
+::Aritmética de punteros::[markdown]
+Dado `int v[3] = {1, 2, 3}; int *p = v + 1;`, ¿cuánto vale `*p`? {
+    =2 #Correcto: p apunta al segundo elemento.
+    ~1 #Incorrecto: ese valor está en v[0].
+    ~3 #Incorrecto: ese valor está en v[2].
+}
+````
+<!-- {code-block} gift -->
+
+```bash
+voight health banco.gift
+```
+
+La herramienta analiza bancos GIFT y Moodle XML; esperá el informe de salud del
+archivo y código de salida `0` si no encuentra errores. Para conservar el
+informe, agregá `--md informe.md`. El formato GIFT admite preguntas de opción
+múltiple con `=` para la correcta y `~` para distractores; consultá la
+[referencia vigente](https://github.com/INGCOM-UNRN/voight/blob/main/docs/README_validate_questions.md).
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Un ítem de emparejamiento con un solo par no alcanza el mínimo que informa la
+validación:
+
+````{code-block} xml
+<quiz>
+  <question type="matching">
+    <name><text>Asociación incompleta</text></name>
+    <questiontext format="html"><text>Relacioná cada término.</text></questiontext>
+    <subquestion format="html">
+      <text>puntero</text><answer><text>dirección</text></answer>
+    </subquestion>
+  </question>
+</quiz>
+````
+<!-- {code-block} xml -->
+
+```bash
+voight health banco-incompleto.xml
+```
+
+La herramienta reporta `Emparejamiento con menos de 2 pares` y termina con
+código `1`. Ese diagnóstico y el código están comprobados por las
+[pruebas de CLI](https://github.com/INGCOM-UNRN/voight/blob/main/tests/test_cli.py);
+agregá al menos otro par antes de volver a validar.
+
+---
+
 (manual-moodle_toolbox-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 
