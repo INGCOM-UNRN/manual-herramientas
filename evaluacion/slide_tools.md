@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: slide-tools"
+title: "slide-tools"
 subtitle: "Control Remoto y Sincronización de Diapositivas para Google Slides"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

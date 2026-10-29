@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: keymaker"
+title: "keymaker"
 subtitle: "Keymaker — Gestor de Cifrado, Integridad y Desbloqueo Temporal para Paquetes de Examen"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

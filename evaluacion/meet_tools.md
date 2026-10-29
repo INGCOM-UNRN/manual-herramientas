@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: meet-tools"
+title: "meet-tools"
 subtitle: "Sistema de Control y Telemetría para Google Meet"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

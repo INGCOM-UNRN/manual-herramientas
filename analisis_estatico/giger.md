@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: giger"
+title: "giger"
 subtitle: "Giger — Generador de Grafos de Control de Flujo (CFG), Grafo de Llamadas y Dead Code"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

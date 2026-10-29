@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: myst-tools"
+title: "myst-tools"
 subtitle: "Myst-Tools — Suite de Normalización, Formateo a 80 Columnas, Anclas e Índices MyST"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

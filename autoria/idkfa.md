@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: idkfa"
+title: "idkfa"
 subtitle: "Idkfa — Síntesis Procedural de Código C, Cuestionarios Anti-Copia y Trazado para Moodle"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

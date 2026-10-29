@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: deckard"
+title: "deckard"
 subtitle: "Deckard — Gestor de Bancos de Ejercicios, Guías de Trabajos Prácticos y Taxonomía Bloom"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

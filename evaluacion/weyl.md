@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: weyl"
+title: "weyl"
 subtitle: "Weyl — Diffing Semántico y Comparación Estructural de ASTs contra resolvé Canónicas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

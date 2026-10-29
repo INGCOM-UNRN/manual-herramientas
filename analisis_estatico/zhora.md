@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: zhora"
+title: "zhora"
 subtitle: "Zhora — Linter y Auditor de Seguridad en Macros del Preprocesador #define"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: callahan"
+title: "callahan"
 subtitle: "Callahan — Verificador Formal de Contratos ACSL y Demostración Deductiva con Frama-C"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

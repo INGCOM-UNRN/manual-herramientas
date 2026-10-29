@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: gestion"
+title: "gestion"
 subtitle: "Automatización de Calificaciones y Sincronización de Cátedra"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

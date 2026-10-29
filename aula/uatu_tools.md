@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: uatu-tools"
+title: "uatu-tools"
 subtitle: "uatu-admin y uatu-audit — Gestión Criptográfica de Exámenes y Validación Forense"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-25"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: crowe"
+title: "crowe"
 subtitle: "Crowe — Linter de Portabilidad Multi-Arquitectura, Endianness y Tipos de Ancho Fijo"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

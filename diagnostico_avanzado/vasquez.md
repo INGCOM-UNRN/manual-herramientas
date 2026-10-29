@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: vasquez"
+title: "vasquez"
 subtitle: "Vasquez — Inyector de Fallos en Runtime vía LD_PRELOAD sobre malloc, fopen y Syscalls"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

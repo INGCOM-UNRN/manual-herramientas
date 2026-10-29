@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: dietrich"
+title: "dietrich"
 subtitle: "Dietrich — Validador de Cobertura Lógica MC/DC (Modified Condition/Decision Coverage) en C"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

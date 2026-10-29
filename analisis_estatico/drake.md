@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: drake"
+title: "drake"
 subtitle: "Drake — Fuzzer Guiado por Límites y Analizador de Robustez ante Entradas Extremas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: wierzbowski"
+title: "wierzbowski"
 subtitle: "Wierzbowski — Auditor de Grafos de Inclusión de Headers, Dependencias Circulares y Makefiles"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

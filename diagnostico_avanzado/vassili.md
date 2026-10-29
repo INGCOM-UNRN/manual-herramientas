@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: vassili"
+title: "vassili"
 subtitle: "Vassili — Motor de Mutation Testing en C para Evaluación de Calidad de Suites de Pruebas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

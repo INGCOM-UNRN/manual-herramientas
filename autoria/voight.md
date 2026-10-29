@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: voight"
+title: "voight"
 short_title: "voight"
 subtitle: "Gestión de preguntas de Moodle, conversión GIFT / XML y saneamiento tipográfico"
 ---

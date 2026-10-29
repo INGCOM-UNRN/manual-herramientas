@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: alucarD"
+title: "alucarD"
 subtitle: "Alucard — Generador de Exámenes Impresos, Variantes Anti-Copia y Plantillas OMR"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

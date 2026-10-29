@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: rachel"
+title: "rachel"
 subtitle: "Rachel — Desensamblador y Verificador de Jump Tables O(1) en Sentencias Switch"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

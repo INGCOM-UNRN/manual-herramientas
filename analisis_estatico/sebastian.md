@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: sebastian"
+title: "sebastian"
 subtitle: "Sebastian — Analizador de Funciones Recursivas, Caso Base y Árboles de Llamadas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

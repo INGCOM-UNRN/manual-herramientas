@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: brett"
+title: "brett"
 subtitle: "Brett — Auditor de Memoria, Padding y Layout Óptimo de Structs en C"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

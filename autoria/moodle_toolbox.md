@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: moodle-toolbox"
+title: "moodle-toolbox"
 subtitle: "Moodle-Toolbox — Suite de Mantenimiento, Normalización y Conversión de Bancos GIFT/XML"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

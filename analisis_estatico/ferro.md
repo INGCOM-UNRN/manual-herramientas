@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: ferro"
+title: "ferro"
 subtitle: "Ferro — Perfilador de Rendimiento Algorítmico, Caché y Contadores de Hardware en C"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

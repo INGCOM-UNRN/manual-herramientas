@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: hardboiled"
+title: "hardboiled"
 short_title: "hardboiled"
 subtitle: "Emulador RISC-V RV32I bare-metal con periféricos MMIO y depuración en terminal"
 ---

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: corbel"
+title: "corbel"
 subtitle: "Corbel — Generador de Documentación de APIs, TDAs y Verificación de Snippets C"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: parker"
+title: "parker"
 subtitle: "Parker — Auditor de Estabilidad de ABIs, Visibilidad de Símbolos y Librerías Dinámicas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

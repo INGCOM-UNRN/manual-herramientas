@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: cyberdeck"
+title: "cyberdeck"
 subtitle: "Panel Docente y Companion Hardware de Control de Aula"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: kane"
+title: "kane"
 subtitle: "Kane — Simulador y Depurador Visual de I/O de Bajo Nivel y Perfiles Seccomp"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: dredd"
+title: "dredd"
 subtitle: "Dredd — Orquestador Docente de Evaluación Masiva, Autograding y Detección de Plagio Winnowing"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

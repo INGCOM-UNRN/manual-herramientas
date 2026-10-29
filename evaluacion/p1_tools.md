@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: p1-tools"
+title: "p1-tools"
 subtitle: "Meta-Repositorio y Orquestación Global del Ecosistema"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

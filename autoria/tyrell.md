@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: tyrell"
+title: "tyrell"
 subtitle: "Tyrell — Generador Sintético y Determinista de Datasets y Casos de Prueba con Semillas"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: scorm-tools"
+title: "scorm-tools"
 subtitle: "Empaquetador y Validador SCORM 1.2 / 2004 para Moodle"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-09-14"

@@ -1,5 +1,5 @@
 ---
-title: "Manual de Referencia: motoko"
+title: "motoko"
 subtitle: "Motoko — Verificador de Encapsulamiento Estricto, Opacidad de Structs e Invariantes de TDA"
 author: "Cátedra de Algoritmos y Programación"
 date: "2026-08-31"
