@@ -332,6 +332,52 @@ memoria o arquitectura.
 
 ---
 
+(manual-parker-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Biblioteca de cátedra exportando exclusivamente la interfaz pública oficial:
+
+```{code-block} c
+// En el .c, funciones privadas marcadas como static:
+static void rebalancear_arbol(nodo_t *n) { ... }
+
+// Solo las funciones públicas tienen visibilidad default:
+arbol_t *arbol_crear(void) { ... }
+```
+
+Auditoría de ABI con Parker:
+
+```{code-block} bash
+parker audit libtreadstone.so --map api_esperada.txt
+```
+
+Salida esperada:
+```{code-block} text
+[✓] 12 símbolos públicos exportados conformes a 'api_esperada.txt'
+[✓] 0 símbolos internos filtrados a la tabla dinámica de exportación
+[✓] Compatibilidad binaria ABI v1.2 garantizada
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Funciones auxiliares sin calificador `static` contaminando la interfaz pública de la biblioteca:
+
+```{code-block} c
+// Falta 'static'
+void helper_interno_comparar(int a, int b) { ... }
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x4008h: Símbolo interno 'helper_interno_comparar' exportado en libtreadstone.so.
+[!] Contaminación del espacio de nombres dinámico (riesgo de colisión de símbolos con el usuario).
+[!] Acción: declará 'helper_interno_comparar' como 'static' o usá __attribute__((visibility("hidden"))).
+```
+
 (manual-parker-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

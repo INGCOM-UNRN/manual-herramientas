@@ -331,6 +331,56 @@ memoria o arquitectura.
 
 ---
 
+(manual-sebastian-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Recursión con profundidad acotada logarítmica y stack frame liviano:
+
+```{code-block} c
+// Búsqueda binaria en árbol balanceado: profundidad máxima log2(N)
+nodo_t *buscar(nodo_t *raiz, int clave) {
+    if (!raiz || raiz->clave == clave) return raiz;
+    if (clave < raiz->clave) return buscar(raiz->izq, clave);
+    return buscar(raiz->der, clave);
+}
+```
+
+Auditoría con Sebastian:
+
+```{code-block} bash
+sebastian stack arbol.c --max-profundidad 32
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Tamaño de stack frame por llamada: 32 bytes
+[✓] Consumo de pila acotado en peor caso: 1,024 bytes (1 KB sobre límite de 8 MB)
+[✓] Recursión de cola (Tail Call Optimization) potencial detectada
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Función recursiva lineal con arreglos locales gigantes en el frame:
+
+```{code-block} c
+void procesar_recursivo(int nivel) {
+    char buffer_local[65536]; // 64 KB en cada frame
+    if (nivel > 1000) return;
+    procesar_recursivo(nivel + 1); // 1000 * 64 KB = 64 MB -> STACK OVERFLOW
+}
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x400Ah: Frame de stack excesivo (65,584 bytes) en 'procesar_recursivo'.
+[!] Riesgo crítico de Stack Overflow: 150 llamadas superan el límite de pila por defecto (8 MB).
+[!] Acción: trasladá el buffer a memoria dinámica (malloc) o refactorizá el lazo a forma iterativa.
+```
+
 (manual-sebastian-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

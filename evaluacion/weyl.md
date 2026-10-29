@@ -338,6 +338,44 @@ memoria o arquitectura.
 
 ---
 
+(manual-weyl-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Comparación semántica estructural de dos entregas genuinamente independientes:
+
+```{code-block} bash
+weyl diff entrega_a/cola.c entrega_b/cola.c --ast
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Análisis sintáctico completado
+[✓] Similitud de grafos AST: 22% (Dentro de umbral esperado para el problema)
+[✓] Estructuras de datos divergentes: A utiliza lista enlazada; B utiliza arreglo circular
+[✓] Veredicto: ENTREGAS_INDEPENDIENTES (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Entrega con código copiado y ofuscado mediante renombrado de variables y reordenamiento cosmético:
+
+```{code-block} bash
+weyl diff entrega_a/cola.c entrega_copia/cola.c --ast
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA DE SIMILITUD ESTRUCTURAL: 96%
+[!] Árboles sintácticos normalizados idénticos salvo nombres de identificadores:
+    - 'frente' <-> 'front_ptr'
+    - 'desencolar' <-> 'pop_element'
+[!] Infracción pedagógica: copia estructural detectada con Winnowing y AST diff.
+```
+
 (manual-weyl-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

@@ -327,6 +327,58 @@ memoria o arquitectura.
 
 ---
 
+(manual-wierzbowski-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Encabezados con include guards estrictos y grafo de inclusión acíclico (DAG):
+
+```{code-block} c
+// lista.h
+#ifndef LISTA_H
+#define LISTA_H
+
+#include <stddef.h>
+#include <stdbool.h>
+
+typedef struct lista lista_t;
+// declaraciones...
+
+#endif // LISTA_H
+```
+
+Auditoría con Wierzbowski:
+
+```{code-block} bash
+wierzbowski audit-includes --src-dir ./
+```
+
+Salida esperada:
+```{code-block} text
+[✓] 18 encabezados auditados
+[✓] Include guards estándar presentes en todos los archivos
+[✓] Grafo de inclusión acíclico verificado: 0 ciclos de inclusión detectados
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Inclusión cíclica entre dos encabezados que dependen mutuamente:
+
+```{code-block} c
+// nodo.h incluye lista.h y lista.h incluye nodo.h sin forward declarations
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x400Bh: Ciclo de inclusión circular detectado:
+    nodo.h -> lista.h -> nodo.h
+[!] Error de compilación: tipos incompletos por dependencia cruzada.
+[!] Acción: utilizá forward declarations ('struct lista;') en lugar de incluir el encabezado completo.
+```
+
 (manual-wierzbowski-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

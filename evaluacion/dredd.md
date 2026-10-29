@@ -330,6 +330,43 @@ memoria o arquitectura.
 
 ---
 
+(manual-dredd-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Evaluación masiva aislada sobre el conjunto de entregas descargadas de Moodle:
+
+```{code-block} bash
+dredd eval TP1 --all --baseline ./_baseline
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Ingesta normalizada: 42 entregas procesadas
+[✓] Compilación en sandbox Bubblewrap: 42/42 ejecutadas sin fugas
+[✓] Reportes consolidados generados en reportes_TP1/
+[✓] Dashboard actualizado: dashboard.md (Aprobados: 88%)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Entrega que incluye binarios precompilados o intenta bloquear la evaluación con lazos infinitos:
+
+```{code-block} bash
+dredd eval TP1 alumno_infractor
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x000Fh: Archivo binario prohibido detectado ('main.o').
+[!] ALERTA: Tiempo de ejecución excedido (timeout de 5000 ms alcanzado en test_cola).
+[!] El proceso fue terminado por aislamiento Nostromo (SIGKILL forzado).
+[!] Calificación asignada: 0 — Requiere reentrega limpia.
+```
+
 (manual-dredd-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

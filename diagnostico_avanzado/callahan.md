@@ -342,6 +342,63 @@ memoria o arquitectura.
 
 ---
 
+(manual-callahan-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Contrato formal ACSL con precondición que descarta puntero nulo y divisor cero:
+
+```{code-block} c
+/*@
+  @ requires \valid(res) && b != 0;
+  @ assigns *res;
+  @ ensures *res == a / b && \result == 0;
+  @*/
+int division_segura(int a, int b, int *res) {
+    *res = a / b;
+    return 0;
+}
+```
+
+Ejecución y verificación formal:
+
+```{code-block} bash
+callahan verify division.c
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Precondición '\valid(res) && b != 0' demostrada (WP/Alt-Ergo)
+[✓] Postcondición '*res == a / b' demostrada
+[✓] Ausencia de Runtime Errors (RTE): división por cero descartada
+[✓] Veredicto: CONTRATO_VERIFICADO (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Función con precondición deficiente donde es posible desreferenciar `NULL`:
+
+```{code-block} c
+/*@
+  @ requires b != 0;  // Falta \valid(res)
+  @ assigns *res;
+  @*/
+int division_riesgosa(int a, int b, int *res) {
+    *res = a / b;
+    return 0;
+}
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] FALLA: Objetivo de prueba 'mem_access: \valid(res)' no pudo ser demostrado.
+[!] Riesgo de fallo de memoria en 'division.c:7': puntero 'res' potencialmente inválido.
+[!] Acción: agregá 'requires \valid(res);' a la cláusula ACSL.
+```
+
 (manual-callahan-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

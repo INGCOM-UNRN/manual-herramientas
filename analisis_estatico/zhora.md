@@ -341,6 +341,54 @@ memoria o arquitectura.
 
 ---
 
+(manual-zhora-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Macro multisentencia encapsulada en `do { ... } while(0)` con parámetros entre paréntesis:
+
+```{code-block} c
+#define INTERCAMBIAR(a, b, tipo) do { \
+    tipo _tmp = (a);                  \
+    (a) = (b);                        \
+    (b) = _tmp;                       \
+} while(0)
+```
+
+Auditoría de preprocesador con Zhora:
+
+```{code-block} bash
+zhora audit utilidades.h
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Macro 'INTERCAMBIAR' protegida con 'do { ... } while(0)'
+[✓] Todos los parámetros formales encerrados entre paréntesis
+[✓] Segura ante sentencias 'if (cond) INTERCAMBIAR(x, y, int); else ...'
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Macro aritmética sin paréntesis que altera la precedencia de operadores:
+
+```{code-block} c
+#define CUADRADO(x) x * x
+
+// Invocación: int r = CUADRADO(2 + 3);
+// Expansión: 2 + 3 * 2 + 3 = 2 + 6 + 3 = 11  (¡Esperado: 25!)
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x400Ch: Macro 'CUADRADO' no encierra sus argumentos entre paréntesis.
+[!] Riesgo de precedencia de operadores: 'CUADRADO(2 + 3)' evalúa a 11 en lugar de 25.
+[!] Acción: redefiní la macro como '#define CUADRADO(x) ((x) * (x))'.
+```
+
 (manual-zhora-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

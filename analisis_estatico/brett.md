@@ -335,6 +335,57 @@ memoria o arquitectura.
 
 ---
 
+(manual-brett-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Estructura con campos ordenados de mayor a menor alineación natural (0 padding interno):
+
+```{code-block} c
+typedef struct {
+    double promedio;   // 8 bytes (alineación 8)
+    uint32_t legajo;   // 4 bytes (alineación 4)
+    uint16_t anio;     // 2 bytes (alineación 2)
+    char activo;       // 1 byte  (alineación 1)
+    char padding[1];   // 1 byte  (alineación total múltiplo de 8 -> 16 bytes)
+} estudiante_optimo_t;
+```
+
+Auditoría con Brett:
+
+```{code-block} bash
+brett audit estudiante.h
+```
+
+Salida esperada:
+```{code-block} text
+[✓] 'estudiante_optimo_t': tamaño 16 bytes | padding interno: 0 bytes (0.0%)
+[✓] Estructura con empaquetado óptimo para arquitectura LP64/LLP64
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Estructura intercalando tipos pequeños y grandes, desperdiciando memoria en padding:
+
+```{code-block} c
+typedef struct {
+    char activo;       // 1 byte (+ 7 bytes padding)
+    double promedio;   // 8 bytes
+    char grupo;        // 1 byte (+ 3 bytes padding)
+    uint32_t legajo;   // 4 bytes
+} estudiante_ineficiente_t; // Tamaño total: 24 bytes (10 bytes de padding, 41% desperdiciado)
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x4001h en 'estudiante_ineficiente_t': 10 bytes de padding sobre 24 totales.
+[!] Desperdicio de memoria por alineación: 41.6%.
+[!] Sugerencia de reordenamiento: reubicá 'promedio' al inicio y agrupá 'activo' y 'grupo'.
+```
+
 (manual-brett-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

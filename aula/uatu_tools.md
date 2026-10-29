@@ -357,6 +357,43 @@ de código dentro de la ventana sin telemetría activa.
 
 ---
 
+(manual-uatu-tools-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Verificación criptográfica exitosa de telemetría y firmas de commits en una entrega de parcial:
+
+```{code-block} bash
+uatu-audit verify --repo ./entrega_alumno --signer-key keys/docente.pub
+```
+
+Salida esperada en consola:
+```{code-block} text
+[✓] Clave pública de estudiante validada: ED25519-P1-2026
+[✓] Cadena de commits íntegra: 14 commits firmados cronológicamente
+[✓] Telemetría temporal coherente: sin anomalías de reloj ni desfase NTP
+[✓] Veredicto: ENTREGA_AUTENTICADA (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Entrega con commits manipulados, firma forjada o reloj modificado artificialmente:
+
+```{code-block} bash
+uatu-audit verify --repo ./entrega_manipulada --signer-key keys/docente.pub
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ERROR: Discrepancia criptográfica en commit a8f1c3d
+[!] Firma digital no coincide con la clave registrada del alumno.
+[!] Timestamp del commit anterior (14:32:00) es posterior al actual (14:15:10).
+[!] Veredicto: RECHAZADO — ALTERACION_CRIPTOGRAFICA_DETECTADA (exit 1)
+```
+
 (manual-uatu-tools-flujos)=
 ## 5. Flujos Completos
 

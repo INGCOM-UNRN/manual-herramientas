@@ -338,6 +338,53 @@ memoria o arquitectura.
 
 ---
 
+(manual-vasquez-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Código C con manejo defensivo que libera recursos ante fallo inyectado en `malloc`:
+
+```{code-block} c
+int *v = malloc(n * sizeof(int));
+if (!v) {
+    return ERR_SIN_MEMORIA;
+}
+// uso seguro de v...
+free(v);
+```
+
+Inyección y prueba de robustez:
+
+```{code-block} bash
+vasquez inject --fault "malloc:ENOMEM:1" ./programa_seguro
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Fallo inyectado en llamada 1 a malloc (retornó NULL y seteó errno=ENOMEM)
+[✓] El programa capturó el error ordenadamente y retornó código ERR_SIN_MEMORIA
+[✓] Sin segfault ni fugas en Valgrind
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Código que asume alocación infalible y desreferencia inmediatamente el puntero:
+
+```{code-block} c
+int *v = malloc(n * sizeof(int));
+v[0] = 42; // Si malloc retorna NULL -> SIGSEGV
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] CRÍTICO: Fallo inyectado en malloc causó caída por señal SIGSEGV.
+[!] Desreferencia de puntero NULL en línea 12 de 'procesar.c'.
+[!] Infracción de robustez 0x7001h: ausencia de validación defensiva de alocación.
+```
+
 (manual-vasquez-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

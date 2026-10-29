@@ -335,6 +335,54 @@ memoria o arquitectura.
 
 ---
 
+(manual-crowe-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Serialización binaria con conversión de orden de bytes y anchos exactos C99/C11:
+
+```{code-block} c
+#include <arpa/inet.h>
+#include <stdint.h>
+
+void escribir_cabecera(uint8_t *buf, uint32_t magia) {
+    uint32_t net_val = htonl(magia);
+    memcpy(buf, &net_val, sizeof(net_val));
+}
+```
+
+Auditoría con Crowe:
+
+```{code-block} bash
+crowe audit paquete.c
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Uso de tipos de ancho fijo 'uint32_t' verificado
+[✓] Conversión explícita de endianness con 'htonl' comprobada
+[✓] Veredicto: PORTABLE (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Asunción de endianness little-endian y tipo `long` dependiente de la plataforma:
+
+```{code-block} c
+long valor = 0x12345678;
+char primer_byte = *(char *)&valor; // Asume Little-Endian y tamaño de 'long' fijo
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x4002h: Cast de puntero rompe portabilidad de endianness en línea 4.
+[!] El tipo 'long' varía entre 32 bits (Windows LLP64) y 64 bits (Linux LP64).
+[!] Acción: utilizá tipos de <stdint.h> y operadores de desplazamiento bit a bit.
+```
+
 (manual-crowe-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

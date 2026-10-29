@@ -334,6 +334,57 @@ memoria o arquitectura.
 
 ---
 
+(manual-rachel-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Sentencia `switch` con etiquetas contiguas o densas compiladas a jump table `O(1)`:
+
+```{code-block} c
+switch (codigo_operacion) {
+    case OP_SUMA:    return a + b;
+    case OP_RESTA:   return a - b;
+    case OP_MULT:    return a * b;
+    case OP_DIV:     return b != 0 ? a / b : 0;
+    default:         return 0;
+}
+```
+
+Desensamblado y auditoría con Rachel:
+
+```{code-block} bash
+rachel disasm maquina_estados.o --switch-analysis
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Jump table detectada en dirección 0x1040 (densidad 100%)
+[✓] Despacho constante O(1) verificado con salto indirecto: jmp *0x1040(,%rax,8)
+[✓] Sin cascadas lineales de saltos condicionales
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+`switch` con casos extremadamente dispersos que degenera en cascada de comparaciones `O(N)`:
+
+```{code-block} c
+switch (valor) {
+    case 1:          return manejar_1();
+    case 1000000:    return manejar_millon();
+    case 50000000:   return manejar_cincuenta();
+}
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA: Jump table descartada por densidad deficiente (< 0.1%).
+[!] El compilador generó un árbol de comparaciones cmp/jne lineal.
+[!] Sugerencia: remapeá los identificadores a un rango contiguo para habilitar jump table O(1).
+```
+
 (manual-rachel-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

@@ -332,6 +332,58 @@ memoria o arquitectura.
 
 ---
 
+(manual-motoko-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Tipo de Dato Abstracto (TDA) con tipo opaco estricto en el encabezado `.h`:
+
+```{code-block} c
+// cola.h
+typedef struct cola cola_t;
+
+cola_t *cola_crear(void);
+bool cola_encolar(cola_t *c, void *dato);
+void cola_destruir(cola_t *c);
+```
+
+Auditoría con Motoko:
+
+```{code-block} bash
+motoko audit cola.h cola.c
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Encapsulamiento de 'cola_t': OPACO ESTRICTO
+[✓] Definición de 'struct cola' restringida al archivo de implementación cola.c
+[✓] Cero acceso a miembros privados desde fuentes clientes (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Estructura del TDA expuesta directamente en el archivo de cabecera público:
+
+```{code-block} c
+// cola_vulnerable.h
+typedef struct cola {
+    nodo_t *frente;
+    nodo_t *fondo;
+    size_t tamanio;
+} cola_t;
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x4007h: Violación de encapsulamiento en 'cola_vulnerable.h'.
+[!] La estructura 'struct cola' expone sus miembros internos al cliente.
+[!] El cliente puede manipular 'frente' y 'fondo' directamente sin usar la API.
+[!] Acción: trasladá la definición del struct a cola.c y dejá solo 'typedef struct cola cola_t;' en el .h.
+```
+
 (manual-motoko-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

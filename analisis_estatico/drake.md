@@ -332,6 +332,50 @@ memoria o arquitectura.
 
 ---
 
+(manual-drake-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Conversión de texto a número con detección estricta de desbordamiento mediante `strtol`:
+
+```{code-block} c
+long val = strtol(cadena, &fin, 10);
+if (fin == cadena || *fin != '\0' || errno == ERANGE || val < INT_MIN || val > INT_MAX) {
+    return ERR_VALOR_INVALIDO;
+}
+```
+
+Fuzzing guiado por Drake:
+
+```{code-block} bash
+drake fuzz parser.c --targets parse_entero
+```
+
+Salida esperada:
+```{code-block} text
+[✓] 10,000 mutaciones de entrada probadas (INT_MAX, INT_MIN, cadenas vacías, desbordamientos)
+[✓] 0 caídas por desreferencia inválida o violación de límites
+[✓] Veredicto: ROBUSTO_FRONTERA (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Uso de `atoi` sin control de errores ni desbordamientos:
+
+```{code-block} c
+int n = atoi(buffer); // Si buffer excede INT_MAX o es basura, provoca Undefined Behavior
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] FALLA: Entrada '99999999999999999999' provocó desbordamiento aritmético no controlado.
+[!] Función 'atoi' es insegura para datos externos no confiables.
+[!] Acción: reemplazá 'atoi' por 'strtol' o 'strtoll' comprobando 'errno == ERANGE'.
+```
+
 (manual-drake-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

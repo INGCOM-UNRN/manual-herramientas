@@ -338,6 +338,43 @@ memoria o arquitectura.
 
 ---
 
+(manual-kane-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Inspección de binario compilado con secciones protegidas y sin símbolos de depuración en release:
+
+```{code-block} bash
+kane inspect examen.elf
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Formato ELF64 verificado
+[✓] Sección .rodata con atributos de solo lectura (r--)
+[✓] Stack no ejecutable (GNU_STACK nx activo)
+[✓] Sin strings sensibles en texto plano
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Binario distribuido a alumnos que incluye cadenas con respuestas o passwords embebidas en plano:
+
+```{code-block} bash
+kane inspect parcial_vulnerable.elf --audit-secrets
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA DE SEGURIDAD: Cadenas críticas encontradas en la sección .rodata:
+    - Offset 0x2040: 'PASSWORD_CORRECTA=secreto123'
+[!] El alumno puede extraer la solución con 'strings parcial_vulnerable.elf'.
+[!] Acción: utilizá funciones hash unidireccionales (SHA-256) en lugar de cadenas directas.
+```
+
 (manual-kane-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

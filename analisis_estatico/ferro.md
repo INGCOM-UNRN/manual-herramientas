@@ -342,6 +342,55 @@ memoria o arquitectura.
 
 ---
 
+(manual-ferro-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Recorrido de matriz respetando el orden de almacenamiento por filas (Row-Major):
+
+```{code-block} c
+for (size_t i = 0; i < FILAS; ++i) {
+    for (size_t j = 0; j < COLUMNAS; ++j) {
+        suma += matriz[i][j];
+    }
+}
+```
+
+Perfilado con Ferro:
+
+```{code-block} bash
+ferro profile matriz.c --cache
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Tasa de aciertos de caché L1D: 98.4%
+[✓] Ciclos por elemento promediados: 1.1 ciclos
+[✓] Localidad espacial óptima
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Recorrido por columnas en bucle interno, destruyendo la localidad espacial en caché:
+
+```{code-block} c
+for (size_t j = 0; j < COLUMNAS; ++j) {
+    for (size_t i = 0; i < FILAS; ++i) {
+        suma += matriz[i][j]; // Salto de FILAS * sizeof(int) bytes en cada paso
+    }
+}
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA DE RENDIMIENTO: Tasa de fallos de caché L1D del 48.2%.
+[!] Penalización de rendimiento: 14.8x más lento que el acceso secuencial por filas.
+[!] Acción: intercambiá los lazos 'for (i)' y 'for (j)' para aprovechar la línea de caché.
+```
+
 (manual-ferro-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

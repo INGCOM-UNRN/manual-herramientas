@@ -338,6 +338,43 @@ memoria o arquitectura.
 
 ---
 
+(manual-dietrich-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Suite de pruebas que demuestra independencia de cada condición en `(A && B) || C`:
+
+```{code-block} bash
+dietrich verify control_acceso.c --test suite_acceso.c --mcdc
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Decisión 1: '(es_admin && clave_valida) || sesion_activa'
+[✓] Condición 'es_admin': demostró efecto independiente (MC/DC 100%)
+[✓] Condición 'clave_valida': demostró efecto independiente (MC/DC 100%)
+[✓] Condición 'sesion_activa': demostró efecto independiente (MC/DC 100%)
+[✓] Veredicto: COBERTURA_MCDC_COMPLETA (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Suite con pruebas redundantes que cubren ramas pero no demuestran independencia booleana:
+
+```{code-block} bash
+dietrich verify control_acceso.c --test suite_incompleta.c --mcdc
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA MC/DC: Cobertura del 66% en decisión línea 18.
+[!] La condición 'clave_valida' nunca fue evaluada con 'es_admin=TRUE' y 'sesion_activa=FALSE'.
+[!] Acción: sumá un caso de prueba donde 'clave_valida' cambie el resultado por sí sola.
+```
+
 (manual-dietrich-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

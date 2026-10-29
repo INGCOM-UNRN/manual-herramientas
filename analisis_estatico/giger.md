@@ -340,6 +340,44 @@ memoria o arquitectura.
 
 ---
 
+(manual-giger-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Código modular donde toda función implementada es alcanzable desde la interfaz pública:
+
+```{code-block} bash
+giger callgraph modulo.c --dead-code
+```
+
+Salida esperada:
+```{code-block} text
+[✓] Grafo de llamadas construido: 8 funciones analizadas
+[✓] 0 nodos inalcanzables detectados
+[✓] Cohesión modular verificada (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Funciones auxiliares privadas olvidadas en el `.c` que nunca se invocan:
+
+```{code-block} c
+static void limpiar_buffer_obsoleto(char *b) {
+    // Función que ya no se utiliza pero no fue borrada
+    memset(b, 0, 1024);
+}
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] INFRACCIÓN 0x4005h: Función estática 'limpiar_buffer_obsoleto' es inalcanzable.
+[!] Código muerto detectado: no existen aristas entrantes en el call-graph.
+[!] Acción: eliminá la función o integrala en el flujo de ejecución.
+```
+
 (manual-giger-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 

@@ -340,6 +340,42 @@ memoria o arquitectura.
 
 ---
 
+(manual-vassili-ejemplos)=
+## Ejemplos y Contraejemplos
+
+En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+
+### Ejemplo Válido (Patrón Recomendado)
+
+Suite de pruebas con aserciones estrictas que eliminan mutantes de límites y operadores:
+
+```{code-block} bash
+vassili mutate calculadora.c --test test_calculadora.c
+```
+
+Salida esperada:
+```{code-block} text
+[✓] 24 mutantes generados (operadores aritméticos, relacionales y constantes)
+[✓] Mutantes eliminados (killed): 24/24 (Mutation Score: 100%)
+[✓] Mutantes sobrevivientes: 0
+[✓] Veredicto: SUITE_ROBUSTA (exit 0)
+```
+
+### Contraejemplo (Antipatrón o Caso Infractor)
+
+Pruebas unitarias que ejecutan el código sin verificar el resultado (`tests placebo`):
+
+```{code-block} bash
+vassili mutate calculadora.c --test test_placebo.c
+```
+
+Diagnóstico emitido por la herramienta:
+```{code-block} text
+[!] ALERTA: Mutation Score deficiente: 25% (6/24 mutantes eliminados).
+[!] 18 mutantes sobrevivieron: mutación de '>' a '>=' en línea 15 no falló ningún test.
+[!] Acción: agregá aserciones específicas para los valores de frontera.
+```
+
 (manual-vassili-ejercicios)=
 ## 5. Ejercicios Prácticos y Desafíos
 
