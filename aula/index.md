@@ -13,5 +13,6 @@ Herramientas del perfil aula y docente orientadas a prácticas de laboratorio av
 
 ## Componentes de Aula
 
+* **[Construct](construct.md)**: IDE pedagógico y orquestador de máquina virtual (QEMU + Guest Debian) para estandarización de entornos en Linux, Windows y macOS.
 * **[Hardboiled](hardboiled.md)**: Emulador pedagógico bare-metal de microcontrolador RISC-V (RV32I) con periféricos mapeados en memoria (MMIO), temporizadores, pulsadores con rebote, UART y visualizador de terminal interactivo.
 * **[Uatu-Tools](uatu_tools.md)**: Herramientas docentes de administración criptográfica (`uatu-admin`) y auditoría forense (`uatu-audit`) para validación de telemetría y evidencia de exámenes.

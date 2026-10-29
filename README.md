@@ -11,7 +11,7 @@ A diferencia del `MANUAL_ESTUDIANTE` (orientado al entorno cotidiano del alumno 
 * **`ciclo_docente/`**: Guía integral del flujo de cursada (planificación didáctica con `deckard`, autoría de exámenes con `idkfa`/`alucarD`/`voight`, ingesta con `dredd`, evaluación masiva, detección de plagio Winnowing y coloquios).
 * **`autoria/`**: Satélites de autoría (`deckard`, `alucard`, `idkfa`, `voight`, `moodle_toolbox`, `myst_tools`, `keymaker`, `scorm_tools`, `tyrell`, `corbel`).
 * **`evaluacion/`**: Infraestructura de evaluación y gestión (`dredd`, `weyl`, `cyberdeck`, `meet_tools`, `slide_tools`, `gestion`, `p1_tools`).
-* **`aula/`**: Prácticas de laboratorio y control de exámenes (`hardboiled`, `uatu_tools`).
+* **`aula/`**: Entornos en VM, prácticas de laboratorio y control de exámenes (`construct`, `hardboiled`, `uatu_tools`).
 * **`diagnostico_avanzado/`**: Verificación formal y análisis de fallos (`callahan`, `dietrich`, `vasquez`, `vassili`).
 * **`analisis_estatico/`**: Satélites de cátedra para inspección profunda (`brett`, `crowe`, `drake`, `ferro`, `giger`, `holden`, `kane`, `motoko`, `parker`, `rachel`, `sebastian`, `wierzbowski`, `zhora`).
 

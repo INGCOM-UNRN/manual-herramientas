@@ -51,6 +51,7 @@ project:
     - title: "4. Infraestructura de Aula y Exámenes"
       children:
         - file: aula/index.md
+        - file: aula/construct.md
         - file: aula/hardboiled.md
         - file: aula/uatu_tools.md
     - title: "5. Diagnóstico Forense y Formal"

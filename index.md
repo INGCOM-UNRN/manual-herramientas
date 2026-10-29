@@ -20,7 +20,7 @@ A diferencia del [Manual del Estudiante](https://github.com/INGCOM-UNRN-P1/p1-to
 | **[1. Ciclo Docente](ciclo_docente/index.md)** | Arquitectura transversal del ciclo de cursada: planificación, exámenes, ingesta, autograding y actas. | `dredd`, `deckard`, `idkfa`, `weyl` |
 | **[2. Autoría Didáctica](autoria/index.md)** | Curaduría de guías según Taxonomía de Bloom, generación procedural de variantes, maquetación Typst y bancos Moodle. | `deckard`, `alucarD`, `idkfa`, `voight`, `myst-tools`, `tyrell`, `corbel`, `keymaker`, `scorm-tools` |
 | **[3. Evaluación y Gestión](evaluacion/index.md)** | Calificación masiva batch, ingesta Moodle ZIP / GitHub Classroom, detección de plagio Winnowing y telemetría. | `dredd`, `weyl`, `cyberdeck`, `meet-tools`, `slide-tools`, `gestion`, `p1-tools` |
-| **[4. Aula y Exámenes](aula/index.md)** | Emulación de hardware bare-metal RV32I con periféricos MMIO para prácticas avanzadas y auditoría forense criptográfica. | `hardboiled`, `uatu-tools` |
+| **[4. Aula y Exámenes](aula/index.md)** | Entornos reproducibles en VM (Linux, Windows, macOS), emulación de hardware bare-metal RV32I con MMIO y auditoría criptográfica. | `construct`, `hardboiled`, `uatu-tools` |
 | **[5. Diagnóstico Forense](diagnostico_avanzado/index.md)** | Verificación formal con contratos ACSL, cobertura lógica MC/DC, análisis de mutación e inyección dinámica de fallos POSIX. | `callahan`, `dietrich`, `vasquez`, `vassili` |
 | **[6. Análisis Estático](analisis_estatico/index.md)** | Satélites de cátedra para inspección estática profunda: alineación de structs, portabilidad, ABI, call graphs y macros. | `brett`, `crowe`, `drake`, `ferro`, `giger`, `holden`, `kane`, `motoko`, `parker`, `rachel`, `sebastian`, `wierzbowski`, `zhora` |
 
