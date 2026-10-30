@@ -1,0 +1,54 @@
+name: Despliegue MyST (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  BASE_URL: /${{ github.event.repository.name }}
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar MyST Markdown CLI
+        run: npm install -g mystmd
+
+      - name: Construir sitio HTML
+        run: myst build --html
+
+      - name: Subir artefacto para Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _build/html
+
+  desplegar:
+    if: github.event_name != 'pull_request'
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: despliegue
+        uses: actions/deploy-pages@v4
