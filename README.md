@@ -34,3 +34,7 @@ myst start
 ## Despliegue Continuo
 
 El sitio se compila y despliega automáticamente en GitHub Pages mediante GitHub Actions en cada push a la rama `main` (definido en `.github/workflows/deploy.yml`). El repositorio debe tener configurado en **Settings > Pages > Build and deployment > Source** la opción **GitHub Actions**.
+
+## Contacto
+
+Martín René Vilugrón - mrvilugron@unrn.edu.ar - Ingeniería en Computación UNRN Andina
