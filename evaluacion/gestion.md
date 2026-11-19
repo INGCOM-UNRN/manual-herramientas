@@ -1,71 +1,54 @@
 ---
 title: "gestion"
-subtitle: "Automatización de Calificaciones y Sincronización de Cátedra"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-09-14"
+subtitle: "Planilla de cátedra con Google Apps Script"
 ---
 
 (manual-gestion)=
-# gestion — Automatización de Calificaciones y Sincronización
+# gestion — Planilla de cátedra con Google Apps Script
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Sincronización bidireccional entre la base de datos de
-notas SQLite de Dredd, planillas de cálculo institucionales y registros
-académicos.
+Repositorio: [github.com/martinvilu/gestion](https://github.com/martinvilu/gestion).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+`gestion` es un proyecto de **Google Apps Script** asociado a una planilla de Google Sheets. No es una CLI ni se instala con `mother`: agrega a la planilla un menú **¡Magia!** con el que el equipo docente sigue las entregas de GitHub Classroom, sincroniza comentarios de corrección, administra permisos de los repositorios, envía correos por plantilla y trae la asistencia registrada en Supabase.
 
----
+## Instalación
 
-## 1. Propósito y Alcance
+El código se publica en el proyecto de Apps Script de la planilla con [`clasp`](https://github.com/google/clasp) (la configuración está en `.clasp.json`):
 
-Automatiza la consolidación de notas, seguimiento de entregas y generación de
-reportes de cursada sin intervención manual.
-
----
-
-## 2. Uso Básico
-
-``` bash
-# Sincronizar calificaciones locales con planilla docente
-gestion sync --db notas.db --sheet "P1-2026"
-```
-<!-- bash -->
-
-(manual-gestion-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Cierre y exportación de actas finales consolidadas con notas validadas:
-
-```{code-block} bash
-gestion actas exportar --comision 1 --periodo 2026-1C --salida actas_finales.csv
+```bash
+npm install -g @google/clasp
+clasp login
+clasp push
 ```
 
-Salida esperada:
-```{code-block} text
-[✓] 38 alumnos procesados para la Comisión 1
-[✓] Condición académica calculada: 12 Promocionados, 20 Regulares, 6 Libres
-[✓] Archivo exportado conforme al formato oficial UNRN: actas_finales.csv
-```
+Al abrir la planilla aparece el menú **¡Magia!**. La primera vez, **¡Magia! → Configuración → Inicialización → Inicializar TODO** crea la hoja `Configuración`, los rangos con nombre y las hojas de cada módulo.
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+## Configuración
 
-Exportación con discrepancia entre notas numéricas y condiciones académicas sin cerrar:
+- **Credenciales** (en las propiedades del usuario, no en la planilla): **Configuración → Setear GitHub API key**, y en **Configuración → Supabase** la URL, la tabla y las claves anónima y de servicio. Cada una tiene su opción para borrarla.
+- **Parámetros** (rangos con nombre de la hoja `Configuración`): organización de GitHub (`GH_ORG`), fecha de corte (`GH_CUTOFF`), prefijos de las prácticas (`TP_SLUGS`), cuentas docentes que se ignoran al listar permisos (`GH_IGNORED_USERS`), materia y remitente y respuesta de los correos (`MATERIA`, `EMAIL_REMITENTE`, `EMAIL_RESPUESTA`).
+- **Disparadores**: **Configuración → Instalar Triggers** programa las sincronizaciones de entregas, GitHub y Supabase con la frecuencia y el encendido que indican los rangos `TRIGGER_*`; **Borrar Triggers** los quita.
 
-```{code-block} bash
-gestion actas exportar --comision 1 --periodo 2026-1C --estricto
-```
+## Menú ¡Magia!
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ERROR: Inconsistencia en legajo 10452 (alumno sin nota de Parcial 2).
-[!] No es posible emitir un acta formal con estados pendientes o notas fuera de rango [1..10].
-[!] Acción: resolvé las notas faltantes en 'calificaciones.toml' antes de reintentar.
-```
+| Opción | Qué hace |
+| :-- | :-- |
+| Actualizar repositorios | Lista en la hoja `github` los repositorios de la organización configurada. |
+| Sincronizar Entregados | Pasa las filas nuevas de la hoja `entregas` a `correcciones`. |
+| Sincronizar Comentarios | Trae los comentarios de los Pull Requests de los repositorios en `correcciones`. |
+| Vista previa Markdown | Muestra renderizado el Markdown de la celda activa. |
+| Enviar correos | Envía los correos del rango `MAILER` con la plantilla `CUERPO_MAIL`; queda registro en `log_mailer`. |
+| Actualizar permisos | Vuelca los colaboradores y permisos de cada repositorio en la hoja `gh_perm`. |
+| Aplicar permisos | Aplica los permisos de `gh_perm` según la asignación de la hoja `practicas`. |
+| Sincronizar Asistencia | Copia la tabla de asistencia de Supabase en `asistencia_raw`. |
 
+## Aplicación web
+
+Publicado como aplicación web, el script responde a `GET`:
+
+- sin parámetros, un tablero de estado;
+- `?action=sync`, la sincronización de entregas;
+- `?action=track`, el registro de apertura de los correos enviados, en `log_aperturas`.
+
+## Relación con el resto del ecosistema
+
+`gestion` trabaja sobre la planilla y la API de GitHub; no lee la base `.metadata.db` de `dredd` ni sus informes. Las notas de una actividad se exportan desde `dredd` (`dredd export`, `dredd moodle export`, `dredd export-guarani`). El registro de mejoras pendientes y resueltas está en [`qol.md`](https://github.com/martinvilu/gestion/blob/main/qol.md).
