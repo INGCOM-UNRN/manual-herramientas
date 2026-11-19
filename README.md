@@ -21,6 +21,18 @@ El [catálogo por rol](catalogo_por_rol.md) reúne los componentes del manifiest
 
 ---
 
+## Páginas generadas
+
+Las páginas de cada herramienta se generan desde su README y desde la ayuda real de su CLI, con los repositorios clonados junto a este y su entorno creado (`uv sync`):
+
+```bash
+python3 scripts/generar_paginas.py actualizar            # todas
+python3 scripts/generar_paginas.py actualizar ferro      # una
+python3 scripts/generar_paginas.py verificar             # falla si alguna quedó desactualizada
+```
+
+Llevan la marca «Generado por scripts/generar_paginas.py»: los cambios se hacen en el README de la herramienta y se regenera. Se escriben a mano la portada, el catálogo por rol, los índices de sección, el manual integral del ciclo docente y la página de `gestion` (Apps Script, sin README).
+
 ## Compilación y Previsualización Local
 
 Para compilar y previsualizar el sitio con **MyST**:
