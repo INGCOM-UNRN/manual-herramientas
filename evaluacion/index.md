@@ -15,7 +15,7 @@ Infraestructura de cátedra para la calificación por lotes de entregas estudian
 
 * **[Dredd](dredd.md)**: Orquestador docente de evaluación masiva, ingesta recursiva de ZIPs de Moodle, clonado de GitHub Classroom, caché SHA-256 y publicación automática de devoluciones.
 * **[Weyl](weyl.md)**: Comparación textual de funciones C y detección de similitudes entre entregas; no construye un AST.
-* **[Cyberdeck](cyberdeck.md)**: Panel de control de aula y dispositivo companion físico para supervisión de tiempos y estados.
+* **[Cyberdeck](cyberdeck.md)**: Aplicación Android de periféricos para el emulador Hardboiled.
 * **[Meet-Tools](meet_tools.md)**: Telemetría, registro de asistencia y control automatizado en sesiones de Google Meet.
 * **[Slide-Tools](slide_tools.md)**: Control remoto, sincronización y seguimiento de presentaciones en Google Slides.
 * **[Gestión](gestion.md)**: Sincronización de calificaciones, asistencia y actas con sistemas académicos universitarios.
