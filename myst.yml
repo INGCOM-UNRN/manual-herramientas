@@ -24,6 +24,7 @@ project:
       ror: 048zgak80
   toc:
     - file: index.md
+    - file: catalogo_por_rol.md
     - title: "1. Ciclo Docente"
       children:
         - file: ciclo_docente/index.md

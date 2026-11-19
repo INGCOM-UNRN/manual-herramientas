@@ -7,11 +7,15 @@ subtitle: "Documentación integral del ciclo de cátedra, autoría pedagógica, 
 (manual-herramientas-docente)=
 # Manual del Ecosistema de Herramientas Docentes
 
-Este sitio aloja la documentación exhaustiva de las herramientas, flujos de trabajo y protocolos de la cátedra de **Programación 1 (UNRN Andina)** correspondientes al **perfil docente** y a la infraestructura de soporte académico (`docente`, `contenido`, `aula` y `analisis`).
+Este sitio aloja la documentación exhaustiva de las herramientas, flujos de trabajo y protocolos de la cátedra de **Programación 1 (UNRN Andina)** para estudiantes, docentes, autores de contenido y equipos de aula y análisis.
 
 A diferencia del [Manual del Estudiante](https://github.com/INGCOM-UNRN-P1/p1-tools/blob/main/MANUAL_ESTUDIANTE.md) (enfocado en el entorno cotidiano del alumno con GCC, Ripley, Daedalus y Gaff), este compendio reúne los componentes requeridos para la autoría didáctica, la síntesis anti-copia, la ingesta masiva de entregas, la evaluación automatizada y la verificación formal de software en C.
 
 ---
+
+## Catálogo por rol
+
+Consultá el [catálogo completo por rol](catalogo_por_rol.md) para encontrar herramientas y recursos de los perfiles estudiante, contenido, docente, aula y análisis, incluidos sus estados y enlaces a las referencias.
 
 ## Estructura del Sitio
 

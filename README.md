@@ -6,6 +6,10 @@ A diferencia del `MANUAL_ESTUDIANTE` (orientado al entorno cotidiano del alumno 
 
 ---
 
+## Catálogo por rol
+
+El [catálogo por rol](catalogo_por_rol.md) reúne los componentes del manifiesto de `p1-tools`, incluidos los perfiles de estudiante, contenido, docente, aula y análisis, con enlaces y estado.
+
 ## Estructura del Sitio
 
 * **`ciclo_docente/`**: Guía integral del flujo de cursada (planificación didáctica con `deckard`, autoría de exámenes con `idkfa`/`alucarD`/`voight`, ingesta con `dredd`, evaluación masiva, detección de plagio Winnowing y coloquios).
