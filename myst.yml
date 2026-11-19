@@ -36,7 +36,6 @@ project:
         - file: autoria/alucard.md
         - file: autoria/idkfa.md
         - file: autoria/voight.md
-        - file: autoria/moodle_toolbox.md
         - file: autoria/myst_tools.md
         - file: autoria/scorm_tools.md
         - file: autoria/tyrell.md

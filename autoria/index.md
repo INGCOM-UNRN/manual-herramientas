@@ -17,7 +17,6 @@ Herramientas destinadas al cuerpo docente para el diseño curricular, la redacci
 * **[Alucard](alucard.md)**: Generación y maquetación de exámenes presenciales en PDF con Typst, variantes barajadas y lectura óptica OMR.
 * **[Idkfa](idkfa.md)**: Generación procedural de variantes aleatorizadas de tracing y problemas en C con verificación por GCC embebido.
 * **[Voight](voight.md)**: Conversión bidireccional GIFT / Moodle XML, saneamiento tipográfico y validación estructural de bancos.
-* **[Moodle-Toolbox](moodle_toolbox.md)**: Validación e higiene de preguntas y categorías GIFT y Moodle XML.
 * **[MyST-Tools](myst_tools.md)**: Mantenimiento, linters pedagógicos y compilación de libros de cátedra y apuntes MyST.
 * **[SCORM-Tools](scorm_tools.md)**: Empaquetado e interoperabilidad SCORM 1.2 / 2004 para campus virtuales.
 * **[Tyrell](tyrell.md)**: Generación determinista de casos de prueba de entrada y salida.

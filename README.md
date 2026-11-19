@@ -13,7 +13,7 @@ El [catálogo por rol](catalogo_por_rol.md) reúne los componentes del manifiest
 ## Estructura del Sitio
 
 * **`ciclo_docente/`**: Guía integral del flujo de cursada (planificación didáctica con `deckard`, autoría de exámenes con `idkfa`/`alucarD`/`voight`, ingesta con `dredd`, evaluación masiva, detección de plagio Winnowing y coloquios).
-* **`autoria/`**: Satélites de autoría (`deckard`, `alucard`, `idkfa`, `voight`, `moodle_toolbox`, `myst_tools`, `scorm_tools`, `tyrell`, `corbel`).
+* **`autoria/`**: Satélites de autoría (`deckard`, `alucard`, `idkfa`, `voight`, `myst_tools`, `scorm_tools`, `tyrell`, `corbel`).
 * **`evaluacion/`**: Infraestructura de evaluación y gestión (`dredd`, `weyl`, `cyberdeck`, `meet_tools`, `slide_tools`, `gestion`, `p1_tools`).
 * **`aula/`**: Entornos en VM, prácticas de laboratorio y control de exámenes (`construct`, `hardboiled`, `uatu_tools`).
 * **`diagnostico_avanzado/`**: Verificación formal y análisis de fallos (`callahan`, `dietrich`, `tetsuo`, `vasquez`, `vassili`).
