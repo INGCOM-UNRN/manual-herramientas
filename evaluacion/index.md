@@ -13,10 +13,10 @@ Infraestructura de cátedra para la calificación por lotes de entregas estudian
 
 ## Satélites de Evaluación y Gestión
 
-* **[Dredd](dredd.md)**: Orquestador docente de evaluación masiva, ingesta recursiva de ZIPs de Moodle, clonado de GitHub Classroom, caché SHA-256 y publicación automática de devoluciones.
-* **[Weyl](weyl.md)**: Comparación textual de funciones C y detección de similitudes entre entregas; no construye un AST.
-* **[Cyberdeck](cyberdeck.md)**: Aplicación Android de periféricos para el emulador Hardboiled.
-* **[Meet-Tools](meet_tools.md)**: Telemetría, registro de asistencia y control automatizado en sesiones de Google Meet.
-* **[Slide-Tools](slide_tools.md)**: Control remoto, sincronización y seguimiento de presentaciones en Google Slides.
-* **[Gestión](gestion.md)**: Sincronización de calificaciones, asistencia y actas con sistemas académicos universitarios.
-* **[P1-Tools](p1_tools.md)**: Meta-repositorio de cátedra, manifiesto del ecosistema (`ecosistema.toml`) y orquestación integral de infraestructura.
+* **[dredd](dredd.md)**: Orquestador docente de evaluación masiva: ingesta de entregas de Moodle y GitHub Classroom, corrección con el toolchain de la cátedra, similitud Winnowing, devoluciones y exportación de notas.
+* **[weyl](weyl.md)**: Comparación de código C función por función contra la solución modelo (extracción textual) y similitud estructural sobre el AST de Tree-Sitter (`weyl similarity`, `weyl cohort`).
+* **[cyberdeck](cyberdeck.md)**: Aplicación Android de periféricos (sensores y pulsadores) para placas emuladas con `hardboiled --remote`.
+* **[meet-tools](meet_tools.md)**: Control remoto de Google Meet (micrófono, cámara, mano, admitir, silenciar) desde el teléfono o hardware Wi-Fi, con una extensión de navegador y un daemon local.
+* **[slide-tools](slide_tools.md)**: Control remoto de Google Slides (avance, pantalla negra, láser, temporizador) desde el teléfono o hardware Wi-Fi, con una extensión de navegador y un daemon local.
+* **[gestion](gestion.md)**: Planilla de cátedra en Google Apps Script: entregas de GitHub Classroom, comentarios de PR, permisos, correos y asistencia.
+* **[p1-tools](p1_tools.md)**: Repositorio central del ecosistema: manifiesto (`ecosistema.toml`), lineamientos, scripts de clonado, instalación y salud, y manuales.

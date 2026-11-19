@@ -1,76 +1,130 @@
 ---
 title: "p1-tools"
-subtitle: "Meta-Repositorio y Orquestación Global del Ecosistema"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-09-14"
+subtitle: "Ecosistema de herramientas pedagógicas de C"
 ---
 
-(manual-p1-tools)=
-# p1-tools — Meta-Repositorio y Orquestación Global del Ecosistema
+<!-- Generado por scripts/generar_paginas.py desde p1-tools@888a3d0: no editar a mano. -->
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Repositorio central de gobernanza arquitectónica,
-sincronización de submódulos git, directivas de desarrollo, skills pedagógicas y
-auditoría de salud.
+(manual-p1_tools)=
+# p1-tools — Ecosistema de herramientas pedagógicas de C
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+Repositorio: [github.com/INGCOM-UNRN-P1/toolbox](https://github.com/INGCOM-UNRN-P1/toolbox).
 
----
+## Programación 1 — UNRN Andina
 
-## 1. Propósito y Alcance
+Bienvenido al repositorio central de documentación, gestión global y manuales operativos del ecosistema de herramientas pedagógicas de **Programación 1**.
 
-Coordina las 46 herramientas del ecosistema, provee scripts de clonación masiva
-(`scripts/sync.sh`), linters de coherencia documental y lineamientos normativos
-de cátedra.
+Este repositorio contiene:
+* La documentación técnica y funcional de todas las herramientas creadas por la cátedra ([`./ecosistema/`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/index.md)).
+* Los scripts de automatización para clonación, instalación y auditoría de salud del toolbox ([`./scripts/`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/scripts/)).
+* Las definiciones de skills pedagógicas para agentes de inteligencia artificial ([`./skills/`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/skills/)).
+* Las directivas y estándares arquitectónicos obligatorios para la incorporación de nuevas herramientas ([`LINEAMIENTOS.md`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/LINEAMIENTOS.md)).
+* El manual de uso para estudiantes ([`MANUAL_ESTUDIANTE.md`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/MANUAL_ESTUDIANTE.md)).
+* El manual para el equipo docente ([`MANUAL_DOCENTE.md`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/MANUAL_DOCENTE.md)).
 
 ---
 
-## 2. Uso Básico
+## Inicio Rápido (Quickstart)
 
-``` bash
-# Auditar salud y versiones de todos los repositorios satélites
-./scripts/healthcheck.sh
+Podés poner a punto toda la estación de trabajo y el ecosistema completo en cuatro pasos ejecutados desde la raíz de este repositorio:
 
-# Desplegar actualizaciones a los entornos de desarrollo
-./scripts/sync.sh
+### 1. Clonar o sincronizar todos los repositorios de herramientas
+```bash
+./scripts/clone_repos.sh
 ```
-<!-- bash -->
+*Clona los repositorios listados en [`ecosistema.toml`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema.toml) (herramientas, plantillas, librerías y documentación) o los actualiza con fast-forward si ya existen.*
 
-(manual-p1-tools-ejemplos)=
-## Ejemplos y Contraejemplos
+### 2. Instalar las herramientas CLI en tu sistema
+```bash
+./scripts/install_tools.sh
+```
+*Delega en `mother instalar --todo --local <dev/tools> --editable`: instala cada herramienta en modo editable desde los clones (con `uv tool install --editable`) y registra el autocompletado en tu shell (bash/zsh). Sin clonar nada, `mother instalar --perfil <perfil>` instala desde git.*
 
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
+### 3. Instalar las skills pedagógicas para agentes de IA
+```bash
+./scripts/install_skills.sh
+```
+*Despliega las skills pedagógicas de [`skills/`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/skills/) en las rutas estándar de Gemini (`~/.gemini/config/skills/`), Claude y agentes locales.*
 
-### Ejemplo Válido (Patrón Recomendado)
+### 4. Auditar la salud del entorno
+```bash
+./scripts/health_check.sh
+```
+*Delega en `mother doctor` (acepta `--perfil` y `--json`): el diagnóstico agregado de python, uv, git y el `doctor` de cada herramienta, que comprueba compiladores (`gcc`), depuradores (`gdb`), memoria (`valgrind`), linters (`clang-format`) y tipografía (`typst`), con cómo resolver lo que falta.*
 
-Verificación estructural de integridad de todos los repositorios declarados en `ecosistema.toml`:
+---
 
-```{code-block} bash
-python3 scripts/ecosistema.py verificar
+## Documentación y Manuales
+
+| Documento | Audiencia | Propósito |
+| :--- | :--- | :--- |
+| [**`MANUAL_ESTUDIANTE.md`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/MANUAL_ESTUDIANTE.md) | **Estudiantes** | Flujo diario de resolución, linter de estilo con `gaff`, detección de antipatrones con `spunkmeyer`, traducción de errores con `daedalus`, trazado de memoria con `bishop`, diagnóstico de segfaults con `hal` y chequeo final con `ripley`. |
+| [**`MANUAL_DOCENTE.md`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/MANUAL_DOCENTE.md) | **Docentes** | Planificación didáctica con `deckard`, generación procedural de exámenes con `idkfa`, maquetación en Typst con `alucarD`, ingesta de entregas Moodle/GitHub, evaluación masiva con `dredd`, detección de plagio Winnowing y publicación de notas. |
+| [**`LINEAMIENTOS.md`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/LINEAMIENTOS.md) | **Desarrolladores** | Convenciones de arquitectura, Typer + Rich, subcomando `doctor`, banderas estándar (`--json`, `--version`), pruebas de fallo deliberado, Conventional Commits y estándares de código en español rioplatense. |
+| [**`ecosistema/index.md`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/index.md) | **General** | Catálogo taxonómico exhaustivo con la ficha detallada de cada una de las 38 herramientas de la cátedra. |
+
+---
+
+## Catálogo Resumido de Herramientas
+
+### Linters, Estilo y Calidad de Código
+* [**`gaff`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/gaff.md): Linter de estilo y convenciones arquitectónicas (indentación x4, un solo return, snake_case, nombres sin sufijos numéricos).
+* [**`spunkmeyer`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/spunkmeyer.md): Detector de antipatrones didácticos C (`while(!feof())`, malloc casts, punteros colgantes).
+* [**`ripley`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/ripley.md): Motor pedagógico central y validador de reglas `0xXXXXh` de cátedra.
+* [**`corbel`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/corbel.md): Normalizador de preprocesador y formato estandarizado de código.
+* [**`dietrich`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/dietrich.md): Linter de inclusión mínima de encabezados (`#include`).
+* [**`parker`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/parker.md): Auditor de macros y constantes `#define`.
+
+### Compilación y Diagnóstico Pedagógico
+* [**`daedalus`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/daedalus.md): Compilador estricto C11 (`-Wall -Wextra -Werror -pedantic`) con traducción de diagnósticos a español rioplatense.
+* [**`hal`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/hal.md): Diagnóstico pedagógico de segfaults (`SIGSEGV`), abortos (`SIGABRT`) y core dumps.
+* [**`esper`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/esper.md): **retirado**; lo reemplaza `daedalus`, que explica los diagnósticos de GCC.
+
+### Memoria, Structs y Bajo Nivel
+* [**`bishop`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/bishop.md): Trazador e inspector visual de Stack Frames, Heap y relaciones de punteros en tablas ASCII y Mermaid.
+* [**`brett`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/brett.md): Auditor de padding y alineación de structs C con cálculo de reordenamiento óptimo de memoria.
+* [**`sebastian`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/sebastian.md): Analizador de funciones recursivas, profundidad de pila y riesgo de desborde de stack.
+* [**`zhora`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/zhora.md): Auditor de fugas de descriptores de archivos (`fclose`).
+* [**`rachel`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/rachel.md): Desensamblador y comparador de costo computacional (`switch` vs `if-else`).
+* [**`giger`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/giger.md): Analizador de Call Graphs (árbol de llamadas) y grafos de flujo de control (CFG).
+
+### Seguridad y Ejecución en Sandbox
+* [**`kaneda`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/kaneda.md): Auditor de seguridad estática (bloqueo de `gets`, `strcpy`, `sprintf`, `scanf` sin límite de ancho).
+* [**`nostromo`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/nostromo.md): Sandbox aislado de ejecución mediante Bubblewrap y `setrlimit`.
+* [**`callahan`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/callahan.md): Verificación formal de contratos ACSL con Frama-C WP.
+
+### Testing y Fuzzing
+* [**`drake`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/drake.md): Fuzzer guiado por valores de frontera (`INT_MAX`, `INT_MIN`, desbordes).
+* [**`holden`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/holden.md): Generador de mocks e inyector determinista de fallos de memoria e I/O.
+* [**`vassili`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/vassili.md): Analizador de cobertura de código para suites de pruebas.
+
+### Evaluación Masiva y Autograding Docente
+* [**`dredd`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/dredd.md): Orquestador masivo de corrección para Moodle y GitHub Classroom, sin `git pull` destructivo, con carpetas `i_<shorthash>/` y detección de plagio por huellas de Winnowing.
+* [**`weyl`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/weyl.md): Comparador estructural y semántico de AST contra la solución canónica.
+
+### Autoría de Guías y Exámenes
+* [**`deckard`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/deckard.md): Autoría y calibración horaria de guías de trabajos prácticos bajo Taxonomía de Bloom.
+* [**`idkfa`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/idkfa.md): Generador procedural de exámenes de tracing en C con GCC embebido para Moodle XML.
+* [**`alucarD`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/alucarD.md): Sintetizador tipográfico de exámenes impresos en Typst con hojas de respuesta OMR.
+* [**`voight`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/voight.md): Conversión bidireccional GIFT ↔ Moodle XML y mantenimiento de bancos de preguntas.
+* [**`myst-tools`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema/myst-tools.md): Gestión y compilación de libros didácticos en MyST Markdown.
+
+---
+
+## Integración de Nuevas Herramientas
+
+Para agregar una nueva herramienta al ecosistema, consultá la guía paso a paso en [**`LINEAMIENTOS.md`**](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/LINEAMIENTOS.md).
+El procedimiento incluye la creación del paquete con `typer` + `rich`, la implementación obligatoria de `<herramienta> doctor`, la redacción del manual en `ecosistema/<herramienta>.md`, la creación de la skill en `skills/<herramienta>/SKILL.md` y su registro en [`ecosistema.toml`](https://github.com/INGCOM-UNRN-P1/toolbox/blob/main/ecosistema.toml) (de ahí lo toman los scripts de clonado, instalación y salud, y el CI; `python3 scripts/ecosistema.py verificar` controla que el manifiesto coincida con los repos).
+
+Estado del ecosistema de un vistazo:
+
+```bash
+python3 scripts/ecosistema.py tablero              # versión, último tag (≠ si no es la del pyproject), commits desde el tag, sin push, sin commitear, último commit
+python3 scripts/ecosistema.py tablero --ci         # + último CI de main, en Linux y Windows (con gh)
+python3 scripts/ecosistema.py tablero --perfil aula --json
+python3 scripts/ecosistema.py verificar --estricto # lo que corre el CI de los lunes: además, repos sin clonar y pines a commits que no existen
 ```
 
-Salida esperada:
-```{code-block} text
-[✓] Manifiesto ecosistema.toml validado: 40 repositorios auditados
-[✓] URLs de origen conforme a la organización oficial INGCOM-UNRN-P1
-[✓] Todos los perfiles declarados son válidos
-[✓] Cero dependencias con rutas locales absolutas
-```
+Y por otro lado, ¡se aceptan contribuciones!
 
-### Contraejemplo (Antipatrón o Caso Infractor)
-
-Declaración de un repositorio con URL a PyPI o ruta absoluta a la máquina del docente:
-
-```{code-block} bash
-python3 scripts/ecosistema.py verificar
-```
-
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ERROR N-ECO-21: 'deckard' declara url con ruta local absoluta '/home/mrtin/dev/tools/deckard'.
-[!] Las dependencias deben declararse exclusivamente como 'git+https://github.com/INGCOM-UNRN-P1/...'.
-[!] Verificación fallida con código de salida 1.
-```
-
+Generado desde [`p1-tools@888a3d0`](https://github.com/INGCOM-UNRN-P1/toolbox/tree/888a3d0).
