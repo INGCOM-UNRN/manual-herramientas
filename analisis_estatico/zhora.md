@@ -1,565 +1,237 @@
 ---
 title: "zhora"
-subtitle: "Zhora — Linter y Auditor de Seguridad en Macros del Preprocesador #define"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Linter y Auditor de Seguridad en Macros C (#define)"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde zhora@72ea080: no editar a mano. -->
 
 (manual-zhora)=
-# Zhora — Linter y Auditor de Seguridad en Macros del Preprocesador #define
+# zhora — Linter y Auditor de Seguridad en Macros C (#define)
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Auditoría de seguridad y buenas prácticas en macros de
-C: detección de parámetros sin paréntesis defensivos `(x)`, efectos colaterales
-en argumentos (`MACRO(i++)`), macros con sentencias múltiples sin bloque `do {
-... } while(0)` y sugerencia de funciones `inline` / `enum`.
+Repositorio: [github.com/INGCOM-UNRN-P1/zhora](https://github.com/INGCOM-UNRN-P1/zhora).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**ZHORA** audita macros del preprocesador C para detectar efectos de lado en evaluación múltiple de parámetros, falta de paréntesis defensivos en argumentos y cuerpos, y puntos y coma espurios.
 
 ---
 
-(manual-zhora-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`zhora`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Linter pedagógico y auditor de seguridad de macros del preprocesador en C (`#define`, reglas `ZH001` a `ZH005`).
+- Verificación defensiva de paréntesis en parámetros y cuerpo de macros (`ZH003`, `ZH004`).
+- Detección de puntos y coma espurios al final de definiciones de macros (`ZH001`).
+- Detección de efectos colaterales indeseados por evaluación múltiple de argumentos en llamadas a macros (`ZH002`).
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Auditoría de inclusión de cabeceras o dependencias circulares (delegado a `wierzbowski`).
+- Traducción de errores del compilador tras la fase de preprocesamiento (delegado a `daedalus` / `esper`).
+- Ejecución de código (delegado a `nostromo`).
 
 ---
 
-(manual-zhora-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- Ninguno obligatorio (análisis estático con Tree-Sitter AST).
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `zhora`. Plugin registrado en `ripley.plugins` (`macro_security`).
 
 ---
 
-### 2.2 Métodos de Instalación de `zhora`
+## Uso Rápido
 
-Podés instalar `zhora` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# Auditar macros en archivos y carpetas
+zhora audit src/
+zhora check src/
 
-::::{tab-set}
+# Generar informe en formato Markdown
+zhora report src/
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# Salida estructurada JSON
+zhora audit src/ --json
 ```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Reglas Auditadas
 
-La interfaz CLI de `zhora` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+- **`ZH001`**: Macros que finalizan con punto y coma (`;`), rompiendo sentencias `if/else`.
+- **`ZH002`**: Parámetros evaluados más de una vez (riesgo de side effects con `x++`).
+- **`ZH003`**: Parámetros de macro no envueltos individualmente en paréntesis `(x)`.
+- **`ZH004`**: Cuerpo de expresión matemática no protegido con paréntesis externos.
+- **`ZH005`**: Macros de varias sentencias (o con un bloque `{ }` suelto) sin `do { ... } while (0)`: dentro de un `if` sin llaves solo la primera sentencia queda condicionada.
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-zhora --install-completion
+En `ZH002`, `ZH003` y `ZH004` el hallazgo trae además la función `static inline` equivalente
+(`suggested_inline` en el JSON), con `int` como tipo provisorio para ajustar.
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+## Referencia rápida
 
-````
-<!-- {code-block} bash -->
+### Requisitos
 
----
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-### 2.4 Verificación del Entorno con `doctor`
+### Comandos
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+| Comando | Descripción |
+|:--|:--|
+| `zhora check`, `zhora audit` | Audita macros #define en busca de efectos de lado, falta de paréntesis o puntos y coma. |
+| `zhora report` | Genera directamente la sección de reporte Markdown de ZHORA para Dredd. |
+| `zhora catalog`, `zhora rules` | Muestra el catálogo oficial de reglas de macros de ZHORA y su mapeo al namespace de cátedra. |
+| `zhora doctor` | Verifica el estado del entorno de auditoría de macros ZHORA (Tree-Sitter C, Python). |
 
-````{code-block} bash
-zhora doctor
+Ayuda de cada comando: `zhora <comando> -h`.
 
-````
-<!-- {code-block} bash -->
+### Salida JSON
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `zhora check`, `zhora audit`, `zhora catalog`, `zhora rules`, `zhora doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-#### Matriz de Resolución de Problemas:
+### Códigos de salida
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-zhora-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `zhora`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `zhora audit include/ src/` | Audita todas las macros `#define` buscando vulnerabilidades de precedencia. |
-| `zhora fix include/macros.h` | Agrega automáticamente paréntesis defensivos a los parámetros de macros. |
-| `zhora to-inline include/macros.h` | Convierte macros complejas en funciones estáticas inline tipadas. |
-| `zhora doctor` | Verifica analizadores de preprocesador C. |
+:::{dropdown} `zhora`
+:open:
 
-::::{tip}
+```text
+ Uso: zhora [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Linter y auditor de seguridad en macros del preprocesador C (#define)
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-zhora-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Macro insegura: falta de paréntesis y doble evaluación de argumentos
-#define CUADRADO_MAL(x) x * x
-#define MAX_MAL(a, b) ((a) > (b) ? (a) : (b))
-
-// Invocaciones problemáticas:
-// CUADRADO_MAL(1 + 2) expande a: 1 + 2 * 1 + 2 = 5 (esperado: 9)
-// MAX_MAL(i++, j) evalúa 'i++' dos veces si 'a > b'
-
-// Macro segura auditada por Zhora:
-#define CUADRADO_BIEN(x) ((x) * (x))
-// O preferiblemente función inline:
-static inline int cuadrado(int x) { return x * x; }
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-zhora audit include/ src/
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-⚠️ ZHORA PREPROCESSOR SECURITY REPORT:
-┌─────────────────┬────────────────────────────────────────────────────────┐
-│ Ubicación       │ Diagnóstico de Seguridad y Sugerencia                  │
-├─────────────────┼────────────────────────────────────────────────────────┤
-│ macros.h:2:9    │ Macro 'CUADRADO_MAL': Parámetro 'x' sin paréntesis.    │
-│                 │ 'x * x' fallará ante expresiones compuestas (1 + 2).   │
-│ macros.h:3:9    │ Macro 'MAX_MAL': Doble evaluación de 'a'. Riesgo grave │
-│                 │ ante argumentos con efectos colaterales (i++).         │
-└─────────────────┴────────────────────────────────────────────────────────┘
-💡 Ejecutá 'zhora fix include/macros.h' para agregar paréntesis protectores.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-zhora-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Macro multisentencia encapsulada en `do { ... } while(0)` con parámetros entre paréntesis:
-
-```{code-block} c
-#define INTERCAMBIAR(a, b, tipo) do { \
-    tipo _tmp = (a);                  \
-    (a) = (b);                        \
-    (b) = _tmp;                       \
-} while(0)
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de zhora y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check    Audita macros #define en busca de efectos de lado, falta de paréntesis o puntos y coma. │
+│ audit    Audita macros #define en busca de efectos de lado, falta de paréntesis o puntos y coma. │
+│ report   Genera directamente la sección de reporte Markdown de ZHORA para Dredd.                 │
+│ catalog  Muestra el catálogo oficial de reglas de macros de ZHORA y su mapeo al namespace de     │
+│          cátedra.                                                                                │
+│ rules    Muestra el catálogo oficial de reglas de macros de ZHORA y su mapeo al namespace de     │
+│          cátedra.                                                                                │
+│ doctor   Verifica el estado del entorno de auditoría de macros ZHORA (Tree-Sitter C, Python).    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría de preprocesador con Zhora:
+:::{dropdown} `zhora check`
 
-```{code-block} bash
-zhora audit utilidades.h
+```text
+ Uso: zhora check [OPCIONES] {paths}...
+
+ Audita macros #define en busca de efectos de lado, falta de paréntesis o puntos y coma.
+
+ Exit code: 1 solo si hay hallazgos de severidad ERROR (ZH001, ZH003); los `WARNING`
+ (ZH002, ZH004) se informan pero salen con 0.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Macro 'INTERCAMBIAR' protegida con 'do { ... } while(0)'
-[✓] Todos los parámetros formales encerrados entre paréntesis
-[✓] Segura ante sentencias 'if (cond) INTERCAMBIAR(x, y, int); else ...'
+:::{dropdown} `zhora audit`
+
+```text
+ Uso: zhora audit [OPCIONES] {paths}...
+
+ Audita macros #define en busca de efectos de lado, falta de paréntesis o puntos y coma.
+
+ Exit code: 1 solo si hay hallazgos de severidad ERROR (ZH001, ZH003); los `WARNING`
+ (ZH002, ZH004) se informan pero salen con 0.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `zhora report`
 
-Macro aritmética sin paréntesis que altera la precedencia de operadores:
+```text
+ Uso: zhora report [OPCIONES] {paths}...
 
-```{code-block} c
-#define CUADRADO(x) x * x
+ Genera directamente la sección de reporte Markdown de ZHORA para Dredd.
 
-// Invocación: int r = CUADRADO(2 + 3);
-// Expansión: 2 + 3 * 2 + 3 = 2 + 6 + 3 = 11  (¡Esperado: 25!)
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x400Ch: Macro 'CUADRADO' no encierra sus argumentos entre paréntesis.
-[!] Riesgo de precedencia de operadores: 'CUADRADO(2 + 3)' evalúa a 11 en lugar de 25.
-[!] Acción: redefiní la macro como '#define CUADRADO(x) ((x) * (x))'.
+:::{dropdown} `zhora catalog`
+
+```text
+ Uso: zhora catalog [OPCIONES]
+
+ Muestra el catálogo oficial de reglas de macros de ZHORA y su mapeo al namespace de cátedra.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json  -j        Emite el catálogo de reglas de macros en formato JSON versionado.              │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-zhora-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `zhora rules`
 
-Practicá el uso avanzado de **`zhora`** resolviendo los siguientes ejercicios:
+```text
+ Uso: zhora rules [OPCIONES]
 
-::::{exercise} Desafío 1: Auditoría de Macros en Headers de Utilidad
-:label: zhora-desafio-1
-Escanear `include/util.h` y encontrar macros propensas a errores de precedencia.
+ Muestra el catálogo oficial de reglas de macros de ZHORA y su mapeo al namespace de cátedra.
 
-**Instrucción de ejecución:**
-``` bash
-zhora audit include/util.h
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json  -j        Emite el catálogo de reglas de macros en formato JSON versionado.              │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Auditoría de Macros en Headers de Utilidad -->
+:::{dropdown} `zhora doctor`
 
-::::{solution} zhora-desafio-1
+```text
+ Uso: zhora doctor [OPCIONES]
 
-``` bash
-zhora audit include/util.h
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Verifica el estado del entorno de auditoría de macros ZHORA (Tree-Sitter C, Python).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} zhora-desafio-1 -->
-
-::::{exercise} Desafío 2: Auto-Protección de Parámetros con Paréntesis
-:label: zhora-desafio-2
-Corregir automáticamente `#define MULT(a, b) a * b` por `((a) * (b))`.
-
-**Instrucción de ejecución:**
-``` bash
-zhora fix include/util.h
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Auto-Protección de Parámetros con Paréntesis -->
-
-::::{solution} zhora-desafio-2
-
-``` bash
-zhora fix include/util.h
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} zhora-desafio-2 -->
-
-::::{exercise} Desafío 3: Migración de Macros a Funciones `inline`
-:label: zhora-desafio-3
-Reemplazar macros con efectos colaterales por funciones `static inline` con
-chequeo de tipos.
-
-**Instrucción de ejecución:**
-``` bash
-zhora to-inline include/matematica.h
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Migración de Macros a Funciones `inline` -->
-
-::::{solution} zhora-desafio-3
-
-``` bash
-zhora to-inline include/matematica.h
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} zhora-desafio-3 -->
-
----
-
-(manual-zhora-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `zhora` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-zhora:
-	@echo "=== Ejecutando verificación con zhora ==="
-	zhora check src/ include/
-
-.PHONY: check-zhora
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-zhora` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-zhora-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`zhora`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Clang Macro Expander + Preprocessor Security Tokenizer
-  + Inline Function Transformer`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-zhora-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`zhora`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    HDR[include/*.h: Macros #define] --> ZHO[Zhora: Auditor de Macros]
-    ZHO -->|Detección de Falta de Paréntesis| EXP[Clang Macro Expander]
-    ZHO -->|Inyección de Paréntesis Protectores| GAF[Gaff: Formateo y Estilo]
-    ZHO -->|Transformación a static inline| CRB[Corbel: Documentación de APIs]
-    ZHO -->|Reglas de Preprocesador 0x4000h| RIP[Ripley: Microkernel de Reglas]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Macros #define en headers y código C` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `ripley (reglas 0x4000h de macros)`
-- `corbel (funciones inline tipadas)` | Informes Markdown, diagnósticos Rich,
-  JSON, actas |
-| **Sincronización** | `ripley`, `corbel`, `gaff` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `zhora` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-zhora audit include/macros.h && zhora fix include/macros.h
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-zhora-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `zhora`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`zhora@72ea080`](https://github.com/INGCOM-UNRN-P1/zhora/tree/72ea080).

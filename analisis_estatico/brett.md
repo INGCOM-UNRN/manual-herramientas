@@ -1,562 +1,227 @@
 ---
 title: "brett"
-subtitle: "Brett — Auditor de Memoria, Padding y Layout Óptimo de Structs en C"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Auditor de Padding y Alineación de Estructuras C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde brett@b582c7e: no editar a mano. -->
 
 (manual-brett)=
-# Brett — Auditor de Memoria, Padding y Layout Óptimo de Structs en C
+# brett — Auditor de Padding y Alineación de Estructuras C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Auditoría de alineación de memoria, cálculo de bytes
-desperdiciados por padding y reordenamiento automático de campos.
+Repositorio: [github.com/INGCOM-UNRN-P1/brett](https://github.com/INGCOM-UNRN-P1/brett).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+BRETT analiza la disposición en memoria (`Memory Layout`) de tipos de datos compuestos (`struct`, con o sin `typedef`) en C, mide con el compilador los bytes de relleno (`padding`) desperdiciados por desalineación de campos y genera sugerencias automáticas de reordenamiento para minimizar el tamaño de las estructuras.
 
 ---
 
-(manual-brett-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`brett`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Auditoría estática y cálculo del layout de memoria de `typedef struct` en C.
+- Determinación de offsets de cada campo, tamaño total del tipo y requerimientos de alineación (`alignof`).
+- Identificación y cuantificación de bytes de padding desperdiciados por desalineación de campos.
+- Generación de propuestas de reordenamiento óptimo de campos para minimizar el consumo de memoria.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Decodificación de archivos binarios estructurados en disco con endianness específico (delegado a `kane`).
+- Auditoría de visibilidad y ABI en bibliotecas compartidas (delegado a `parker`).
+- Publicación directa en servidor LSP en vivo (delegado a `ripley`).
 
 ---
 
-(manual-brett-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma (Linux, Windows, macOS). Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- Ninguno obligatorio (análisis estático basado en AST Tree-Sitter).
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `brett`. Plugin registrado en `ripley.plugins` bajo el identificador `padding`.
 
 ---
 
-### 2.2 Métodos de Instalación de `brett`
+## Uso Rápido
 
-Podés instalar `brett` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# 1. Auditar estructuras en archivos C o cabeceras H
+brett audit src/ main.h
 
-::::{tab-set}
+# 2. Reordenar los campos que desperdician memoria: emite el diff (o --aplicar lo escribe)
+brett optimize tipos.h | patch -p1
+brett optimize tipos.h --codigo   # el struct optimizado con sus offsets
 
-:::{tab-item} uv tool (Recomendado)
+# 3. Generar reporte consolidado Markdown
+brett report src/
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+# 4. Salida estructurada JSON
+brett audit src/ --json
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# 5. En el CI de una actividad: fallar solo si reordenando se ahorran 16 bytes o más
+brett audit src/ --fail-on 16
+
+# 6. Con los tamaños de otra ABI (la de Windows, donde long ocupa 4 bytes)
+brett audit src/ --abi x86_64-windows
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+`brett optimize` reescribe sólo los structs en los que reordenar ahorra bytes: ordena sus campos de
+mayor a menor alineación conservando el texto de cada declaración y sus comentarios (una declaración
+con varios campos, `char a, b;`, se separa en una por campo) y emite el diff unificado del archivo.
 
-:::{tab-item} pip / venv
+**ABI** (`--abi`): los tamaños y alineaciones de los tipos primitivos salen de una sola tabla,
+`brett.core.layout.ABIS`: `x86_64` (por omisión), `aarch64` y `riscv64` (Linux LP64: coinciden en
+los tipos primitivos), `x86_64-windows` (LLP64 de MinGW/MSYS2: `long` de 4 bytes) e `i386` (ILP32:
+punteros de 4 bytes y `double` alineado a 4). Es la tabla que leen kane y bishop al fijar esta versión de brett.
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+El cálculo de offsets y relleno (`brett.core.layout.disponer`) es el único del ecosistema: kane lo
+usa para leer los registros de un archivo binario con los mismos offsets que reporta brett.
 
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
+## Referencia rápida
 
-:::
-<!-- {tab-item} pip / venv -->
+### Requisitos
 
-:::{tab-item} pipx
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
+### Comandos
 
-:::
-<!-- {tab-item} pipx -->
+| Comando | Descripción |
+|:--|:--|
+| `brett audit` | Audita estructuras en busca de bytes de memoria desperdiciados por desalineación y padding. |
+| `brett report` | Genera directamente la sección de reporte Markdown de BRETT para Dredd. |
+| `brett optimize` | Reordena los campos de mayor a menor alineación: emite el diff (`brett optimize x.c \| patch -p1`). |
+| `brett doctor` | Verifica el estado del entorno de auditoría de memoria y padding BRETT (Tree-Sitter C, Python, GCC, GDB, pahole). |
 
-::::
-<!-- {tab-set} -->
+Ayuda de cada comando: `brett <comando> -h`.
 
----
+### Salida JSON
 
-### 2.3 Autocompletado en la Shell
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `brett audit`, `brett doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-La interfaz CLI de `brett` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+### Códigos de salida
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-brett --install-completion
-
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
-
-````
-<!-- {code-block} bash -->
-
----
-
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
-brett doctor
-
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-brett-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `brett`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `brett audit <archivo.h>` | Analiza las structs del header y reporta bytes de padding. |
-| `brett optimize <archivo.h>` | Reordena campos de mayor a menor para minimizar el tamaño total. |
-| `brett diff <archivo.h>` | Muestra la comparativa de tamaño antes y después en terminal. |
-| `brett diagram <struct_name> -f <archivo.h>` | Dibuja el mapa de bytes y huecos de padding en ASCII. |
+:::{dropdown} `brett`
+:open:
 
-::::{tip}
+```text
+ Uso: brett [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ 📏 BRETT — Auditor de alineación y padding de estructuras C y optimizador de reordenamiento de
+ campos.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-brett-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Struct con 10 bytes de padding en arquitectura de 64 bits
-struct PaqueteDesalineado {
-    char tipo;         // 1 byte (+ 3 padding)
-    int id;            // 4 bytes
-    char estado;       // 1 byte (+ 7 padding)
-    double timestamp;  // 8 bytes
-}; // Total: 24 bytes (desperdicio: 41.6%)
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-brett audit <archivo.h>
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-Struct: struct PaqueteDesalineado (Tamaño: 24 bytes | Padding: 10 bytes)
-Layout en memoria (64-bit):
-[ tipo (1B) ][ PAD (3B) ][    id (4B)    ]
-[ estado (1B) ][        PAD (7B)        ]
-[           timestamp (8B)              ]
-
-Propuesta de optimización (Tamaño: 16 bytes | Ahorro: 33.3%):
-1. double timestamp; (8 bytes)
-2. int id;           (4 bytes)
-3. char tipo;        (1 byte)
-4. char estado;      (1 byte + 2B pad final)
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-brett-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Estructura con campos ordenados de mayor a menor alineación natural (0 padding interno):
-
-```{code-block} c
-typedef struct {
-    double promedio;   // 8 bytes (alineación 8)
-    uint32_t legajo;   // 4 bytes (alineación 4)
-    uint16_t anio;     // 2 bytes (alineación 2)
-    char activo;       // 1 byte  (alineación 1)
-    char padding[1];   // 1 byte  (alineación total múltiplo de 8 -> 16 bytes)
-} estudiante_optimo_t;
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de brett y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ audit     Audita estructuras en busca de bytes de memoria desperdiciados por desalineación y     │
+│           padding.                                                                               │
+│ report    Genera directamente la sección de reporte Markdown de BRETT para Dredd.                │
+│ optimize  Reordena los campos de mayor a menor alineación: emite el diff (`brett optimize x.c |  │
+│           patch -p1`).                                                                           │
+│ doctor    Verifica el estado del entorno de auditoría de memoria y padding BRETT (Tree-Sitter C, │
+│           Python, GCC, GDB, pahole).                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría con Brett:
+:::{dropdown} `brett audit`
 
-```{code-block} bash
-brett audit estudiante.h
+```text
+ Uso: brett audit [OPCIONES] {rutas}...
+
+ Audita estructuras en busca de bytes de memoria desperdiciados por desalineación y padding.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    rutas      <path>  Archivos C/H o directorios a auditar. [obligatorio]                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                                        Emitir reporte en JSON.                            │
+│ --md,--output-md  -o      <path>              Generar sección de reporte en formato Markdown     │
+│                                               para fusión en Dredd.                              │
+│ --fail-on                 <int range> [x>=1]  Fallar (código 1) solo si reordenando se           │
+│                                               ahorrarían N bytes o más en total.                 │
+│ --abi                     <str>               Tamaños de los tipos: x86_64, aarch64, riscv64     │
+│                                               (LP64, iguales), x86_64-windows (LLP64: long de 4  │
+│                                               B) o i386.                                         │
+│                                               [por defecto: x86_64]                              │
+│ --help            -h                          Muestra esta ayuda y sale.                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] 'estudiante_optimo_t': tamaño 16 bytes | padding interno: 0 bytes (0.0%)
-[✓] Estructura con empaquetado óptimo para arquitectura LP64/LLP64
+:::{dropdown} `brett report`
+
+```text
+ Uso: brett report [OPCIONES] {rutas}...
+
+ Genera directamente la sección de reporte Markdown de BRETT para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    rutas      <path>  Archivos C/H o directorios a auditar. [obligatorio]                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --abi             <str>   Tamaños de los tipos: x86_64, aarch64, riscv64, x86_64-windows o i386. │
+│                           [por defecto: x86_64]                                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `brett optimize`
 
-Estructura intercalando tipos pequeños y grandes, desperdiciando memoria en padding:
+```text
+ Uso: brett optimize [OPCIONES] {archivo}
 
-```{code-block} c
-typedef struct {
-    char activo;       // 1 byte (+ 7 bytes padding)
-    double promedio;   // 8 bytes
-    char grupo;        // 1 byte (+ 3 bytes padding)
-    uint32_t legajo;   // 4 bytes
-} estudiante_ineficiente_t; // Tamaño total: 24 bytes (10 bytes de padding, 41% desperdiciado)
+ Reordena los campos de mayor a menor alineación: emite el diff (`brett optimize x.c | patch -p1`).
+
+ Sólo cambian los structs en los que reordenar ahorra bytes; cada declaración conserva su texto y
+ sus
+ comentarios. Con --aplicar escribe el archivo; con --codigo muestra el struct optimizado con
+ offsets.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivo      <file>  Archivo C/H con las estructuras a optimizar. [obligatorio]             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --abi              <str>  Tamaños de los tipos: x86_64, aarch64, riscv64, x86_64-windows o i386. │
+│                           [por defecto: x86_64]                                                  │
+│ --aplicar                 Reescribir el archivo con los campos reordenados en lugar de mostrar   │
+│                           el diff.                                                               │
+│ --codigo                  Mostrar cada struct optimizado con sus offsets en lugar del diff.      │
+│ --help     -h             Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x4001h en 'estudiante_ineficiente_t': 10 bytes de padding sobre 24 totales.
-[!] Desperdicio de memoria por alineación: 41.6%.
-[!] Sugerencia de reordenamiento: reubicá 'promedio' al inicio y agrupá 'activo' y 'grupo'.
+:::{dropdown} `brett doctor`
+
+```text
+ Uso: brett doctor [OPCIONES]
+
+ Verifica el estado del entorno de auditoría de memoria y padding BRETT (Tree-Sitter C, Python,
+ GCC, GDB, pahole).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-brett-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`brett`** resolviendo los siguientes ejercicios:
-
-::::{exercise} Desafío 1: Auditoría de Header de Red
-:label: brett-desafio-1
-Auditar `include/protocolo.h` y detectar structs con más de 20% de padding.
-
-**Instrucción de ejecución:**
-``` bash
-brett audit include/protocolo.h
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 1: Auditoría de Header de Red -->
-
-::::{solution} brett-desafio-1
-
-``` bash
-brett audit include/protocolo.h
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} brett-desafio-1 -->
-
-::::{exercise} Desafío 2: Optimización Automática In-Place
-:label: brett-desafio-2
-Aplicar reordenamiento óptimo sobre `include/envio.h`.
-
-**Instrucción de ejecución:**
-``` bash
-brett optimize include/envio.h --in-place
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Optimización Automática In-Place -->
-
-::::{solution} brett-desafio-2
-
-``` bash
-brett optimize include/envio.h --in-place
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} brett-desafio-2 -->
-
-::::{exercise} Desafío 3: Comparativa Multiplataforma 32 vs 64 bits
-:label: brett-desafio-3
-Evaluar la diferencia de alineación entre x86 y ARM.
-
-**Instrucción de ejecución:**
-``` bash
-brett audit include/nodo.h --arch 32bit --arch 64bit
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Comparativa Multiplataforma 32 vs 64 bits -->
-
-::::{solution} brett-desafio-3
-
-``` bash
-brett audit include/nodo.h --arch 32bit --arch 64bit
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} brett-desafio-3 -->
-
----
-
-(manual-brett-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `brett` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-brett:
-	@echo "=== Ejecutando verificación con brett ==="
-	brett check src/ include/
-
-.PHONY: check-brett
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-brett` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-brett-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`brett`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `libclang / C-Parser AST + ABI Memory Layout Calculator
-  (x86_64 / ARM64 / ILP32)`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-brett-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`brett`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Headers C: Structs] --> BRT[Brett: Auditor de Padding]
-    BRT -->|Cálculo de Desperdicio| ABI[Modelo de Memoria 64/32-bit]
-    BRT -->|Struct Reordenada| GAFF[Gaff: Formateo y Estilo]
-    BRT -->|Layout Optimizado| FERRO[Ferro: Perfilador de Caché]
-    BRT -->|Esquema de Bytes| KANE[Kane: Mapeo de Archivos Binarios]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Headers C (.h) desarrollados por estudiantes o cátedra` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `gaff (formato Allman)`
-- `kane (mapeo de archivos binarios)`
-- `bishop (mapa de memoria)` | Informes Markdown, diagnósticos Rich, JSON, actas
-  |
-| **Sincronización** | `ferro`, `crowe`, `kane` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `brett` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-brett optimize include/tda.h --in-place && gaff format include/tda.h
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-brett-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `brett`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`brett@b582c7e`](https://github.com/INGCOM-UNRN-P1/brett/tree/b582c7e).

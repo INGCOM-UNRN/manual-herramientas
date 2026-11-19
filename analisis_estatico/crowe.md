@@ -1,557 +1,241 @@
 ---
 title: "crowe"
-subtitle: "Crowe — Linter de Portabilidad Multi-Arquitectura, Endianness y Tipos de Ancho Fijo"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Linter de Portabilidad Multi-Arquitectura en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde crowe@e78c908: no editar a mano. -->
 
 (manual-crowe)=
-# Crowe — Linter de Portabilidad Multi-Arquitectura, Endianness y Tipos de Ancho Fijo
+# crowe — Linter de Portabilidad Multi-Arquitectura en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Detección de asunciones no portables en C: tamaño de
-punteros, orden de bytes (Little vs Big Endian), alineación y uso de tipos
-primitivos no estándar.
+Repositorio: [github.com/INGCOM-UNRN-P1/crowe](https://github.com/INGCOM-UNRN-P1/crowe).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**CROWE** analiza código C para detectar asunciones no portables de hardware (endianness, tamaños fijos de punteros, signo de `char`, VLAs y tamaños de `long`) y opcionalmente valida compilación cruzada para `x86_64`, `aarch64` y `riscv64`.
 
 ---
 
-(manual-crowe-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`crowe`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Auditoría estática de portabilidad multi-arquitectura en código fuente C (reglas `CRW001` a `CRW005`).
+- Detección de truncamiento por casteo de puntero a `int` en 64 bits (`CRW001`).
+- Detección de asunciones de signo sobre `char` (`CRW002`) y orden de bytes (`CRW003`).
+- Detección de suposiciones rígidas sobre el ancho de `long` (`CRW004`).
+- Detección de arreglos de longitud variable (VLAs) con riesgo de desbordamiento de pila (`CRW005`).
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Emulación o ejecución de binarios de hardware con QEMU (fuera del alcance).
+- Auditoría del alineamiento interno de campos de structs (delegado a `brett`).
+- Inspección de endianness en disco (delegado a `kane`).
 
 ---
 
-(manual-crowe-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- Ninguno obligatorio para análisis estático; compiladores GCC cruzados (`aarch64-linux-gnu-gcc`, `riscv64-linux-gnu-gcc`) opcionales para `--cross-compile`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `crowe`. Plugin registrado en `ripley.plugins` (`portability`).
 
 ---
 
-### 2.2 Métodos de Instalación de `crowe`
+## Uso Rápido
 
-Podés instalar `crowe` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# Auditar portabilidad en archivos C
+crowe lint src/
+crowe check src/
 
-::::{tab-set}
+# Generar informe en formato Markdown
+crowe report src/
 
-:::{tab-item} uv tool (Recomendado)
+# Probar compilación multi-arquitectura
+crowe lint src/ --cross-compile
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+# Salida estructurada en JSON
+crowe lint src/ --json
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# Correr el programa en cada arquitectura (qemu) y comparar la salida con la nativa
+crowe run main.c --input caso1.in
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+`crowe run` compila estático con la toolchain de cada arquitectura (`aarch64-linux-gnu-gcc`,
+`riscv64-linux-gnu-gcc`), lo ejecuta con `qemu-aarch64`/`qemu-riscv64` (paquete `qemu-user`) y
+marca las arquitecturas donde la salida o el código de salida cambian: los errores de portabilidad
+que compilan igual (el signo de `char`, el tamaño de `long`, el orden de bytes). Sin toolchain o sin
+qemu, esa arquitectura se informa como no disponible.
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Reglas Auditadas
 
-La interfaz CLI de `crowe` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+- **`CRW001`**: Casteo de puntero a `int` (provoca truncamiento en arquitecturas de 64 bits).
+- **`CRW002`**: Uso de `char` esperando valores negativos (en ARM es `unsigned char` por defecto).
+- **`CRW003`**: Asunciones fijas de orden de bytes (Endianness).
+- **`CRW004`**: Suposición del tamaño de `long` (`sizeof(long) == 4` vs `8`).
+- **`CRW005`**: Uso de Variable-Length Arrays (VLAs) con riesgo de desbordamiento de pila.
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-crowe --install-completion
+## Referencia rápida
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### Requisitos
 
-````
-<!-- {code-block} bash -->
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
----
+### Comandos
 
-### 2.4 Verificación del Entorno con `doctor`
+| Comando | Descripción |
+|:--|:--|
+| `crowe lint` | Analiza archivos C buscando asunciones no portables de hardware y endianness. |
+| `crowe check` | Gate de portabilidad: lint + verificación multi-arquitectura (lo que invoca ripley). |
+| `crowe run` | Corre el programa en cada arquitectura con qemu y compara la salida con la nativa. |
+| `crowe report` | Genera directamente la sección de reporte Markdown de CROWE para Dredd. |
+| `crowe doctor` | Verifica el estado del entorno de auditoría de portabilidad CROWE (Python, GCC nativo y cross-compiladores). |
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+Ayuda de cada comando: `crowe <comando> -h`.
 
-````{code-block} bash
-crowe doctor
+### Salida JSON
 
-````
-<!-- {code-block} bash -->
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `crowe lint`, `crowe check`, `crowe run`, `crowe doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Códigos de salida
 
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-crowe-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `crowe`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `crowe audit src/` | Audita el código fuente buscando incompatibilidades entre x86_64, ARM64 y 32-bit. |
-| `crowe endianness src/serializador.c` | Detecta casteo directo de punteros o desplazamientos dependientes de Little Endian. |
-| `crowe fix-types src/` | Sustituye tipos dependientes de plataforma por <stdint.h> (int32_t, uint64_t, size_t). |
-| `crowe doctor` | Verifica toolchains cruzadas disponibles (GCC multiarch, QEMU user). |
+:::{dropdown} `crowe`
+:open:
 
-::::{tip}
+```text
+ Uso: crowe [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Linter de portabilidad multi-arquitectura y compatibilidad C
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-crowe-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdio.h>
-#include <stdint.h>
-
-// Código no portable: asume que sizeof(long) == sizeof(void*) y Little Endian
-void serializar_mal(unsigned long valor, char *buf) {
-    *(unsigned long*)buf = valor; // Peligro de alineación y endianness
-}
-
-// Código portable auditado por Crowe
-void serializar_bien(uint32_t valor, uint8_t *buf) {
-    buf[0] = (uint8_t)(valor >> 24);
-    buf[1] = (uint8_t)(valor >> 16);
-    buf[2] = (uint8_t)(valor >> 8);
-    buf[3] = (uint8_t)(valor);
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-crowe audit src/
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[!] src/serializador.c:5:5: ALERTA DE PORTABILIDAD [CROWE-001]
-    Casteo de puntero a tipo 'unsigned long*' asume tamaño de 8 bytes (falla en arquitecturas de 32 bits y Windows x64 donde sizeof(long)==4).
-    Sugerencia: Utilizá uint32_t o uint64_t de <stdint.h> con serialización explícita byte a byte.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-crowe-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Serialización binaria con conversión de orden de bytes y anchos exactos C99/C11:
-
-```{code-block} c
-#include <arpa/inet.h>
-#include <stdint.h>
-
-void escribir_cabecera(uint8_t *buf, uint32_t magia) {
-    uint32_t net_val = htonl(magia);
-    memcpy(buf, &net_val, sizeof(net_val));
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de crowe y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ lint    Analiza archivos C buscando asunciones no portables de hardware y endianness.            │
+│ check   Gate de portabilidad: lint + verificación multi-arquitectura (lo que invoca ripley).     │
+│ run     Corre el programa en cada arquitectura con qemu y compara la salida con la nativa.       │
+│ report  Genera directamente la sección de reporte Markdown de CROWE para Dredd.                  │
+│ doctor  Verifica el estado del entorno de auditoría de portabilidad CROWE (Python, GCC nativo y  │
+│         cross-compiladores).                                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría con Crowe:
+:::{dropdown} `crowe lint`
 
-```{code-block} bash
-crowe audit paquete.c
+```text
+ Uso: crowe lint [OPCIONES] {paths}...
+
+ Analiza archivos C buscando asunciones no portables de hardware y endianness.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cross-compile   -c  --no-cross-compile            Intentar compilación contra toolchains       │
+│                                                     x86_64, aarch64 y riscv64 (por defecto       │
+│                                                     desactivada en `lint`).                      │
+│                                                     [por defecto: no-cross-compile]              │
+│ --json                                              Emitir salida en formato JSON estructurado   │
+│ --md,--output-md                            <path>  Generar sección de reporte en formato        │
+│                                                     Markdown para fusión en Dredd.               │
+│ --help            -h                                Muestra esta ayuda y sale.                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Uso de tipos de ancho fijo 'uint32_t' verificado
-[✓] Conversión explícita de endianness con 'htonl' comprobada
-[✓] Veredicto: PORTABLE (exit 0)
+:::{dropdown} `crowe check`
+
+```text
+ Uso: crowe check [OPCIONES] {paths}...
+
+ Gate de portabilidad: lint + verificación multi-arquitectura (lo que invoca ripley).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cross-compile   -c  --no-cross-compile            Verificar compilación contra toolchains      │
+│                                                     x86_64, aarch64 y riscv64 (por defecto       │
+│                                                     activada en `check`, el punto de entrada de  │
+│                                                     ripley).                                     │
+│                                                     [por defecto: cross-compile]                 │
+│ --json                                              Emitir salida en formato JSON estructurado   │
+│ --md,--output-md                            <path>  Generar sección de reporte en formato        │
+│                                                     Markdown para fusión en Dredd.               │
+│ --help            -h                                Muestra esta ayuda y sale.                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `crowe run`
 
-Asunción de endianness little-endian y tipo `long` dependiente de la plataforma:
+```text
+ Uso: crowe run [OPCIONES] {fuentes}...
 
-```{code-block} c
-long valor = 0x12345678;
-char primer_byte = *(char *)&valor; // Asume Little-Endian y tamaño de 'long' fijo
+ Corre el programa en cada arquitectura con qemu y compara la salida con la nativa.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuentes .c del programa. [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --input  -i      <file>  Archivo con la entrada estándar.                                        │
+│ --arch   -a      <str>   x86_64, aarch64 o riscv64 (repetible; por defecto, todas).              │
+│ --json                   Emitir salida en formato JSON estructurado                              │
+│ --help   -h              Muestra esta ayuda y sale.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x4002h: Cast de puntero rompe portabilidad de endianness en línea 4.
-[!] El tipo 'long' varía entre 32 bits (Windows LLP64) y 64 bits (Linux LP64).
-[!] Acción: utilizá tipos de <stdint.h> y operadores de desplazamiento bit a bit.
+:::{dropdown} `crowe report`
+
+```text
+ Uso: crowe report [OPCIONES] {paths}...
+
+ Genera directamente la sección de reporte Markdown de CROWE para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    paths      <path>  Archivos o directorios C a analizar [obligatorio]                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-crowe-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `crowe doctor`
 
-Practicá el uso avanzado de **`crowe`** resolviendo los siguientes ejercicios:
+```text
+ Uso: crowe doctor [OPCIONES]
 
-::::{exercise} Desafío 1: Auditoría de Serializador Binario
-:label: crowe-desafio-1
-Detectar problemas de orden de bytes en `src/protocolo.c`.
+ Verifica el estado del entorno de auditoría de portabilidad CROWE (Python, GCC nativo y
+ cross-compiladores).
 
-**Instrucción de ejecución:**
-``` bash
-crowe endianness src/protocolo.c
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Auditoría de Serializador Binario -->
-
-::::{solution} crowe-desafio-1
-
-``` bash
-crowe endianness src/protocolo.c
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} crowe-desafio-1 -->
-
-::::{exercise} Desafío 2: Migración a Tipos de Ancho Fijo
-:label: crowe-desafio-2
-Reemplazar `unsigned int` y `long` por `uint32_t` y `int64_t`.
-
-**Instrucción de ejecución:**
-``` bash
-crowe fix-types src/ -i
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Migración a Tipos de Ancho Fijo -->
-
-::::{solution} crowe-desafio-2
-
-``` bash
-crowe fix-types src/ -i
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} crowe-desafio-2 -->
-
-::::{exercise} Desafío 3: Simulación en Arquitectura Big Endian
-:label: crowe-desafio-3
-Verificar el comportamiento bajo emulación MIPS/PowerPC con QEMU.
-
-**Instrucción de ejecución:**
-``` bash
-crowe audit src/ --target mips
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Simulación en Arquitectura Big Endian -->
-
-::::{solution} crowe-desafio-3
-
-``` bash
-crowe audit src/ --target mips
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} crowe-desafio-3 -->
-
----
-
-(manual-crowe-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `crowe` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-crowe:
-	@echo "=== Ejecutando verificación con crowe ==="
-	crowe check src/ include/
-
-.PHONY: check-crowe
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-crowe` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-crowe-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`crowe`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `GCC Cross-Toolchains + QEMU User Emulation + Clang
-  Target AST Matcher`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-crowe-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`crowe`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C] --> CRW[Crowe: Linter Multi-Arquitectura]
-    CRW -->|Chequeo Endianness/Tipos| ABI[Modelos x86_64, ARM, 32-bit]
-    CRW -->|Tipos Seguros stdint.h| DAE[Daedalus: Compilador Defensivo]
-    CRW -->|Binario Portable| NOS[Nostromo: Sandbox Linux]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código fuente C (.c y .h)` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `daedalus (compilación cruzada)`
-- `nostromo (ejecución multiarch)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `brett`, `kane`, `ferro` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `crowe` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-crowe audit src/ && daedalus compile src/*.c -o bin/app
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-crowe-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `crowe`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`crowe@e78c908`](https://github.com/INGCOM-UNRN-P1/crowe/tree/e78c908).

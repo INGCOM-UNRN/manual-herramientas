@@ -1,207 +1,266 @@
 ---
 title: "holden"
-subtitle: "Generador de mocks e inyección controlada de fallos en funciones C"
+subtitle: "Generador de Mocks e Inyección de Fallos en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde holden@ef5f079: no editar a mano. -->
 
 (manual-holden)=
-# Manual de Uso y Referencia Técnica: holden
+# holden — Generador de Mocks e Inyección de Fallos en C
 
-> **HOLDEN** — Generador de mocks e inyección controlada de fallos en funciones C
-> **Versión:** `0.1.0` · **CLI principal:** `holden` · **Plugin Ripley:** `mocks`
+Repositorio: [github.com/INGCOM-UNRN-P1/holden](https://github.com/INGCOM-UNRN-P1/holden).
+
+HOLDEN permite generar mocks y envoltorios de enlace (`-Wl,--wrap=symbol`) para simular condiciones adversas de ejecución en pruebas de software C (fallos de `malloc()`, errores de apertura en `fopen()`, generación pseudoaleatoria determinista).
 
 ---
 
-## 1. Arquitectura y Propósito Pedagógico
+## Alcance
 
-`holden` forma parte del ecosistema de herramientas de la cátedra de Programación 1 (UNRN). Su objetivo central es resolver de forma modular, determinista y automatizada las tareas asociadas a su dominio específico dentro del ciclo de desarrollo, evaluación y aprendizaje de software en C.
-
-### Alcance Funcional (Qué cubre)
+### Qué cubre
 - Generación de arneses de prueba unitaria en C con aislamiento de dependencias externas.
 - Síntesis de funciones de sustitución (Mocks y Stubs) a nivel de código fuente y de enlazador GNU (`ld --wrap`).
 - Inyección determinista y programable de fallos de biblioteca: `malloc` retornando `NULL`, `fopen` fallando con error de archivo inexistente (`ENOENT`), o simulación de lecturas truncadas.
 - Generación de semillas deterministas para funciones pseudoaleatorias (`rand()`).
+- Fallos en un binario ya compilado, sin recompilar ni tocar sus fuentes (`holden run`, Linux): una
+  biblioteca precargada con `LD_PRELOAD` y configurada por variables de entorno, para evaluar la
+  entrega de un estudiante (dredd) con la misma semántica que `P1_FALLAR_EN`.
 
-### Límites de Responsabilidad y Delegación (Qué no cubre)
-- Inyección de fallos dinámica en tiempo de ejecución vía `LD_PRELOAD` sin recompilar (delegado a `vasquez`).
+### Qué no cubre (Límites y Delegación)
+- Campañas de escenarios de fallo con su informe de robustez (`vasquez inject`, `vasquez plan`): holden
+  sólo ofrece el mecanismo para un binario (`holden run`), con la misma semántica que sus mocks.
 - Ejecución aislada de casos de prueba con límites de CPU (delegado a `nostromo`).
 - Generación de mutaciones de código fuente (delegado a `vassili`).
 
-### Principios de Diseño
-- **Enfoque Pedagógico:** Diagnósticos y mensajes en español rioplatense orientados a facilitar la comprensión de errores conceptuales.
-- **Salida Estructurada Dual:** Soporte nativo para visualización enriquecida en terminal (Rich) y salida parseable para orquestadores (`--json`).
-- **Integración Contractual:** Capacidad de emitir secciones de reporte para `dredd` (`dredd-section`) y actuar como satélite orquestado por `ripley`.
-- **Idempotencia y Robustez:** Validación de precondiciones y comandos de autodiagnóstico (`doctor`) para verificación del entorno.
+---
+
+## Requisitos
+
+### Requisitos de Sistema y Entorno
+- Linux / POSIX o Windows (MSYS2 / WSL). Python >= 3.10.
+
+### Dependencias Externas y Binarios
+- `gcc`, `ld`.
+
+### Integración en el Ecosistema
+- CLI `holden`. Plugin registrado en `ripley.plugins` (`mocks`).
 
 ---
 
-## 2. Instalación y Requisitos
+## Uso Rápido
 
-### Requisitos del Sistema
-- **Python:** `>= 3.10` (recomendado Python 3.11 o 3.12).
-- **Gestor de paquetes:** [`uv`](https://github.com/astral-sh/uv) (entorno estándar de cátedra).
-- **Toolchain C (si aplica):** GCC / Clang, Make, GDB y bibliotecas estándar de desarrollo.
-
-### Instalación en el Entorno de Usuario
-Para instalar la herramienta de forma global y aislada en el sistema mediante `uv tool`:
 ```bash
-uv tool install git+https://github.com/INGCOM-UNRN-P1/holden
-```
+# 1. Generar mock de malloc que falla en la 2da llamada
+holden generate malloc --fail-at 2 -o mock_malloc.c
 
-### Verificación de Instalación
-Ejecutá el comando `doctor` para constatar que todas las dependencias y binarios requeridos estén presentes y operativos:
-```bash
-holden doctor
-```
+# 2. Salida estructurada JSON
+holden generate malloc --json
 
----
-
-## 3. Guía Integral de Comandos (CLI)
-
-| Comando | Descripción Breve |
-| :--- | :--- |
-| **`holden generate`** | Genera un archivo C con la implementación del mock y wrapper de la función. |
-| **`holden list`** | Lista las funciones con soporte de mocks preconfigurados. |
-| **`holden doctor`** | Verifica el estado del entorno de HOLDEN (Python, GCC). |
-
-### `holden generate`
-
-Genera un archivo C con la implementación del mock y wrapper de la función.
-
-#### Argumentos
-| Argumento | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `funciones` | `List[str]` | Funciones a mockear (`malloc`, `fopen`, `fread`, `fwrite`, `fclose`, `rand`). Varias van en un solo archivo con `holden_reset()`. |
-
-#### Opciones y Banderas
-| Opción / Banderas | Tipo | Por Defecto | Descripción |
-| :--- | :--- | :--- | :--- |
-| `--output`, `-o` | `Optional[Path]` | `None` | Archivo de destino donde escribir el código C del mock. |
-| `--fail-at`, `-n` | `int` | `1` | Número de invocación en la que inyectar el fallo (retornar NULL, 0 o EOF). |
-| `--seed`, `-s` | `int` | `42` | Semilla fija de `rand()`: `srand()` del programa se ignora. |
-| `--errno`, `-e` | `Optional[str]` | `None` | Causa del fallo de archivos: `ENOENT`, `EACCES`, `ENOSPC`, `EIO`… |
-| `--json` | `bool` | `False` | Salida estructurada en JSON. |
-
-#### Ejemplo de Invocación
-```bash
-holden generate <funcion> [<funcion>...]
-```
-
-### `holden list`
-
-Lista las funciones con soporte de mocks preconfigurados.
-
-#### Opciones y Banderas
-| Opción / Banderas | Tipo | Por Defecto | Descripción |
-| :--- | :--- | :--- | :--- |
-| `--json` | `bool` | `False` | Salida estructurada en JSON. |
-
-#### Ejemplo de Invocación
-```bash
+# 3. Listar funciones mockeables soportadas
 holden list
+
+# 4. Archivos: fwrite falla con disco lleno (errno = ENOSPC) en la primera escritura
+holden generate fwrite --errno ENOSPC -o mock_fwrite.c
+
+# 5. Varias funciones en un archivo, con rand()/srand() de semilla fija
+holden generate fopen fread rand --seed 7 -o mocks.c
+gcc main.c mocks.c -Wl,--wrap=fopen -Wl,--wrap=fread -Wl,--wrap=rand -Wl,--wrap=srand
 ```
 
-### `holden doctor`
+Mocks disponibles: `malloc`, `fopen`, `fread`, `fwrite`, `fclose` (fallan desde la llamada
+`--fail-at` y dejan en `errno` la causa simulada: `ENOENT`, `EACCES`, `ENOSPC`, `EIO`…) y `rand`
+(con `srand`: la semilla del programa se ignora y la secuencia es siempre la misma). Cada mock trae
+`holden_reset_<función>()` y `holden_fallar_en_<función>(n)`, y el archivo generado (con una o varias
+funciones) trae `holden_reset()`, que vuelve todos los mocks al estado del archivo: contadores, la
+llamada que falla (aunque un test la haya cambiado con `holden_fallar_en_*`) y la semilla de `rand`.
+Llamalo entre tests (p1_test lo hace solo con `P1_FALLAR_EN`): si no, lo que programó un test sigue
+armado en el siguiente y el resultado depende del orden.
 
-Verifica el estado del entorno de HOLDEN (Python, GCC).
+### Fallos en un binario sin recompilar: `holden run`
 
-#### Opciones y Banderas
-| Opción / Banderas | Tipo | Por Defecto | Descripción |
-| :--- | :--- | :--- | :--- |
-| `--json` | `bool` | `False` | Emitir diagnóstico en formato JSON estructurado. |
-
-#### Ejemplo de Invocación
 ```bash
-holden doctor
+# La segunda reserva devuelve NULL: ¿el programa lo verifica o se cae?
+holden run ./tp --fallar malloc=2
+
+# fopen falla con permiso denegado; rand con semilla fija; JSON para dredd
+holden run ./tp -f fopen=1 -e fopen=EACCES --semilla 7 --stdin casos/entrada.txt --json -- datos.txt
 ```
 
----
+Sale con 0 si el programa terminó sin caerse (con cualquier código de salida: devolver un error es
+manejarlo), 1 si se cayó por una señal o no terminó a tiempo y 2 si no se pudo correr. El JSON dice
+qué fallos se inyectaron (`fallos_inyectados`: función y llamada; vacío si el programa nunca llegó a
+esa llamada), cuántas llamadas hubo a cada función, la señal y la salida. Las funciones son las de
+los mocks (`malloc`, `fopen`, `fread`, `fwrite`, `fclose` y `rand`/`srand`); `malloc` cuenta también
+las reservas internas de la biblioteca de C. `holden preload` deja la biblioteca para usarla a mano:
+`HOLDEN_FALLAR_EN_MALLOC=2 HOLDEN_ERRNO_FOPEN=EACCES HOLDEN_SEMILLA=7 HOLDEN_INFORME=informe.txt
+LD_PRELOAD=… ./programa`. Sólo Linux con glibc; en Windows y macOS, los mocks con `--wrap`.
 
-(manual-holden-ejemplos)=
-## Ejemplos y Contraejemplos
+## Referencia rápida
 
-### Ejemplo Válido (Patrón Recomendado)
+### Requisitos
 
-Mock generado con `ld --wrap`: el código bajo prueba llama a `malloc` y el
-test controla el resultado desde `__wrap_malloc`.
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-```{code-block} c
-:caption: mock_malloc.c
-:linenos:
-#include <stdbool.h>
-#include <stddef.h>
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
 
-void *__real_malloc(size_t n);
-static bool fallar_proximo = false;
+### Comandos
 
-void holden_malloc_fallar(bool v) { fallar_proximo = v; }
+| Comando | Descripción |
+|:--|:--|
+| `holden generate` | Genera un archivo C con la implementación del mock y wrapper de la función. |
+| `holden run` | Corre un binario con fallos inyectados por LD_PRELOAD, sin recompilarlo ni tocar sus fuentes. |
+| `holden preload` | Compila la biblioteca de interposición y muestra cómo usarla a mano con LD_PRELOAD. |
+| `holden list` | Lista las funciones con soporte de mocks preconfigurados. |
+| `holden doctor` | Verifica el estado del entorno de HOLDEN (Python, GCC). |
 
-void *__wrap_malloc(size_t n) {
-    if (fallar_proximo) {
-        fallar_proximo = false;
-        return NULL;
-    }
-    return __real_malloc(n);
-}
-```
+Ayuda de cada comando: `holden <comando> -h`.
 
-```{code-block} console
-$ holden generate malloc -o mock_malloc.c
-$ gcc -Wl,--wrap=malloc test_crear.c crear.c mock_malloc.c -o test_crear
-$ ./test_crear
-crear(): malloc -> NULL detectado, retorna ERR_MEMORIA  ✔
-holden: OK — mock enlazado con --wrap=malloc (exit 0)
-```
+### Salida JSON
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `holden generate`, `holden run`, `holden list`, `holden doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-Se define `__wrap_malloc` pero el enlace omite `-Wl,--wrap=malloc`: el mock
-nunca se invoca y el camino de error queda sin probar.
+### Códigos de salida
 
-```{code-block} console
-$ gcc test_crear.c crear.c mock_malloc.c -o test_crear
-$ holden doctor --check-link ./test_crear
-mock_malloc.c:9  '__wrap_malloc' definido pero sin referencias: falta -Wl,--wrap=malloc  ✘
-crear.c:6        'malloc' resuelve a libc, no al mock                                     ✘
-holden: FALLA — mock mal wrapped, fallo inyectado inalcanzable (exit 1)
-Acción: agregá -Wl,--wrap=malloc al comando de enlace (o a LDFLAGS en el Makefile).
-```
-
-## 4. Formatos de Salida e Integración con el Ecosistema
-
-### Modo Interactivo / Terminal (Rich)
-Por defecto, la herramienta renderiza paneles, árboles y tablas estilizadas para facilitar la lectura del estudiante y docente en terminales modernas con soporte ANSI.
-
-### Modo Estructurado JSON (`--json`)
-Para integración con pipelines de CI/CD, scripts de automatización u orquestadores externos, la opción `--json` emite un documento JSON estricto por la salida estándar (`stdout`), dirigiendo cualquier mensaje de logging a `stderr`:
-```bash
-holden generate --json
-```
-
-### Integración con Dredd (`dredd-section`)
-Cuando la herramienta genera reportes de evaluación para entregas de alumnos, produce una sección Markdown estandarizada conforme al contrato de integración de Dredd (v1.0.0):
-```markdown
-<!-- dredd-section: holden, tool=holden, version=0.1.0, status=ok -->
-```
-Este encabezado garantiza la agregación determinista de los hallazgos en la rúbrica docente.
-
-### Integración con Ripley
-`holden` está registrada en el catálogo de plugins satélites de Ripley (`SATELLITE_CATALOG`). Puede invocarse directamente a través del motor de evaluación de Ripley configurando el análisis en `ripley.toml`.
-
----
-
-## 5. Diagnóstico y Códigos de Salida
-
-### Códigos de Retorno (`exit code`)
 | Código | Significado |
-| :---: | :--- |
-| `0` | Ejecución exitosa sin hallazgos críticos ni errores de sintaxis. |
-| `1` | Hallazgos pedagógicos detectados, infracción de reglas o advertencias activas. |
-| `2` | Error de sintaxis en argumentos CLI o archivo fuente no encontrado. |
-| `>2` | Error no recuperable del sistema, fallo de memoria o excepción interna. |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
-### Diagnóstico del Entorno (`doctor`)
-Ante comportamientos inesperados, verificá el estado operativo con:
-```bash
-holden doctor
+(manual-holden-comandos)=
+## Ayuda de los comandos
+
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
+
+:::{dropdown} `holden`
+:open:
+
+```text
+ Uso: holden [OPCIONES] COMANDO [ARGUMENTOS]...
+
+ 💉 HOLDEN — Generador de mocks e inyección controlada de fallos en funciones C (malloc, fopen,
+ etc.).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de holden y sale.                             │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ generate  Genera un archivo C con la implementación del mock y wrapper de la función.            │
+│ run       Corre un binario con fallos inyectados por LD_PRELOAD, sin recompilarlo ni tocar sus   │
+│           fuentes.                                                                               │
+│ preload   Compila la biblioteca de interposición y muestra cómo usarla a mano con LD_PRELOAD.    │
+│ list      Lista las funciones con soporte de mocks preconfigurados.                              │
+│ doctor    Verifica el estado del entorno de HOLDEN (Python, GCC).                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-Comprueba la presencia de las dependencias requeridas y la integridad de los componentes del paquete.
+:::
+
+:::{dropdown} `holden generate`
+
+```text
+ Uso: holden generate [OPCIONES] {funciones}...
+
+ Genera un archivo C con la implementación del mock y wrapper de la función.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    funciones      <str>  Funciones a mockear (ej: 'malloc', 'fopen fwrite', 'rand'). Van en un │
+│                            solo archivo con holden_reset().                                      │
+│                            [obligatorio]                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output   -o      <path>  Archivo de destino donde escribir el código C del mock.               │
+│ --fail-at  -n      <int>   Número de invocación en la que inyectar el fallo (retornar NULL, 0 o  │
+│                            EOF).                                                                 │
+│                            [por defecto: 1]                                                      │
+│ --seed     -s      <int>   Semilla fija de rand(): srand() del programa se ignora.               │
+│                            [por defecto: 42]                                                     │
+│ --errno    -e      <str>   Causa del fallo de archivos: ENOENT, EACCES, ENOSPC (disco lleno),    │
+│                            EIO…                                                                  │
+│ --json                     Salida estructurada en JSON.                                          │
+│ --help     -h              Muestra esta ayuda y sale.                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `holden run`
+
+```text
+ Uso: holden run [OPCIONES] {binario} [argumentos]...
+
+ Corre un binario con fallos inyectados por LD_PRELOAD, sin recompilarlo ni tocar sus fuentes.
+
+ La misma semántica que los mocks de `generate` y que P1_FALLAR_EN: falla desde la llamada n, con
+ la causa en errno. Sale con 0 si el programa terminó sin caerse (cualquier código de salida), 1 si
+ se cayó por una señal o no terminó a tiempo, y 2 si no se pudo correr. Sólo Linux.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    binario         <file>  Programa ya compilado (por ejemplo, el de una entrega).             │
+│                              [obligatorio]                                                       │
+│      argumentos      <str>   Argumentos del programa (después de --).                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --fallar          -f      <str>    función=n: la llamada n a la función (y las siguientes)       │
+│                                    falla. malloc, fopen, fread, fwrite o fclose; se repite.      │
+│ --errno           -e      <str>    función=ERRNO: la causa que queda en errno (fopen=EACCES,     │
+│                                    fwrite=ENOSPC…).                                              │
+│ --semilla,--seed  -s      <int>    rand() con semilla fija (srand del programa se ignora).       │
+│ --stdin           -i      <file>   Archivo para la entrada estándar del programa.                │
+│ --timeout         -t      <float>  Segundos antes de cortar el programa. [por defecto: 10.0]     │
+│ --json                             Resultado estructurado en JSON (para dredd).                  │
+│ --help            -h               Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `holden preload`
+
+```text
+ Uso: holden preload [OPCIONES]
+
+ Compila la biblioteca de interposición y muestra cómo usarla a mano con LD_PRELOAD.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Dónde dejar la biblioteca (por defecto, la caché de holden).           │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `holden list`
+
+```text
+ Uso: holden list [OPCIONES]
+
+ Lista las funciones con soporte de mocks preconfigurados.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Salida estructurada en JSON.                                                   │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `holden doctor`
+
+```text
+ Uso: holden doctor [OPCIONES]
+
+ Verifica el estado del entorno de HOLDEN (Python, GCC).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+Generado desde [`holden@ef5f079`](https://github.com/INGCOM-UNRN-P1/holden/tree/ef5f079).

@@ -1,558 +1,240 @@
 ---
 title: "motoko"
-subtitle: "Motoko — Verificador de Encapsulamiento Estricto, Opacidad de Structs e Invariantes de TDA"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Verificador de Encapsulamiento y Opacidad de TDAs en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde motoko@abe2df0: no editar a mano. -->
 
 (manual-motoko)=
-# Motoko — Verificador de Encapsulamiento Estricto, Opacidad de Structs e Invariantes de TDA
+# motoko — Verificador de Encapsulamiento y Opacidad de TDAs en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Auditoría de modularidad en C para proveer que los
-tipos de datos abstractos (TDAs) mantengan sus estructuras opacas (incomplete
-types en .h) y ningún código cliente acceda a miembros privados.
+Repositorio: [github.com/INGCOM-UNRN-P1/motoko](https://github.com/INGCOM-UNRN-P1/motoko).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**MOTOKO** analiza archivos de cabecera e implementaciones en C para asegurar el ocultamiento de información y encapsulamiento estricto de Tipos Abstractos de Datos (TDAs), detectando accesos directos a campos internos desde código cliente.
 
 ---
 
-(manual-motoko-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`motoko`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Verificación estática de encapsulamiento y tipos opacos en Tipos de Datos Abstractos (TDAs) de C.
+- Regla `MOT001`: Verificación de que la definición completa de estructuras de datos (`struct`) resida exclusivamente en archivos de implementación (`.c`), manteniendo únicamente declaraciones incompletas (`typedef struct tda tda_t;`) en archivos de cabecera (`.h`).
+- Regla `MOT002`: Prohibición estricta de desreferencia directa de campos privados en archivos cliente, también de los TDAs opacos (`typedef struct s_pila pila_t;`): sus campos se toman de la definición del struct en la implementación.
+- Regla `MOT004`: el cliente redefine el struct privado de un TDA opaco para acceder a sus campos.
+- Regla `MOT003`: Funciones públicas que devuelven punteros a la memoria interna del TDA.
+- Un resumen por TDA en el lenguaje de la consigna («Tu TDA Pila expone 2 campos en pila.h (tope, datos) y el código cliente los usa directamente en main.c:12»), en la salida, el JSON (`resumen`) y la sección Markdown.
+- Manejo defensivo y resiliente de entregas y carpetas de estudiantes sin archivos `.h`.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-motoko-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Linter de estilo y formato de código (delegado a `gaff`).
+- Demostración formal de contratos matemáticos del TDA (delegado a `callahan`).
+- Verificación de fugas de memoria o memory leaks en el TDA (delegado a `nostromo` / `tetsuo`).
 
 ---
 
-### 2.2 Métodos de Instalación de `motoko`
+## Requisitos
 
-Podés instalar `motoko` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- Ninguno obligatorio (análisis estático con Tree-Sitter AST).
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `motoko`. Plugin registrado en `ripley.plugins` (`tda_encapsulation`). Subcomando `motoko doctor`.
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `motoko` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# Verificar encapsulamiento de cabeceras en el directorio
+motoko verify tda_pila.h
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-motoko --install-completion
+# Especificar archivo cliente e implementación
+motoko verify tda_pila.h --client main.c --impl tda_pila.c
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+# Auditar todos los TDAs de un proyecto (directorio) de una vez
+motoko audit-all proyecto/
 
-````
-<!-- {code-block} bash -->
+# Salida estructurada JSON
+motoko verify tda_pila.h --json
+
+# Versión (opción global) y sección de reporte para Dredd (exit 1 si hay violaciones)
+motoko --version
+motoko report tda_pila.h -o motoko.md
+```
 
 ---
 
-### 2.4 Verificación del Entorno con `doctor`
+## Reglas Auditadas
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+- **`MOT001`**: TDAs que exponen sus campos dentro del `.h` público (debe usarse declaración incompleta).
+- **`MOT002`**: Código cliente que desreferencia directamente campos del TDA (`tda->campo`) en lugar de invocar primitivas públicas.
+- **`MOT004`**: Archivo cliente que copia la definición del struct privado de un TDA opaco (`struct s_pila { ... }` fuera de `pila.c`).
 
-````{code-block} bash
-motoko doctor
+Cada `MOT002` sugiere la función pública que reemplaza el acceso: ante `lista->primero`, «Usá la función `lista_obtener_primero(lista)` provista por `lista.h` en lugar de acceder directamente al campo privado» (una escritura como `lista->primero = 4;` sugiere `lista_establecer_primero(lista, 4)`); si ninguna función del TDA corresponde al campo, lista las que ofrece su `.h`. Al recorrer un directorio se saltean `libs/`, `build/`, `_baseline` y las carpetas ocultas, y el `.c` con el nombre de un `.h` es su implementación (también en el plugin de ripley).
+- **`MOT003`**: Función pública (declarada en el `.h`) que devuelve un puntero no `const` a la memoria interna: la dirección de un campo (`return &p->tope;`, error) o un campo arreglo o puntero (`return p->datos;`, advertencia). Un `const char *` de solo lectura no se marca.
 
-````
-<!-- {code-block} bash -->
+## Referencia rápida
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Requisitos
 
-#### Matriz de Resolución de Problemas:
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `motoko audit-all`, `motoko check`, `motoko verify` | Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos. |
+| `motoko report` | Genera directamente la sección de reporte Markdown de MOTOKO para Dredd. |
+| `motoko doctor` | Verifica el estado del entorno de auditoría de TDAs MOTOKO (Tree-Sitter C, Python, GCC). |
+
+Ayuda de cada comando: `motoko <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `motoko audit-all`, `motoko check`, `motoko verify`, `motoko doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-motoko-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `motoko`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `motoko check include/ src/` | Verifica que los clientes no rompan la encapsulación de los TDAs. |
-| `motoko opacify include/lista.h` | Convierte una struct pública en un tipo opaco forward-declared. |
-| `motoko invariants src/tda_pila.c` | Audita que las funciones públicas preserven los invariantes del TDA. |
-| `motoko doctor` | Comprueba el analizador AST de C. |
+:::{dropdown} `motoko`
+:open:
 
-::::{tip}
+```text
+ Uso: motoko [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Verificador de encapsulamiento estricto y opacidad de TDAs en C
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-motoko-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// include/lista.h (Encapsulado estricto con Motoko)
-typedef struct lista t_lista; // Tipo opaco: cliente NO ve los campos
-
-t_lista* lista_crear(void);
-void lista_destruir(t_lista *lista);
-
-// src/lista.c (Implementación privada)
-struct lista {
-    struct nodo *primero;
-    size_t cantidad;
-};
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-motoko check include/ src/
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[!] MOTOKO ENCAPSULATION VIOLATION en src/main.c:15:10:
-    Acceso prohibido al miembro privado 'lista->cantidad'.
-    Los campos internos de 'struct lista' son opacos para el código cliente.
-    Sugerencia: Utilizá la función pública 'size_t lista_cantidad(const t_lista *l);'.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-motoko-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Tipo de Dato Abstracto (TDA) con tipo opaco estricto en el encabezado `.h`:
-
-```{code-block} c
-// cola.h
-typedef struct cola cola_t;
-
-cola_t *cola_crear(void);
-bool cola_encolar(cola_t *c, void *dato);
-void cola_destruir(cola_t *c);
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de motoko y sale.                             │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ audit-all  Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos. │
+│ check      Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos. │
+│ verify     Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos. │
+│ report     Genera directamente la sección de reporte Markdown de MOTOKO para Dredd.              │
+│ doctor     Verifica el estado del entorno de auditoría de TDAs MOTOKO (Tree-Sitter C, Python,    │
+│            GCC).                                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría con Motoko:
+:::{dropdown} `motoko audit-all`
 
-```{code-block} bash
-motoko audit cola.h cola.c
+```text
+ Uso: motoko audit-all [OPCIONES] {headers}...
+
+ Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos.
+
+ Con un directorio como argumento audita todos los TDAs del proyecto (`audit-all`).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    headers      <path>  Archivos de cabecera (.h) o directorios a analizar [obligatorio]       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --client          -c      <path>  Archivos cliente (.c) que usan el TDA                          │
+│ --impl            -i      <path>  Archivos de implementación (.c) del TDA                        │
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Encapsulamiento de 'cola_t': OPACO ESTRICTO
-[✓] Definición de 'struct cola' restringida al archivo de implementación cola.c
-[✓] Cero acceso a miembros privados desde fuentes clientes (exit 0)
+:::{dropdown} `motoko check`
+
+```text
+ Uso: motoko check [OPCIONES] {headers}...
+
+ Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos.
+
+ Con un directorio como argumento audita todos los TDAs del proyecto (`audit-all`).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    headers      <path>  Archivos de cabecera (.h) o directorios a analizar [obligatorio]       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --client          -c      <path>  Archivos cliente (.c) que usan el TDA                          │
+│ --impl            -i      <path>  Archivos de implementación (.c) del TDA                        │
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `motoko verify`
 
-Estructura del TDA expuesta directamente en el archivo de cabecera público:
+```text
+ Uso: motoko verify [OPCIONES] {headers}...
 
-```{code-block} c
-// cola_vulnerable.h
-typedef struct cola {
-    nodo_t *frente;
-    nodo_t *fondo;
-    size_t tamanio;
-} cola_t;
+ Verifica que los TDAs sean opacos y no sufran accesos directos a sus campos internos.
+
+ Con un directorio como argumento audita todos los TDAs del proyecto (`audit-all`).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    headers      <path>  Archivos de cabecera (.h) o directorios a analizar [obligatorio]       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --client          -c      <path>  Archivos cliente (.c) que usan el TDA                          │
+│ --impl            -i      <path>  Archivos de implementación (.c) del TDA                        │
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x4007h: Violación de encapsulamiento en 'cola_vulnerable.h'.
-[!] La estructura 'struct cola' expone sus miembros internos al cliente.
-[!] El cliente puede manipular 'frente' y 'fondo' directamente sin usar la API.
-[!] Acción: trasladá la definición del struct a cola.c y dejá solo 'typedef struct cola cola_t;' en el .h.
+:::{dropdown} `motoko report`
+
+```text
+ Uso: motoko report [OPCIONES] {headers}...
+
+ Genera directamente la sección de reporte Markdown de MOTOKO para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    headers      <path>  Archivos de cabecera (.h) que definen TDAs [obligatorio]               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --client  -c      <path>  Archivos cliente (.c) que usan el TDA                                  │
+│ --impl    -i      <path>  Archivos de implementación (.c) del TDA                                │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-motoko-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `motoko doctor`
 
-Practicá el uso avanzado de **`motoko`** resolviendo los siguientes ejercicios:
+```text
+ Uso: motoko doctor [OPCIONES]
 
-::::{exercise} Desafío 1: Detección de Violaciones de Encapsulamiento
-:label: motoko-desafio-1
-Verificar que `src/cliente.c` solo interactúe mediante la API pública del TDA.
+ Verifica el estado del entorno de auditoría de TDAs MOTOKO (Tree-Sitter C, Python, GCC).
 
-**Instrucción de ejecución:**
-``` bash
-motoko check include/ src/
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Detección de Violaciones de Encapsulamiento -->
-
-::::{solution} motoko-desafio-1
-
-``` bash
-motoko check include/ src/
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} motoko-desafio-1 -->
-
-::::{exercise} Desafío 2: Opacificación de Headers de Cátedra
-:label: motoko-desafio-2
-Ocultar la definición interna de nodos en `include/arbol.h`.
-
-**Instrucción de ejecución:**
-``` bash
-motoko opacify include/arbol.h
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Opacificación de Headers de Cátedra -->
-
-::::{solution} motoko-desafio-2
-
-``` bash
-motoko opacify include/arbol.h
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} motoko-desafio-2 -->
-
-::::{exercise} Desafío 3: Auditoría de Invariantes de Estado
-:label: motoko-desafio-3
-mantener que `pila_desapilar()` actualice siempre el tope y el contador.
-
-**Instrucción de ejecución:**
-``` bash
-motoko invariants src/pila.c
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Auditoría de Invariantes de Estado -->
-
-::::{solution} motoko-desafio-3
-
-``` bash
-motoko invariants src/pila.c
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} motoko-desafio-3 -->
-
----
-
-(manual-motoko-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `motoko` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-motoko:
-	@echo "=== Ejecutando verificación con motoko ==="
-	motoko check src/ include/
-
-.PHONY: check-motoko
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-motoko` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-motoko-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`motoko`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Tree-Sitter C AST + Incomplete Types Visibility
-  Checker + Invariant Contract Validator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-motoko-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`motoko`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    HDR[include/*.h: Tipos Opacos] --> MOT[Motoko: Verificador de TDA]
-    SRC[src/*.c: Código Cliente] --> MOT
-    MOT -->|Detección de Violación de Acceso| RIP[Ripley: Reglas de Modularidad]
-    MOT -->|Validación de Encapsulamiento| CRB[Corbel: Documentación de APIs]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código cliente (.c) y headers públicos (.h) de TDAs` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `ripley (reglas 0x2000h de modularidad)`
-- `corbel (verificación de opacidad)` | Informes Markdown, diagnósticos Rich,
-  JSON, actas |
-| **Sincronización** | `corbel`, `parker`, `ripley` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `motoko` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-motoko check include/ src/ && ripley check src/
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-motoko-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `motoko`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`motoko@abe2df0`](https://github.com/INGCOM-UNRN-P1/motoko/tree/abe2df0).

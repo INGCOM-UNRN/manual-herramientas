@@ -1,552 +1,238 @@
 ---
 title: "giger"
-subtitle: "Giger — Generador de Grafos de Control de Flujo (CFG), Grafo de Llamadas y Dead Code"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Generador de Mapas de Llamadas y Grafos de Control en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde giger@b316ea7: no editar a mano. -->
 
 (manual-giger)=
-# Giger — Generador de Grafos de Control de Flujo (CFG), Grafo de Llamadas y Dead Code
+# giger — Generador de Mapas de Llamadas y Grafos de Control en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Análisis estructural de código C para generar grafos
-de llamadas entre funciones, grafos de flujo de control (CFG), detección de
-lazos infinitos y funciones muertas no invocadas.
+Repositorio: [github.com/INGCOM-UNRN-P1/giger](https://github.com/INGCOM-UNRN-P1/giger).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+GIGER analiza el código fuente en C para construir el mapa estático de llamadas entre funciones (Call Graph), detectar ciclos recursivos, funciones no invocadas (*dead code*) y exportar diagramas en sintaxis Mermaid.
 
 ---
 
-(manual-giger-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`giger`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Análisis estático de la topología de llamadas en código fuente C.
+- Extracción y renderizado de mapas de llamadas entre funciones (Call Graphs).
+- Detección de código muerto: una función es *huérfana* si ninguna otra función **del mismo archivo** la invoca (excepto `main`). El análisis es intra-archivo: una función definida en un `.c` y usada desde otro se reporta como huérfana. Con `--fail-on-orphans` el comando sale con código 1 si hay huérfanas (por defecto siempre 0).
+- Exportación de diagramas a sintaxis Mermaid.
+- Grafo de flujo de control (CFG) de cada función (`giger cfg archivo.c`): bloques básicos y aristas
+  (con `V`/`F` en las condiciones), desde el AST. Señala el **código inalcanzable** (`GIG001`: lo que
+  sigue a un `return`, `break`, `continue`, `goto` o `exit()`, y la rama de una condición constante
+  como `if (0)`) y los **bucles infinitos triviales** (`GIG002`: `while (1)`/`for (;;)` sin `break`,
+  `return`, `goto` ni `exit()`, un error; o una condición que depende sólo de variables locales que el
+  cuerpo nunca modifica, una advertencia que avisa además si el cuerpo declara otra variable con el
+  mismo nombre que la tapa). En Mermaid lo inalcanzable va en rojo punteado y la condición del bucle
+  infinito, en naranja.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-giger-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Complejidad ciclomática de McCabe ni exportación a DOT/Graphviz: no están implementadas.
+- Medición dinámica de profundidad de pila en funciones recursivas (delegado a `sebastian`).
+- Desensamblado de código máquina ni inspección de jump tables (delegado a `rachel`).
+- Perfilado de tiempos de ejecución o ciclos de clock (delegado a `ferro`).
 
 ---
 
-### 2.2 Métodos de Instalación de `giger`
+## Requisitos
 
-Podés instalar `giger` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `graphviz` (`dot`, opcional para renderizar gráficos vectoriales).
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `giger`. Plugin registrado en `ripley.plugins` (`callgraph`).
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `giger` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# 1. Analizar e imprimir mapa de llamadas
+giger callgraph main.c
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-giger --install-completion
+# 2. Exportar diagrama en sintaxis Mermaid
+giger callgraph main.c --mermaid
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+# 3. Salida estructurada JSON
+giger callgraph main.c --json
 
-````
-<!-- {code-block} bash -->
+# 4. Grafo de flujo de control con código inalcanzable y bucles infinitos
+giger cfg main.c                 # Mermaid
+giger cfg main.c -f texto        # sólo los hallazgos
+```
 
----
+## Referencia rápida
 
-### 2.4 Verificación del Entorno con `doctor`
+### Requisitos
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-````{code-block} bash
-giger doctor
+### Comandos
 
-````
-<!-- {code-block} bash -->
+| Comando | Descripción |
+|:--|:--|
+| `giger check`, `giger callgraph` | Construye el mapa de llamadas entre funciones y detecta recursión y código muerto. |
+| `giger cfg` | Grafo de flujo de control de cada función: bloques básicos, código inalcanzable y lazos infinitos. |
+| `giger report` | Genera directamente la sección de reporte Markdown de GIGER para Dredd. |
+| `giger doctor` | Verifica el estado del entorno de análisis de grafos de llamadas GIGER (Python, GCC, cflow). |
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+Ayuda de cada comando: `giger <comando> -h`.
 
-#### Matriz de Resolución de Problemas:
+### Salida JSON
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `giger check`, `giger callgraph`, `giger doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-giger-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `giger`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `giger callgraph src/ -o grafo.dot` | Genera el Call Graph del proyecto en formato DOT/Graphviz. |
-| `giger cfg <archivo.c> --function <fn>` | Genera el grafo de flujo de control (CFG) de una función. |
-| `giger dead-code src/` | Detecta funciones estáticas o públicas que nunca son invocadas. |
-| `giger cycles src/` | Identifica ciclos de recursión directa o indirecta entre módulos. |
+:::{dropdown} `giger`
+:open:
 
-::::{tip}
+```text
+ Uso: giger [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ 🕸️ GIGER — Mapas de llamadas (Call Graphs), ciclos de recursión y detección de funciones huérfanas
+ en C.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-giger-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdio.h>
-
-void funcion_muerta(void) {
-    printf("Nunca se ejecuta\n");
-}
-
-void procesar(int x) {
-    if (x > 0) {
-        printf("Positivo\n");
-    } else {
-        printf("No positivo\n");
-    }
-}
-
-int main(void) {
-    procesar(10);
-    return 0;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-giger callgraph src/ -o grafo.dot
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[!] GIGER DEAD CODE DETECTED:
-    • 'funcion_muerta()' en src/main.c:3 no tiene llamadores en el Call Graph.
-
-[✓] CFG de 'procesar()': 4 bloques básicos, 2 ramas condicionales (Complejidad ciclomática: 2).
-[✓] Grafo de llamadas exportado a 'grafo.dot'.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-giger-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Código modular donde toda función implementada es alcanzable desde la interfaz pública:
-
-```{code-block} bash
-giger callgraph modulo.c --dead-code
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de giger y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check      Construye el mapa de llamadas entre funciones y detecta recursión y código muerto.    │
+│ callgraph  Construye el mapa de llamadas entre funciones y detecta recursión y código muerto.    │
+│ cfg        Grafo de flujo de control de cada función: bloques básicos, código inalcanzable y     │
+│            lazos infinitos.                                                                      │
+│ report     Genera directamente la sección de reporte Markdown de GIGER para Dredd.               │
+│ doctor     Verifica el estado del entorno de análisis de grafos de llamadas GIGER (Python, GCC,  │
+│            cflow).                                                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Grafo de llamadas construido: 8 funciones analizadas
-[✓] 0 nodos inalcanzables detectados
-[✓] Cohesión modular verificada (exit 0)
+:::{dropdown} `giger check`
+
+```text
+ Uso: giger check [OPCIONES] {fuente}
+
+ Construye el mapa de llamadas entre funciones y detecta recursión y código muerto.
+
+ Códigos de salida: 0 análisis correcto, 2 archivo inexistente y, solo con
+ --fail-on-orphans, 1 si hay funciones huérfanas.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --mermaid          -m              Emitir diagrama en sintaxis Mermaid.                          │
+│ --json                             Salida en JSON.                                               │
+│ --md,--output-md   -o      <path>  Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --fail-on-orphans                  Salir con código 1 si hay funciones huérfanas (por defecto    │
+│                                    siempre 0).                                                   │
+│ --help             -h              Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `giger callgraph`
 
-Funciones auxiliares privadas olvidadas en el `.c` que nunca se invocan:
+```text
+ Uso: giger callgraph [OPCIONES] {fuente}
 
-```{code-block} c
-static void limpiar_buffer_obsoleto(char *b) {
-    // Función que ya no se utiliza pero no fue borrada
-    memset(b, 0, 1024);
-}
+ Construye el mapa de llamadas entre funciones y detecta recursión y código muerto.
+
+ Códigos de salida: 0 análisis correcto, 2 archivo inexistente y, solo con
+ --fail-on-orphans, 1 si hay funciones huérfanas.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --mermaid          -m              Emitir diagrama en sintaxis Mermaid.                          │
+│ --json                             Salida en JSON.                                               │
+│ --md,--output-md   -o      <path>  Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --fail-on-orphans                  Salir con código 1 si hay funciones huérfanas (por defecto    │
+│                                    siempre 0).                                                   │
+│ --help             -h              Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x4005h: Función estática 'limpiar_buffer_obsoleto' es inalcanzable.
-[!] Código muerto detectado: no existen aristas entrantes en el call-graph.
-[!] Acción: eliminá la función o integrala en el flujo de ejecución.
+:::{dropdown} `giger cfg`
+
+```text
+ Uso: giger cfg [OPCIONES] {fuente}
+
+ Grafo de flujo de control de cada función: bloques básicos, código inalcanzable y lazos infinitos.
+
+ En el grafo Mermaid el código inalcanzable va en rojo punteado y la condición de un lazo infinito
+ en
+ naranja. Sale con 1 si hay un lazo que no termina nunca (las advertencias no cambian el código).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <file>  Archivo C a analizar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --formato  -f      <str>   mermaid (el grafo), texto (sólo los hallazgos) o json.                │
+│                            [por defecto: mermaid]                                                │
+│ --funcion          <str>   Sólo esta función.                                                    │
+│ --output   -o      <path>  Archivo donde escribir el grafo.                                      │
+│ --help     -h              Muestra esta ayuda y sale.                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-giger-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `giger report`
 
-Practicá el uso avanzado de **`giger`** resolviendo los siguientes ejercicios:
+```text
+ Uso: giger report [OPCIONES] {fuente}
 
-::::{exercise} Desafío 1: Detección de Funciones Obsoletas
-:label: giger-desafio-1
-Identificar funciones huérfanas en un TDA de gran tamaño.
+ Genera directamente la sección de reporte Markdown de GIGER para Dredd.
 
-**Instrucción de ejecución:**
-``` bash
-giger dead-code src/
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Detección de Funciones Obsoletas -->
+:::{dropdown} `giger doctor`
 
-::::{solution} giger-desafio-1
+```text
+ Uso: giger doctor [OPCIONES]
 
-``` bash
-giger dead-code src/
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Verifica el estado del entorno de análisis de grafos de llamadas GIGER (Python, GCC, cflow).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} giger-desafio-1 -->
-
-::::{exercise} Desafío 2: Renderizado de Call Graph a PNG
-:label: giger-desafio-2
-Convertir el grafo DOT de llamadas a imagen con Graphviz.
-
-**Instrucción de ejecución:**
-``` bash
-giger callgraph src/ -o callgraph.dot && dot -Tpng callgraph.dot -o callgraph.png
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Renderizado de Call Graph a PNG -->
-
-::::{solution} giger-desafio-2
-
-``` bash
-giger callgraph src/ -o callgraph.dot && dot -Tpng callgraph.dot -o callgraph.png
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} giger-desafio-2 -->
-
-::::{exercise} Desafío 3: Análisis de Ciclos de Recursión Cruzada
-:label: giger-desafio-3
-Verificar si la función A llama a B y B llama a A.
-
-**Instrucción de ejecución:**
-``` bash
-giger cycles src/
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Análisis de Ciclos de Recursión Cruzada -->
-
-::::{solution} giger-desafio-3
-
-``` bash
-giger cycles src/
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} giger-desafio-3 -->
-
----
-
-(manual-giger-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `giger` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-giger:
-	@echo "=== Ejecutando verificación con giger ==="
-	giger check src/ include/
-
-.PHONY: check-giger
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-giger` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-giger-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`giger`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Tree-Sitter C Call Graph Extractor + Graphviz DOT
-  Generator + Cyclomatic Complexity Calculator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-giger-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`giger`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código Fuente C] --> GIG[Giger: Grafos de Flujo]
-    GIG -->|Extracción de Llamadas| AST[Tree-Sitter C AST]
-    GIG -->|Detección de Dead Code| DRD[Dredd: Auditor de Entrega]
-    GIG -->|Diagramas CFG DOT/PNG| MYST[Myst-Tools: Documentación]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código fuente C del proyecto` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `myst-tools (diagramas de flujo)`
-- `dredd (auditoría de dead code)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `sebastian`, `dietrich`, `vassili` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `giger` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-giger callgraph src/ -o grafo.dot && dot -Tpng grafo.dot -o grafo.png
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-giger-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `giger`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`giger@b316ea7`](https://github.com/INGCOM-UNRN-P1/giger/tree/b316ea7).

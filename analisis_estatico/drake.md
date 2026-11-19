@@ -1,550 +1,251 @@
 ---
 title: "drake"
-subtitle: "Drake — Fuzzer Guiado por Límites y Analizador de Robustez ante Entradas Extremas"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Fuzzer Pedagógico y Analizador de Límites en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde drake@cf34a97: no editar a mano. -->
 
 (manual-drake)=
-# Drake — Fuzzer Guiado por Límites y Analizador de Robustez ante Entradas Extremas
+# drake — Fuzzer Pedagógico y Analizador de Límites en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Generación procedural de casos de prueba límite
-(valores frontera como INT_MAX, INT_MIN, cadenas sin terminador, buffers
-gigantes) para detectar desbordes y caídas inesperadas en C.
+Repositorio: [github.com/INGCOM-UNRN-P1/drake](https://github.com/INGCOM-UNRN-P1/drake).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+DRAKE es una herramienta de fuzzing liviana que genera entradas con valores límite (`INT_MAX`, `INT_MIN`, cadenas largas, carácteres nulos y mutaciones aleatorias) para poner a prueba la robustez de programas C y detectar segfaults antes de las entregas.
 
 ---
 
-(manual-drake-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`drake`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Fuzzing pedagógico dirigido por límites numéricos y tipos de datos en programas C.
+- Inyección automatizada de vectores de prueba con valores extremos (`INT_MAX`, `INT_MIN`, `UINT_MAX`, `0`, cadenas vacías, cadenas gigantes, caracteres no ASCII).
+- Detección de caídas prematuras por segfault, desbordamientos de búfer en terminal y bucles infinitos.
+- Emisión de reportes con entradas reproducibles mínimas para depuración.
+- La entrada mínima es legible: quita líneas y palabras que no hacen a la falla, achica cada entero al más chico que la mantiene (con el borde exacto: «falla con 51», no con 73920), borra o reemplaza los bytes nulos y de control, acorta las rachas («A» × 4096 → las justas) y termina en un salto de línea.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Aislamiento del proceso con namespaces y cgroups (delegado a `nostromo`).
+- Diagnóstico forense detallado del core dump con GDB (delegado a `hal`).
 
 ---
 
-(manual-drake-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Linux / WSL / MSYS2. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `gcc` o `clang`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `drake`. Plugin en `ripley.plugins` (`fuzzing`).
 
 ---
 
-### 2.2 Métodos de Instalación de `drake`
+## Uso Rápido
 
-Podés instalar `drake` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# 1. Correr 50 iteraciones de fuzzing contra un programa C
+drake fuzz main.c --runs 50
 
-::::{tab-set}
+# 2. Salida estructurada JSON
+drake fuzz main.c --runs 20 --json
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# 3. Lo que rompe al programa, a la suite de regresión del TP (con la salida de la solución)
+drake fuzz main.c --guardar-casos tests/ --modelo solucion.c
+nostromo test ./programa tests/ --etiqueta regresion
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Suite de regresión
 
-:::{tab-item} pip / venv
+Con `--guardar-casos DIR`, cada entrada mínima que hace caer o colgar al programa se agrega a la
+suite como `crash_NN.in`, con `crash_NN.tags` (`regresion drake SIGSEGV`, `regresion drake
+timeout`…) para correrlos solos con `nostromo test … --etiqueta regresion`. Con `--modelo` se
+escribe también `crash_NN.out` con la salida de la solución, y sólo entran los casos que la
+solución supera (termina con 0, como exige nostromo): uno en el que la solución también falla se
+informa y no se agrega. La numeración sigue después de los `crash_NN` que ya haya y no se repite
+una entrada que la suite ya tenga, así que volver a correr drake no pisa ni duplica casos.
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+## Referencia rápida
 
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
+### Requisitos
 
-:::
-<!-- {tab-item} pip / venv -->
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-:::{tab-item} pipx
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
+### Comandos
 
-:::
-<!-- {tab-item} pipx -->
+| Comando | Descripción |
+|:--|:--|
+| `drake check`, `drake fuzz` | Ejecuta fuzzing enviando payloads extremos y mutados a la entrada estándar. |
+| `drake report` | Genera directamente la sección de reporte Markdown de DRAKE para Dredd. |
+| `drake doctor` | Verifica el estado del entorno de DRAKE (Python, GCC). |
+| `drake gen-casos` | Genera casos límite (caso_NN.in/.out) contra la solución modelo, con la salida esperada. |
 
-::::
-<!-- {tab-set} -->
+Ayuda de cada comando: `drake <comando> -h`.
 
----
+### Salida JSON
 
-### 2.3 Autocompletado en la Shell
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `drake check`, `drake fuzz`, `drake doctor`, `drake gen-casos`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-La interfaz CLI de `drake` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+### Códigos de salida
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-drake --install-completion
-
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
-
-````
-<!-- {code-block} bash -->
-
----
-
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
-drake doctor
-
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-drake-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `drake`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `drake fuzz --binary ./bin/programa` | Ejecuta fuzzing guiado por límites contra la entrada estándar del binario. |
-| `drake fuzz --target <archivo.c> --runs 100` | Compila y ejecuta 100 mutaciones de estrés. |
-| `drake boundaries --type int` | Lista los valores frontera recomendados para tipos enteros y punteros. |
-| `drake doctor` | Verifica la disponibilidad de AFL++ o motor LLVM libFuzzer. |
+:::{dropdown} `drake`
+:open:
 
-::::{tip}
+```text
+ Uso: drake [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ ⚡ DRAKE — Fuzzer pedagógico guiado por límites y analizador de robustez en C.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-drake-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdio.h>
-#include <limits.h>
-
-// Vulnerable a desborde aritmético si a + b supera INT_MAX
-int sumar_seguro(int a, int b) {
-    if ((b > 0 && a > INT_MAX - b) || (b < 0 && a < INT_MIN - b)) {
-        return 0; // Desborde detectado
-    }
-    return a + b;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-drake fuzz --binary ./bin/programa
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[!] DRAKE FUZZER: Ejecutando 50 mutaciones de frontera...
-[✓] Test 01: INT_MAX (2147483647) -> PASS (Manejado)
-[✓] Test 02: INT_MIN (-2147483648) -> PASS (Manejado)
-[✓] Test 03: Cadena de 65536 bytes -> PASS (Sin buffer overrun)
-[✓] 50/50 escenarios de estrés superados sin caídas (0 SIGSEGV, 0 SIGFPE).
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-drake-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Conversión de texto a número con detección estricta de desbordamiento mediante `strtol`:
-
-```{code-block} c
-long val = strtol(cadena, &fin, 10);
-if (fin == cadena || *fin != '\0' || errno == ERANGE || val < INT_MIN || val > INT_MAX) {
-    return ERR_VALOR_INVALIDO;
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de drake y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check      Ejecuta fuzzing enviando payloads extremos y mutados a la entrada estándar.           │
+│ fuzz       Ejecuta fuzzing enviando payloads extremos y mutados a la entrada estándar.           │
+│ report     Genera directamente la sección de reporte Markdown de DRAKE para Dredd.               │
+│ doctor     Verifica el estado del entorno de DRAKE (Python, GCC).                                │
+│ gen-casos  Genera casos límite (caso_NN.in/.out) contra la solución modelo, con la salida        │
+│            esperada.                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Fuzzing guiado por Drake:
+:::{dropdown} `drake check`
 
-```{code-block} bash
-drake fuzz parser.c --targets parse_entero
+```text
+ Uso: drake check [OPCIONES] {fuente}
+
+ Ejecuta fuzzing enviando payloads extremos y mutados a la entrada estándar.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a someter a fuzzing. [obligatorio]                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --runs            -n      <int>    Cantidad de ejecuciones con mutaciones. [por defecto: 50]     │
+│ --timeout         -t      <float>  Tiempo límite por corrida en segundos. [por defecto: 1.0]     │
+│ --seed            -s      <int>    Semilla para reproducir una campaña exacta (por defecto al    │
+│                                    azar; se informa en el reporte).                              │
+│ --json                             Salida estructurada en JSON.                                  │
+│ --md,--output-md  -o      <path>   Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --guardar-casos           <path>   Agregar a esta suite cada entrada mínima que hace fallar o    │
+│                                    colgar al programa, como caso de nostromo (crash_NN.in y      │
+│                                    .tags con «regresion»); sigue la numeración y no repite       │
+│                                    casos.                                                        │
+│ --modelo                  <file>   Con --guardar-casos: solución modelo para escribir también la │
+│                                    salida esperada (crash_NN.out).                               │
+│ --help            -h               Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] 10,000 mutaciones de entrada probadas (INT_MAX, INT_MIN, cadenas vacías, desbordamientos)
-[✓] 0 caídas por desreferencia inválida o violación de límites
-[✓] Veredicto: ROBUSTO_FRONTERA (exit 0)
+:::{dropdown} `drake fuzz`
+
+```text
+ Uso: drake fuzz [OPCIONES] {fuente}
+
+ Ejecuta fuzzing enviando payloads extremos y mutados a la entrada estándar.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a someter a fuzzing. [obligatorio]                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --runs            -n      <int>    Cantidad de ejecuciones con mutaciones. [por defecto: 50]     │
+│ --timeout         -t      <float>  Tiempo límite por corrida en segundos. [por defecto: 1.0]     │
+│ --seed            -s      <int>    Semilla para reproducir una campaña exacta (por defecto al    │
+│                                    azar; se informa en el reporte).                              │
+│ --json                             Salida estructurada en JSON.                                  │
+│ --md,--output-md  -o      <path>   Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --guardar-casos           <path>   Agregar a esta suite cada entrada mínima que hace fallar o    │
+│                                    colgar al programa, como caso de nostromo (crash_NN.in y      │
+│                                    .tags con «regresion»); sigue la numeración y no repite       │
+│                                    casos.                                                        │
+│ --modelo                  <file>   Con --guardar-casos: solución modelo para escribir también la │
+│                                    salida esperada (crash_NN.out).                               │
+│ --help            -h               Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `drake report`
 
-Uso de `atoi` sin control de errores ni desbordamientos:
+```text
+ Uso: drake report [OPCIONES] {fuente}
 
-```{code-block} c
-int n = atoi(buffer); // Si buffer excede INT_MAX o es basura, provoca Undefined Behavior
+ Genera directamente la sección de reporte Markdown de DRAKE para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a someter a fuzzing. [obligatorio]                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --runs    -n      <int>   Cantidad de ejecuciones con mutaciones. [por defecto: 50]              │
+│ --seed    -s      <int>   Semilla para reproducir una campaña exacta.                            │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] FALLA: Entrada '99999999999999999999' provocó desbordamiento aritmético no controlado.
-[!] Función 'atoi' es insegura para datos externos no confiables.
-[!] Acción: reemplazá 'atoi' por 'strtol' o 'strtoll' comprobando 'errno == ERANGE'.
+:::{dropdown} `drake doctor`
+
+```text
+ Uso: drake doctor [OPCIONES]
+
+ Verifica el estado del entorno de DRAKE (Python, GCC).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-drake-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `drake gen-casos`
 
-Practicá el uso avanzado de **`drake`** resolviendo los siguientes ejercicios:
+```text
+ Uso: drake gen-casos [OPCIONES] {modelo}
 
-::::{exercise} Desafío 1: Fuzzing de Parser de Números
-:label: drake-desafio-1
-Ejecutar 50 iteraciones de valores extremos contra `parsear_entero()`.
+ Genera casos límite (caso_NN.in/.out) contra la solución modelo, con la salida esperada.
 
-**Instrucción de ejecución:**
-``` bash
-drake fuzz --binary ./bin/parser_test --runs 50
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    modelo      <file>  Solución modelo de la cátedra (.c). [obligatorio]                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --salida         -o      <path>  Directorio destino de los pares caso_NN.in/.out.                │
+│                                  [por defecto: casos]                                            │
+│ --spec                   <path>  spec.yaml opcional (tipo_entrada, semillas_extra, tamano_max).  │
+│ --cantidad       -n      <int>   Máximo de casos de prueba a generar. [por defecto: 12]          │
+│ --segundos               <int>   Tiempo de fuzzing si hay clang/libFuzzer. [por defecto: 15]     │
+│ --sin-libfuzzer                  Fuerza el modo determinista.                                    │
+│ --json                           Emitir el resultado en JSON.                                    │
+│ --help           -h              Muestra esta ayuda y sale.                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Fuzzing de Parser de Números -->
-
-::::{solution} drake-desafio-1
-
-``` bash
-drake fuzz --binary ./bin/parser_test --runs 50
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} drake-desafio-1 -->
-
-::::{exercise} Desafío 2: Detección de División por Cero
-:label: drake-desafio-2
-Inyectar denominador 0 y desbordes en calculadora aritmética.
-
-**Instrucción de ejecución:**
-``` bash
-drake fuzz --binary ./bin/calc --type math
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Detección de División por Cero -->
-
-::::{solution} drake-desafio-2
-
-``` bash
-drake fuzz --binary ./bin/calc --type math
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} drake-desafio-2 -->
-
-::::{exercise} Desafío 3: Validación de Desbordes de String
-:label: drake-desafio-3
-Alimentar buffers de entrada con cadenas sin byte nulo `\0`.
-
-**Instrucción de ejecución:**
-``` bash
-drake fuzz --binary ./bin/string_app --type string
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Validación de Desbordes de String -->
-
-::::{solution} drake-desafio-3
-
-``` bash
-drake fuzz --binary ./bin/string_app --type string
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} drake-desafio-3 -->
-
----
-
-(manual-drake-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `drake` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-drake:
-	@echo "=== Ejecutando verificación con drake ==="
-	drake check src/ include/
-
-.PHONY: check-drake
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-drake` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-drake-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`drake`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `LLVM libFuzzer / AFL++ Engine + Boundary Numeric
-  Synthesizer + Signal Trap Handler`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-drake-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`drake`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    BIN[Binario C Compilado] --> DRK[Drake: Fuzzer de Límites]
-    DRK -->|Payloads: INT_MAX, Strings| NOS[Nostromo: Sandbox Aislado]
-    NOS -->|Crash SIGSEGV / SIGFPE| HAL[Hal: Forense de Core Dumps]
-    DRK -->|Reporte de Robustez| DRD[Dredd: Autograding Masivo]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Binarios C compilados` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `hal (diagnóstico de crashes)`
-- `nostromo (ejecución segura)`
-- `dredd (robustez)` | Informes Markdown, diagnósticos Rich, JSON, actas |
-| **Sincronización** | `vasquez`, `hal`, `tyrell` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `drake` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-drake fuzz --binary ./bin/programa | hal inspect --pipe
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-drake-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `drake`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`drake@cf34a97`](https://github.com/INGCOM-UNRN-P1/drake/tree/cf34a97).

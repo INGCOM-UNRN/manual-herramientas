@@ -1,565 +1,243 @@
 ---
 title: "ferro"
-subtitle: "Ferro — Perfilador de Rendimiento Algorítmico, Caché y Contadores de Hardware en C"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Perfilador de Rendimiento Algorítmico y Hardware Counters en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde ferro@be5bd61: no editar a mano. -->
 
 (manual-ferro)=
-# Ferro — Perfilador de Rendimiento Algorítmico, Caché y Contadores de Hardware en C
+# ferro — Perfilador de Rendimiento Algorítmico y Hardware Counters en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Medición de métricas de rendimiento en tiempo de
-ejecución: ciclos de CPU, instrucciones ejecutadas (IPC), aciertos y fallos de
-caché L1/L2/L3 y predicción de saltos.
+Repositorio: [github.com/INGCOM-UNRN-P1/ferro](https://github.com/INGCOM-UNRN-P1/ferro).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**FERRO** ejecuta programas C a través de múltiples tamaños de entrada ($N$), midiendo el tiempo y las instrucciones ejecutadas (con Cachegrind) e infiriendo la complejidad temporal empírica ($O(N)$, $O(N \log N)$, $O(N^2)$).
 
 ---
 
-(manual-ferro-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`ferro`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Perfilado de rendimiento algorítmico y medición de eficiencia de bajo nivel en programas C.
+- Instrucciones ejecutadas y tasa de fallos de caché L1/LLC **exactas**, medidas con Valgrind/Cachegrind (simulación determinista, no contadores del procesador). Ciclos, IPC y branch misses **no se miden**: se informan como `N/D`.
+- Clasificación de la complejidad por el crecimiento de las instrucciones entre los dos mayores $N$, que no depende del ruido del reloj.
+- Aviso cuando las instrucciones no crecen con $N$ (el optimizador eliminó el bucle medido o el programa no lee $N$).
+- Medición del tiempo de pared por tamaño de entrada.
+- Emisión de informes estructurados en terminal y JSON para análisis de complejidad empírica.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-ferro-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Análisis estático de grafos de control de flujo o complejidad ciclomática (delegado a `giger`).
+- Aislamiento de ejecución en entornos no confiables (delegado a `nostromo`).
+- Fuzzing de robustez (delegado a `drake`).
 
 ---
 
-### 2.2 Métodos de Instalación de `ferro`
+## Requisitos
 
-Podés instalar `ferro` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Linux. Python >= 3.10.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `gcc` (para compilar `.c`).
+- `valgrind` (recomendado): sin él no hay instrucciones ni evaluación de caché y solo se informa el tiempo.
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `ferro`. Plugin registrado en `ripley.plugins` (`hardware_profiler`).
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `ferro` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# Perfilar algoritmo con diferentes tamaños de entrada
+ferro profile ordenamiento.c --inputs "1000,10000,50000"
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-ferro --install-completion
+# Salida estructurada JSON
+ferro profile ordenamiento.c --json
+```
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### Contrato de entrada
 
-````
-<!-- {code-block} bash -->
+El programa perfilado **debe leer $N$ por la entrada estándar** (`scanf("%d", &n)`): ferro se lo envía como `N\n`. Un programa que ignore stdin se perfila igual con $N$ irrelevante, y las instrucciones no crecerán (ferro lo advierte).
 
----
+Por defecto se compila con `-O0` (`--opt`): con `-O2` un bucle cuyo resultado no se usa se elimina y no se mide. Si querés medir con optimización, hacé observable el resultado (variable `volatile` o `printf`).
 
-### 2.4 Verificación del Entorno con `doctor`
+### Cómo se mide y cómo se estima la complejidad
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+- **Tiempo:** con nostromo (sandbox con límites) si está instalado, si no con un subproceso
+  cronometrado; de cada tamaño se toma el mejor de 3 corridas. **Instrucciones:** Cachegrind
+  (exactas). ferro **no usa perf**: en el entorno del estudiante casi nunca está o no tiene permisos,
+  así que ciclos e IPC no se informan (la salida lo dice y el JSON trae `medicion_tiempo` y `perf`).
+- **Complejidad:** se ajusta `a + b·Nᵏ` con todos los tamaños (`a` es el costo fijo de arrancar el
+  programa, que en los tamaños chicos domina) y se informa `exponente_empirico` (k) y `r2_ajuste`.
+  Hacen falta al menos 3 tamaños; con menos se compara entre los dos mayores.
+- **Gráfico:** N contra la métrica en escala log-log, en la terminal; con `--grafico curva.svg`,
+  además como SVG para el reporte.
 
-````{code-block} bash
-ferro doctor
+## Referencia rápida
 
-````
-<!-- {code-block} bash -->
+### Requisitos
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`, `valgrind`.
 
-#### Matriz de Resolución de Problemas:
+| Sistema | `gcc` | `valgrind` |
+|:--|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` | `sudo apt install valgrind` |
+| Fedora | `sudo dnf install gcc` | `sudo dnf install valgrind` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) | no existe: usar WSL |
+| macOS | `xcode-select --install` (clang como `gcc`) | no existe en Apple Silicon |
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `ferro check`, `ferro profile` | Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica. |
+| `ferro report` | Genera directamente la sección de reporte Markdown de FERRO para Dredd. |
+| `ferro doctor` | Verifica el estado del entorno de perfilado de rendimiento FERRO (Python, GCC, perf/time). |
+| `ferro version` | Muestra la versión de FERRO. |
+
+Ayuda de cada comando: `ferro <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `ferro check`, `ferro profile`, `ferro doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-ferro-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `ferro`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `ferro profile -- ./bin/programa` | Mide ciclos, tiempo de CPU y fallos de caché durante la ejecución. |
-| `ferro compare --bin1 ./bin/opt --bin2 ./bin/naive` | Compara el rendimiento de dos algoritmos lado a lado. |
-| `ferro cache-sim -- ./bin/matriz_mult` | Simula el comportamiento de las líneas de caché L1 (64 bytes). |
-| `ferro doctor` | Verifica soporte de contadores de hardware `perf` o `valgrind --tool=cachegrind`. |
+:::{dropdown} `ferro`
+:open:
 
-::::{tip}
+```text
+ Uso: ferro [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Perfilador de rendimiento algorítmico y hardware counters en C
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-ferro-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#define N 1024
-int matriz[N][N];
-
-// Recorrido por filas (Cache-Friendly: acceso contiguo)
-void recorrido_filas(void) {
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < N; j++)
-            matriz[i][j] = 1;
-}
-
-// Recorrido por columnas (Cache-Unfriendly: saltos de N * 4 bytes)
-void recorrido_columnas(void) {
-    for (int j = 0; j < N; j++)
-        for (int i = 0; i < N; i++)
-            matriz[i][j] = 1;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-ferro profile -- ./bin/programa
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-PERFIL FERRO: recorrido_filas vs recorrido_columnas (N = 1024)
-┌──────────────────────────┬────────────────────┬────────────────────┬───────────┐
-│ Métrica                  │ Recorrido Filas    │ Recorrido Columnas │ Ganancia  │
-├──────────────────────────┼────────────────────┼────────────────────┼───────────┤
-│ Tiempo de CPU            │ 1.82 ms            │ 14.30 ms           │ 7.85x     │
-│ Fallos de Caché L1 (D1)  │ 16,384 (1.5%)      │ 1,048,576 (99.8%)  │ 64.0x     │
-│ Instrucciones / Ciclo    │ 2.45 IPC           │ 0.38 IPC           │ 6.44x     │
-└──────────────────────────┴────────────────────┴────────────────────┴───────────┘
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-ferro-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Recorrido de matriz respetando el orden de almacenamiento por filas (Row-Major):
-
-```{code-block} c
-for (size_t i = 0; i < FILAS; ++i) {
-    for (size_t j = 0; j < COLUMNAS; ++j) {
-        suma += matriz[i][j];
-    }
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de ferro y sale.                              │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check    Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica.  │
+│ profile  Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica.  │
+│ report   Genera directamente la sección de reporte Markdown de FERRO para Dredd.                 │
+│ doctor   Verifica el estado del entorno de perfilado de rendimiento FERRO (Python, GCC,          │
+│          perf/time).                                                                             │
+│ version  Muestra la versión de FERRO.                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Perfilado con Ferro:
+:::{dropdown} `ferro check`
 
-```{code-block} bash
-ferro profile matriz.c --cache
+```text
+ Uso: ferro check [OPCIONES] {target}
+
+ Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .c o binario a perfilar [obligatorio]                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --inputs          -i      <str>   Lista de tamaños de entrada N separados por coma               │
+│                                   [por defecto: 1000,10000,50000]                                │
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --opt                     <str>   Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3,   │
+│                                   -Os). Con -O2 un lazo sin efectos observables se elimina y no  │
+│                                   se mide.                                                       │
+│                                   [por defecto: -O0]                                             │
+│ --grafico                 <path>  Guardar el gráfico N contra la métrica medida como SVG.        │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Tasa de aciertos de caché L1D: 98.4%
-[✓] Ciclos por elemento promediados: 1.1 ciclos
-[✓] Localidad espacial óptima
+:::{dropdown} `ferro profile`
+
+```text
+ Uso: ferro profile [OPCIONES] {target}
+
+ Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .c o binario a perfilar [obligatorio]                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --inputs          -i      <str>   Lista de tamaños de entrada N separados por coma               │
+│                                   [por defecto: 1000,10000,50000]                                │
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --opt                     <str>   Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3,   │
+│                                   -Os). Con -O2 un lazo sin efectos observables se elimina y no  │
+│                                   se mide.                                                       │
+│                                   [por defecto: -O0]                                             │
+│ --grafico                 <path>  Guardar el gráfico N contra la métrica medida como SVG.        │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `ferro report`
 
-Recorrido por columnas en bucle interno, destruyendo la localidad espacial en caché:
+```text
+ Uso: ferro report [OPCIONES] {target}
 
-```{code-block} c
-for (size_t j = 0; j < COLUMNAS; ++j) {
-    for (size_t i = 0; i < FILAS; ++i) {
-        suma += matriz[i][j]; // Salto de FILAS * sizeof(int) bytes en cada paso
-    }
-}
+ Genera directamente la sección de reporte Markdown de FERRO para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .c o binario a perfilar [obligatorio]                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --inputs  -i      <str>   Lista de tamaños de entrada N [por defecto: 1000,10000,50000]          │
+│ --opt             <str>   Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os).     │
+│                           [por defecto: -O0]                                                     │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ALERTA DE RENDIMIENTO: Tasa de fallos de caché L1D del 48.2%.
-[!] Penalización de rendimiento: 14.8x más lento que el acceso secuencial por filas.
-[!] Acción: intercambiá los lazos 'for (i)' y 'for (j)' para aprovechar la línea de caché.
+:::{dropdown} `ferro doctor`
+
+```text
+ Uso: ferro doctor [OPCIONES]
+
+ Verifica el estado del entorno de perfilado de rendimiento FERRO (Python, GCC, perf/time).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-ferro-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `ferro version`
 
-Practicá el uso avanzado de **`ferro`** resolviendo los siguientes ejercicios:
+```text
+ Uso: ferro version [OPCIONES]
 
-::::{exercise} Desafío 1: Optimización de Recorrido de Matrices
-:label: ferro-desafio-1
-Medir la tasa de fallos de caché L1 al transponer una matriz.
+ Muestra la versión de FERRO.
 
-**Instrucción de ejecución:**
-``` bash
-ferro profile -- ./bin/transposicion
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Optimización de Recorrido de Matrices -->
-
-::::{solution} ferro-desafio-1
-
-``` bash
-ferro profile -- ./bin/transposicion
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} ferro-desafio-1 -->
-
-::::{exercise} Desafío 2: Comparativa de Algoritmos de Ordenamiento
-:label: ferro-desafio-2
-Comparar QuickSort vs BubbleSort midiendo instrucciones y saltos mal predichos.
-
-**Instrucción de ejecución:**
-``` bash
-ferro compare --bin1 ./bin/quicksort --bin2 ./bin/bubblesort
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Comparativa de Algoritmos de Ordenamiento -->
-
-::::{solution} ferro-desafio-2
-
-``` bash
-ferro compare --bin1 ./bin/quicksort --bin2 ./bin/bubblesort
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} ferro-desafio-2 -->
-
-::::{exercise} Desafío 3: Simulación de Localidad Espacial
-:label: ferro-desafio-3
-Inspeccionar cómo el empaquetamiento de structs reduce accesos a memoria.
-
-**Instrucción de ejecución:**
-``` bash
-ferro cache-sim -- ./bin/test_structs
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Simulación de Localidad Espacial -->
-
-::::{solution} ferro-desafio-3
-
-``` bash
-ferro cache-sim -- ./bin/test_structs
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} ferro-desafio-3 -->
-
----
-
-(manual-ferro-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `ferro` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-ferro:
-	@echo "=== Ejecutando verificación con ferro ==="
-	ferro check src/ include/
-
-.PHONY: check-ferro
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-ferro` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-ferro-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`ferro`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Linux Perf Events Subsystem + Valgrind Cachegrind
-  Simulator + CPU Hardware Counters`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-ferro-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`ferro`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    BIN[Binario C Optimizado] --> FRR[Ferro: Perfilador de Hardware]
-    FRR -->|Lectura de Contadores| PERF[Linux Perf / Cachegrind]
-    FRR -->|Fallos L1/L2/L3| BRT[Brett: Auditor de Padding]
-    FRR -->|Branch Misses| RCH[Rachel: Desensamblador Switch]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Binarios compilados con símbolos de depuración` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `brett (evaluación de structs)`
-- `rachel (impacto de saltos)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `brett`, `rachel`, `tyrell` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `ferro` con otras herramientas del ecosistema en una única línea
-de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-ferro profile -- ./bin/algoritmo_opt
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-ferro-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `ferro`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`ferro@be5bd61`](https://github.com/INGCOM-UNRN-P1/ferro/tree/be5bd61).

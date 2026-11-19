@@ -1,560 +1,266 @@
 ---
 title: "sebastian"
-subtitle: "Sebastian — Analizador de Funciones Recursivas, Caso Base y Árboles de Llamadas"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Analizador de Recursión y Stack Frame en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde sebastian@4b19251: no editar a mano. -->
 
 (manual-sebastian)=
-# Sebastian — Analizador de Funciones Recursivas, Caso Base y Árboles de Llamadas
+# sebastian — Analizador de Recursión y Stack Frame en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Detección estática y dinámica de funciones recursivas,
-verificación formal de caso base, análisis de consumo de marcos de pila (Stack
-Depth) y exportación de árboles de llamadas en ASCII/Mermaid.
+Repositorio: [github.com/INGCOM-UNRN-P1/sebastian](https://github.com/INGCOM-UNRN-P1/sebastian).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+SEBASTIAN es una herramienta pedagógica diseñada para analizar algoritmos recursivos en C, medir el consumo de memoria en la pila de ejecución (Stack), detectar riesgos de `Stack Overflow` y renderizar árboles de ejecución interactivos en terminal y diagramas Mermaid.
 
 ---
 
-(manual-sebastian-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`sebastian`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Análisis **estático** (`analyze`/`check`, sin ejecutar nada) de algoritmos recursivos en programas C: tipo de recursión, caso base y riesgo de overflow.
+- Trazado **dinámico** (`trace`): compila con instrumentación (vía `daedalus`) y ejecuta en el sandbox de `nostromo` para medir la profundidad máxima realmente alcanzada; requiere `gcc`. Si la medición falla, el resultado vuelve al análisis estático y el campo `origen_medicion` lo declara (`dinamica` o `estatica`).
+- Tamaño del marco de pila (Stack Frame Size): es una **estimación heurística** (32 bytes base, +32 con `double`/`long`, +64 con arreglos), no una medición; el consumo pico = profundidad × bytes por frame.
+- Detección temprana de riesgos de desbordamiento de pila (Stack Overflow) y ramas recursivas infinitas.
+- Visualización del árbol de llamadas recursivas en consola terminal y en diagramas Mermaid.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Trazado de llamadas no recursivas en todo el proyecto (delegado a `giger`).
+- Perfilado de contadores de hardware del procesador (delegado a `ferro`).
+- Aislamiento de ejecución en sandbox (delegado a `nostromo`).
 
 ---
 
-(manual-sebastian-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Linux / POSIX o Windows (MSYS2 / WSL). Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `gcc`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `sebastian`. Subcomando `sebastian doctor`.
 
 ---
 
-### 2.2 Métodos de Instalación de `sebastian`
+## Uso Rápido
 
-Podés instalar `sebastian` mediante cualquiera de los siguientes métodos
-estándar:
+```bash
+# 1. Trazar ejecución recursiva y renderizar árbol en terminal
+sebastian trace factorial.c --function factorial
 
-::::{tab-set}
+# 2. Emitir diagrama en sintaxis Mermaid
+sebastian trace fibonacci.c --mermaid
 
-:::{tab-item} uv tool (Recomendado)
+# Programa de varios archivos: el include/ se detecta, los demás .c se suman
+sebastian trace src/lista.c --source src/main.c --source src/envio.c
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+# 3. Analizar estáticamente todas las funciones de un archivo
+sebastian analyze algoritmo.c
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# 4. Salida estructurada JSON para pipelines CI
+sebastian trace factorial.c --json
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Cuántas llamadas entran en la pila
 
-:::{tab-item} pip / venv
+De cada función recursiva se informa la profundidad máxima antes del Stack Overflow
+(`profundidad_maxima_estimada`): el límite de la pila del proceso (`ulimit -s`, 8 MiB por defecto en
+Linux; 1 MiB en Windows) dividido por los bytes de cada llamada, que se miden con
+`gcc -fstack-usage` (`marco_medido_por_gcc`) o, si no compila, se estiman por el código. Con
+`sebastian trace` se agrega cuánto de ese máximo usó la ejecución; pasar del 50 % es riesgo alto.
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+## Referencia rápida
 
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
+### Requisitos
 
-:::
-<!-- {tab-item} pip / venv -->
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-:::{tab-item} pipx
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
+### Comandos
 
-:::
-<!-- {tab-item} pipx -->
+| Comando | Descripción |
+|:--|:--|
+| `sebastian trace` | Ejecuta el código instrumentado, traza las llamadas recursivas y visualiza el árbol de ejecución. |
+| `sebastian check`, `sebastian analyze` | Analiza estáticamente todas las funciones del archivo en busca de recursión y riesgos de desbordamiento. |
+| `sebastian report` | Genera directamente la sección de reporte Markdown de SEBASTIAN para Dredd. |
+| `sebastian doctor` | Verifica el estado del entorno de análisis de recursión y stack SEBASTIAN (Python, GCC). |
 
-::::
-<!-- {tab-set} -->
+Ayuda de cada comando: `sebastian <comando> -h`.
 
----
+### Salida JSON
 
-### 2.3 Autocompletado en la Shell
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `sebastian trace`, `sebastian check`, `sebastian analyze`, `sebastian doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-La interfaz CLI de `sebastian` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+### Códigos de salida
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-sebastian --install-completion
-
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
-
-````
-<!-- {code-block} bash -->
-
----
-
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
-sebastian doctor
-
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-sebastian-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en
-`sebastian`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `sebastian trace src/recursivo.c` | Detecta funciones recursivas y verifica la presencia de caso base. |
-| `sebastian tree src/arbol.c --function recorrer` | Dibuja el árbol de llamadas recursivas en ASCII o Mermaid. |
-| `sebastian stack-profile -- ./bin/fibonacci 10` | Mide la profundidad máxima del Stack alcanzada en runtime. |
-| `sebastian doctor` | Verifica analizadores de AST y perfiles de pila. |
+:::{dropdown} `sebastian`
+:open:
 
-::::{tip}
+```text
+ Uso: sebastian [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ 🌀 SEBASTIAN — Analizador de llamadas recursivas, consumo de stack frame y riesgos de desborde de
+ pila en C.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-sebastian-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Función recursiva analizada por Sebastian
-int factorial(int n) {
-    if (n <= 1) { // Caso base verificado por Sebastian
-        return 1;
-    }
-    return n * factorial(n - 1); // Llamada recursiva con reducción de tamaño
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-sebastian trace src/recursivo.c
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] SEBASTIAN RECURSION ANALYSIS: 'factorial()' en src/recursivo.c:
-    • Tipo de recursión: Recursión lineal simple (no terminal).
-    • Caso Base: Detectado en línea 2 ('if (n <= 1) return 1;').
-    • Condición de Convergencia: Parámetro 'n' decrece hacia el caso base ('n - 1').
-    • Profundidad de Stack estimada: O(N) marcos de pila (aprox. 32 bytes por marco).
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-sebastian-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Recursión con profundidad acotada logarítmica y stack frame liviano:
-
-```{code-block} c
-// Búsqueda binaria en árbol balanceado: profundidad máxima log2(N)
-nodo_t *buscar(nodo_t *raiz, int clave) {
-    if (!raiz || raiz->clave == clave) return raiz;
-    if (clave < raiz->clave) return buscar(raiz->izq, clave);
-    return buscar(raiz->der, clave);
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de sebastian y sale.                          │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ trace    Ejecuta el código instrumentado, traza las llamadas recursivas y visualiza el árbol de  │
+│          ejecución.                                                                              │
+│ check    Analiza estáticamente todas las funciones del archivo en busca de recursión y riesgos   │
+│          de desbordamiento.                                                                      │
+│ analyze  Analiza estáticamente todas las funciones del archivo en busca de recursión y riesgos   │
+│          de desbordamiento.                                                                      │
+│ report   Genera directamente la sección de reporte Markdown de SEBASTIAN para Dredd.             │
+│ doctor   Verifica el estado del entorno de análisis de recursión y stack SEBASTIAN (Python,      │
+│          GCC).                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría con Sebastian:
+:::{dropdown} `sebastian trace`
 
-```{code-block} bash
-sebastian stack arbol.c --max-profundidad 32
+```text
+ Uso: sebastian trace [OPCIONES] {fuente} [args]...
+
+ Ejecuta el código instrumentado, traza las llamadas recursivas y visualiza el árbol de ejecución.
+
+ Códigos de salida: 0 hay traza, 1 no se pudo obtener (se explica por qué) y 2 archivo inexistente.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C con la función recursiva a trazar. [obligatorio]              │
+│      args        <str>   Argumentos para el programa al ejecutar.                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --function  -f               <str>   Nombre de la función recursiva a trazar.                    │
+│ --include   -I               <path>  Carpeta de headers (se puede repetir). El include/ del      │
+│                                      proyecto se detecta solo.                                   │
+│ --source    -s               <path>  Otro .c del programa, como el que tiene main (se puede      │
+│                                      repetir).                                                   │
+│ --stdin     -i               <str>   Entrada estándar para el programa.                          │
+│ --tree          --no-tree            Mostrar árbol de llamadas en terminal. [por defecto: tree]  │
+│ --mermaid   -m                       Emitir diagrama en formato Mermaid.                         │
+│ --json                               Emitir reporte en formato JSON.                             │
+│ --help      -h                       Muestra esta ayuda y sale.                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Tamaño de stack frame por llamada: 32 bytes
-[✓] Consumo de pila acotado en peor caso: 1,024 bytes (1 KB sobre límite de 8 MB)
-[✓] Recursión de cola (Tail Call Optimization) potencial detectada
+:::{dropdown} `sebastian check`
+
+```text
+ Uso: sebastian check [OPCIONES] {fuente}
+
+ Analiza estáticamente todas las funciones del archivo en busca de recursión y riesgos de
+ desbordamiento.
+
+ El análisis lee el fuente sin compilarlo: si el archivo no compila lo avisa, porque el resultado
+ puede no ser confiable.
+
+ Códigos de salida: 0 análisis correcto, 2 archivo inexistente y, solo con
+ --fail-on-high-risk, 1 si hay riesgo ALTO.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar estáticamente. [obligatorio]                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                               Emitir reporte en JSON.                                     │
+│ --md,--output-md     -o      <path>  Generar sección de reporte en formato Markdown para fusión  │
+│                                      en Dredd.                                                   │
+│ --fail-on-high-risk                  Salir con código 1 si alguna función tiene riesgo de        │
+│                                      overflow ALTO (por defecto siempre 0).                      │
+│ --include            -I      <path>  Carpeta de headers (se puede repetir). El include/ del      │
+│                                      proyecto se detecta solo.                                   │
+│ --help               -h              Muestra esta ayuda y sale.                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `sebastian analyze`
 
-Función recursiva lineal con arreglos locales gigantes en el frame:
+```text
+ Uso: sebastian analyze [OPCIONES] {fuente}
 
-```{code-block} c
-void procesar_recursivo(int nivel) {
-    char buffer_local[65536]; // 64 KB en cada frame
-    if (nivel > 1000) return;
-    procesar_recursivo(nivel + 1); // 1000 * 64 KB = 64 MB -> STACK OVERFLOW
-}
+ Analiza estáticamente todas las funciones del archivo en busca de recursión y riesgos de
+ desbordamiento.
+
+ El análisis lee el fuente sin compilarlo: si el archivo no compila lo avisa, porque el resultado
+ puede no ser confiable.
+
+ Códigos de salida: 0 análisis correcto, 2 archivo inexistente y, solo con
+ --fail-on-high-risk, 1 si hay riesgo ALTO.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar estáticamente. [obligatorio]                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                               Emitir reporte en JSON.                                     │
+│ --md,--output-md     -o      <path>  Generar sección de reporte en formato Markdown para fusión  │
+│                                      en Dredd.                                                   │
+│ --fail-on-high-risk                  Salir con código 1 si alguna función tiene riesgo de        │
+│                                      overflow ALTO (por defecto siempre 0).                      │
+│ --include            -I      <path>  Carpeta de headers (se puede repetir). El include/ del      │
+│                                      proyecto se detecta solo.                                   │
+│ --help               -h              Muestra esta ayuda y sale.                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x400Ah: Frame de stack excesivo (65,584 bytes) en 'procesar_recursivo'.
-[!] Riesgo crítico de Stack Overflow: 150 llamadas superan el límite de pila por defecto (8 MB).
-[!] Acción: trasladá el buffer a memoria dinámica (malloc) o refactorizá el lazo a forma iterativa.
+:::{dropdown} `sebastian report`
+
+```text
+ Uso: sebastian report [OPCIONES] {fuente}
+
+ Genera directamente la sección de reporte Markdown de SEBASTIAN para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a analizar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output   -o      <path>  Ruta de destino del archivo Markdown.                                 │
+│ --include  -I      <path>  Carpeta de headers (se puede repetir). El include/ del proyecto se    │
+│                            detecta solo.                                                         │
+│ --help     -h              Muestra esta ayuda y sale.                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-sebastian-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `sebastian doctor`
 
-Practicá el uso avanzado de **`sebastian`** resolviendo los siguientes
-ejercicios:
+```text
+ Uso: sebastian doctor [OPCIONES]
 
-::::{exercise} Desafío 1: Detección de Recursión Infinita sin Caso Base
-:label: sebastian-desafio-1
-Analizar una función recursiva defectuosa y encontrar por qué produce Stack
-Overflow.
+ Verifica el estado del entorno de análisis de recursión y stack SEBASTIAN (Python, GCC).
 
-**Instrucción de ejecución:**
-``` bash
-sebastian trace src/bug_recursivo.c
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Detección de Recursión Infinita sin Caso Base -->
-
-::::{solution} sebastian-desafio-1
-
-``` bash
-sebastian trace src/bug_recursivo.c
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} sebastian-desafio-1 -->
-
-::::{exercise} Desafío 2: Renderizado de Árbol de Llamadas de Fibonacci
-:label: sebastian-desafio-2
-Visualizar el árbol de ramificación de Fibonacci en Mermaid.
-
-**Instrucción de ejecución:**
-``` bash
-sebastian tree src/fib.c --function fib --format mermaid
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Renderizado de Árbol de Llamadas de Fibonacci -->
-
-::::{solution} sebastian-desafio-2
-
-``` bash
-sebastian tree src/fib.c --function fib --format mermaid
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} sebastian-desafio-2 -->
-
-::::{exercise} Desafío 3: Optimización a Recursión de Cola (Tail Recursion)
-:label: sebastian-desafio-3
-Transformar una función recursiva para permitir optimización TCO por el
-compilador.
-
-**Instrucción de ejecución:**
-``` bash
-sebastian trace src/tail_rec.c
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Optimización a Recursión de Cola (Tail Recursion) -->
-
-::::{solution} sebastian-desafio-3
-
-``` bash
-sebastian trace src/tail_rec.c
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} sebastian-desafio-3 -->
-
----
-
-(manual-sebastian-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `sebastian` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-sebastian:
-	@echo "=== Ejecutando verificación con sebastian ==="
-	sebastian check src/ include/
-
-.PHONY: check-sebastian
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-sebastian` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-sebastian-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`sebastian`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Tree-Sitter C AST Recursion Matcher + Stack Frame Size
-  Evaluator + Mermaid Call Tree Generator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-sebastian-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`sebastian`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C Recursivo] --> SEB[Sebastian: Análisis de Recursión]
-    SEB -->|Verificación de Caso Base| AST[Tree-Sitter C Engine]
-    SEB -->|Árbol de Llamadas Mermaid| MYST[Myst-Tools: Apuntes y Guías]
-    SEB -->|Profundidad de Stack| BSH[Bishop: Inspector de Memoria]
-    SEB -->|Alerta de Stack Overflow| HAL[Hal: Forense de Crashes]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Funciones recursivas en C` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `bishop (visualización de marcos)`
-- `myst-tools (diagramas de árbol)`
-- `hal (mitigación de stack overflow)` | Informes Markdown, diagnósticos Rich,
-  JSON, actas |
-| **Sincronización** | `bishop`, `giger`, `hal` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `sebastian` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-sebastian tree src/recursivo.c --format mermaid -o arbol.md
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-sebastian-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `sebastian`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`sebastian@4b19251`](https://github.com/INGCOM-UNRN-P1/sebastian/tree/4b19251).

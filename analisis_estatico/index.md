@@ -13,16 +13,16 @@ Satélites avanzados del perfil análisis orquestados por Ripley o invocados ind
 
 ## Catálogo de Satélites
 
-* **[Brett](brett.md)**: Auditoría de empaquetado de memoria (*padding*), alineación natural y orden de campos en estructuras (`struct`).
-* **[Crowe](crowe.md)**: Linter de portabilidad multi-arquitectura, dependencias de *endianness* y anchos de tipos enteros de ancho variable.
-* **[Drake](drake.md)**: Fuzzer guiado por límites para evaluación de robustez ante valores de frontera.
-* **[Ferro](ferro.md)**: Perfilado de rendimiento por contadores de ciclos de hardware y optimización de microarquitectura.
-* **[Giger](giger.md)**: Extractor de grafos de llamadas (*Call Graphs*), análisis de alcanzabilidad y detección de código muerto.
-* **[Holden](holden.md)**: Generación automática de mocks, stubs e inyección de fallos a nivel de enlazador (`ld --wrap`).
-* **[Kane](kane.md)**: Inspección forense de binarios compilados, secciones ELF y mapeo de layouts de memoria.
-* **[Motoko](motoko.md)**: Verificación de encapsulamiento estricto y ocultamiento de información en Tipos de Datos Abstractos (TDA).
-* **[Parker](parker.md)**: Auditor de interfaces binarias de aplicación (ABI) y visibilidad de símbolos exportados en bibliotecas dinámicas.
-* **[Rachel](rachel.md)**: Desensamblador guiado y análisis de complejidad ciclomática en sentencias `switch` y *jump tables*.
-* **[Sebastian](sebastian.md)**: Análisis estático de consumo de *stack frames* y detección de riesgos de recursión profunda descontrolada.
-* **[Wierzbowski](wierzbowski.md)**: Auditoría de grafos de inclusión de encabezados (`#include`) y verificación de reglas en Makefiles.
-* **[Zhora](zhora.md)**: Auditor de seguridad y buenas prácticas en macros complejas de preprocesador C.
+* **[brett](brett.md)**: Disposición en memoria de los `struct`: mide con el compilador el relleno (*padding*) y sugiere el orden de campos que lo minimiza.
+* **[crowe](crowe.md)**: Asunciones no portables (endianness, tamaño de punteros y de `long`, signo de `char`, VLA), con compilación cruzada opcional para `x86_64`, `aarch64` y `riscv64`.
+* **[drake](drake.md)**: Fuzzing liviano con valores límite (`INT_MAX`, `INT_MIN`, cadenas largas, caracteres nulos) y mutaciones, para encontrar caídas antes de la entrega.
+* **[ferro](ferro.md)**: Complejidad empírica: tiempo e instrucciones (Cachegrind) para varios tamaños de entrada, con ajuste $a + b \cdot N^k$; no mide ciclos ni IPC.
+* **[giger](giger.md)**: Grafo de llamadas estático: recursión, funciones no invocadas y diagramas Mermaid.
+* **[holden](holden.md)**: Mocks y envoltorios de enlace (`-Wl,--wrap=símbolo`) para simular fallos de `malloc`, `fopen` y otras funciones en las pruebas.
+* **[kane](kane.md)**: Archivos binarios escritos con `fwrite`: los muestra como registros de un `struct` C, con offsets y detección de bytes truncados.
+* **[motoko](motoko.md)**: Encapsulamiento de TDA: detecta accesos a campos internos desde el código cliente.
+* **[parker](parker.md)**: Interfaces binarias (ABI) de `.so`, `.o` y `.h`: símbolos privados expuestos, símbolos faltantes y malas prácticas en la interfaz pública.
+* **[rachel](rachel.md)**: `switch` y cadenas de `if-else`: desensambla las tablas de salto que genera el compilador y dibuja el diagrama de flujo.
+* **[sebastian](sebastian.md)**: Recursión: consumo de pila, riesgo de desbordamiento y árbol de ejecución en la terminal o en Mermaid.
+* **[wierzbowski](wierzbowski.md)**: Proyectos de varios archivos: grafo de `#include`, dependencias circulares, guardas de inclusión y Makefiles.
+* **[zhora](zhora.md)**: Macros del preprocesador: evaluación múltiple de argumentos con efectos, paréntesis defensivos y punto y coma espurios.

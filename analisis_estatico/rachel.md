@@ -1,560 +1,327 @@
 ---
 title: "rachel"
-subtitle: "Rachel — Desensamblador y Verificador de Jump Tables O(1) en Sentencias Switch"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Desensamblador y Visualizador de Jump Tables en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde rachel@354fbe5: no editar a mano. -->
 
 (manual-rachel)=
-# Rachel — Desensamblador y Verificador de Jump Tables O(1) en Sentencias Switch
+# rachel — Desensamblador y Visualizador de Jump Tables en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Desensamblado de código máquina y análisis de grafos
-de control para verificar si el compilador generó una tabla de saltos indexada
-O(1) (Jump Table / rodata) o una cascada ineficiente de comparaciones if-else
-O(N).
+Repositorio: [github.com/INGCOM-UNRN-P1/rachel](https://github.com/INGCOM-UNRN-P1/rachel).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+RACHEL es una herramienta pedagógica diseñada para analizar sentencias `switch` y cadenas de `if-else` en C, desensamblando las tablas de salto (`Jump Tables`) generadas por el compilador y renderizando diagramas de flujo interactivos.
 
 ---
 
-(manual-rachel-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`rachel`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Desensamblado, inspección y análisis estático de estructuras de control de flujo bifurcado en C.
+- Comparación técnica y pedagógica entre bifurcaciones `switch-case` y cadenas de `if-else`.
+- Detección de generación de tablas de salto (Jump Tables) en código máquina compilado.
+- Cálculo de densidad de etiquetas `case` y evaluación de costos asociados a la predicción de saltos (branch prediction).
+- Emisión de diagramas de flujo de bifurcaciones en sintaxis Mermaid.
+- `-O0` contra `-O2` por función (`rachel compare-opt`): instrucciones, saltos condicionales, llamadas y
+  accesos a la pila de cada versión, y en español qué transformó el optimizador: inlining, variables en
+  registros, vectorización (SIMD), desenrollado, saltos reemplazados por `cmov`, recursión de cola
+  convertida en lazo y lazos resueltos en tiempo de compilación.
+- Cadenas de `if` / `else if` de más de 4 comparaciones de una variable con constantes (`rachel cadenas`,
+  también en `check` y su sección Markdown): con el assembly se distingue la que GCC ya convirtió en una
+  tabla de la que quedó como una comparación tras otra, que conviene escribir como `switch` (tabla de
+  saltos si los valores son densos; árbol de comparaciones si están dispersos).
+- Saltos explicados en C (`rachel desazucarar`): el assembly con un comentario por cada `cmp`/`test` y
+  salto condicional («salta a .L2 si x <= 5: es decir, cuando «x > 5» es falsa»), con la línea de C que
+  lo origina y los nombres de las variables que da `gcc -fverbose-asm`.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-rachel-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Medición de contadores de hardware reales de branch misses (delegado a `ferro`).
+- Extracción de mapas globales de llamadas (delegado a `giger`).
+- Desazucarado sintáctico de código C a nivel de lenguaje (no contemplado).
 
 ---
 
-### 2.2 Métodos de Instalación de `rachel`
+## Requisitos
 
-Podés instalar `rachel` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Linux / POSIX o Windows (MSYS2 / WSL). Python >= 3.10.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `gcc` (para compilación y generación de código ensamblado `-S`).
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `rachel`.
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `rachel` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# 1. Analizar e inspeccionar switches en un archivo C
+rachel switch parser.c
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-rachel --install-completion
+# 2. Emitir diagrama de flujo en sintaxis Mermaid
+rachel switch parser.c --mermaid
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+# 3. Comparar costo temporal y de memoria entre switch e if-else
+rachel compare parser.c
 
-````
-<!-- {code-block} bash -->
+# 4. Generar reporte consolidado Markdown
+rachel report parser.c
 
----
+# 5. Salida estructurada JSON
+rachel switch parser.c --json
 
-### 2.4 Verificación del Entorno con `doctor`
+# 6. Qué hizo el optimizador entre -O0 y -O2
+rachel compare-opt parser.c
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+# 7. Cadenas de if-else que deberían ser un switch
+rachel cadenas parser.c
 
-````{code-block} bash
-rachel doctor
+# 8. El assembly con cada salto explicado en C
+rachel desazucarar parser.c --funcion clasificar
+```
 
-````
-<!-- {code-block} bash -->
+## Referencia rápida
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Requisitos
 
-#### Matriz de Resolución de Problemas:
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `rachel check`, `rachel switch` | Analiza las sentencias switch del código C, visualiza su diagrama de flujo y desensambla jump tables. |
+| `rachel compare-opt` | Compara el assembly de -O0 y -O2 por función y explica en español qué transformó el optimizador. |
+| `rachel cadenas` | Cadenas de if / else if de más de 4 comparaciones con constantes, que conviene escribir como switch. |
+| `rachel desazucarar` | Assembly anotado: cada cmp/test y salto condicional con la condición en C que evalúa. |
+| `rachel compare` | Compara el costo computacional entre la implementación de switch vs cadenas de if-else. |
+| `rachel report` | Genera directamente la sección de reporte Markdown de RACHEL para Dredd. |
+| `rachel doctor` | Verifica el estado del entorno de RACHEL (Python, GCC, objdump). |
+
+Ayuda de cada comando: `rachel <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `rachel check`, `rachel switch`, `rachel compare-opt`, `rachel cadenas`, `rachel doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-rachel-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `rachel`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `rachel check src/procesador.c` | Analiza las sentencias switch y reporta si usan Jump Tables O(1). |
-| `rachel disasm src/main.c --function <fn>` | Muestra el código ensamblador coloreado de la estructura de salto. |
-| `rachel optimize-switch src/despachador.c` | Sugiere densificación de etiquetas case para forzar Jump Table. |
-| `rachel doctor` | Verifica la disponibilidad de objdump, GDB y compiladores. |
+:::{dropdown} `rachel`
+:open:
 
-::::{tip}
+```text
+ Uso: rachel [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ ⚡ RACHEL — Desensamblador y visualizador pedagógico de estructuras de control y jump tables en C.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-rachel-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdio.h>
-
-// Switch denso analizado por Rachel: el compilador genera Jump Table O(1)
-void despachar_comando(int cmd) {
-    switch (cmd) {
-        case 1: printf("Alta\n"); break;
-        case 2: printf("Baja\n"); break;
-        case 3: printf("Modificación\n"); break;
-        case 4: printf("Listado\n"); break;
-        default: printf("Invalido\n"); break;
-    }
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-rachel check src/procesador.c
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] RACHEL SWITCH AUDIT: src/procesador.c en 'despachar_comando()':
-    • Patrón detectado: Jump Table O(1) indexada en .rodata (4 entradas contiguas).
-    • Instrucción de despacho: 'jmpq *0x402060(,%rdi,8)'
-    • Complejidad temporal: O(1) constante (independiente de la cantidad de cases).
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-rachel-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Sentencia `switch` con etiquetas contiguas o densas compiladas a jump table `O(1)`:
-
-```{code-block} c
-switch (codigo_operacion) {
-    case OP_SUMA:    return a + b;
-    case OP_RESTA:   return a - b;
-    case OP_MULT:    return a * b;
-    case OP_DIV:     return b != 0 ? a / b : 0;
-    default:         return 0;
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de rachel y sale.                             │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check        Analiza las sentencias switch del código C, visualiza su diagrama de flujo y        │
+│              desensambla jump tables.                                                            │
+│ switch       Analiza las sentencias switch del código C, visualiza su diagrama de flujo y        │
+│              desensambla jump tables.                                                            │
+│ compare-opt  Compara el assembly de -O0 y -O2 por función y explica en español qué transformó el │
+│              optimizador.                                                                        │
+│ cadenas      Cadenas de if / else if de más de 4 comparaciones con constantes, que conviene      │
+│              escribir como switch.                                                               │
+│ desazucarar  Assembly anotado: cada cmp/test y salto condicional con la condición en C que       │
+│              evalúa.                                                                             │
+│ compare      Compara el costo computacional entre la implementación de switch vs cadenas de      │
+│              if-else.                                                                            │
+│ report       Genera directamente la sección de reporte Markdown de RACHEL para Dredd.            │
+│ doctor       Verifica el estado del entorno de RACHEL (Python, GCC, objdump).                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Desensamblado y auditoría con Rachel:
+:::{dropdown} `rachel check`
 
-```{code-block} bash
-rachel disasm maquina_estados.o --switch-analysis
+```text
+ Uso: rachel check [OPCIONES] {fuente}
+
+ Analiza las sentencias switch del código C, visualiza su diagrama de flujo y desensambla jump
+ tables.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a desensamblar e inspeccionar. [obligatorio]                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --opt             -O      <str>   Nivel de optimización de GCC (-O0, -O1, -O2, -O3, -Os).        │
+│                                   [por defecto: -O2]                                             │
+│ --mermaid         -m              Emitir diagrama de flujo en sintaxis Mermaid.                  │
+│ --json                            Emitir reporte en formato JSON.                                │
+│ --md,--output-md  -o      <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Jump table detectada en dirección 0x1040 (densidad 100%)
-[✓] Despacho constante O(1) verificado con salto indirecto: jmp *0x1040(,%rax,8)
-[✓] Sin cascadas lineales de saltos condicionales
+:::{dropdown} `rachel switch`
+
+```text
+ Uso: rachel switch [OPCIONES] {fuente}
+
+ Analiza las sentencias switch del código C, visualiza su diagrama de flujo y desensambla jump
+ tables.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a desensamblar e inspeccionar. [obligatorio]                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --opt             -O      <str>   Nivel de optimización de GCC (-O0, -O1, -O2, -O3, -Os).        │
+│                                   [por defecto: -O2]                                             │
+│ --mermaid         -m              Emitir diagrama de flujo en sintaxis Mermaid.                  │
+│ --json                            Emitir reporte en formato JSON.                                │
+│ --md,--output-md  -o      <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `rachel compare-opt`
 
-`switch` con casos extremadamente dispersos que degenera en cascada de comparaciones `O(N)`:
+```text
+ Uso: rachel compare-opt [OPCIONES] {fuente}
 
-```{code-block} c
-switch (valor) {
-    case 1:          return manejar_1();
-    case 1000000:    return manejar_millon();
-    case 50000000:   return manejar_cincuenta();
-}
+ Compara el assembly de -O0 y -O2 por función y explica en español qué transformó el optimizador.
+
+ Instrucciones, saltos condicionales, llamadas y accesos a la pila de cada versión, y las
+ transformaciones
+ reconocidas: inlining, variables en registros, vectorización, desenrollado, saltos reemplazados
+ por cmov,
+ recursión de cola convertida en lazo y lazos resueltos en tiempo de compilación.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <file>  Archivo C a compilar con -O0 y con -O2. [obligatorio]                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --opt   -O      <str>  Nivel con el que se compara -O0 (-O1, -O2, -O3, -Os). [por defecto: -O2]  │
+│ --json                 Emitir la comparación en JSON.                                            │
+│ --help  -h             Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ALERTA: Jump table descartada por densidad deficiente (< 0.1%).
-[!] El compilador generó un árbol de comparaciones cmp/jne lineal.
-[!] Sugerencia: remapeá los identificadores a un rango contiguo para habilitar jump table O(1).
+:::{dropdown} `rachel cadenas`
+
+```text
+ Uso: rachel cadenas [OPCIONES] {fuente}
+
+ Cadenas de if / else if de más de 4 comparaciones con constantes, que conviene escribir como
+ switch.
+
+ Con el assembly se distingue la cadena que GCC ya convirtió en una tabla de la que quedó como una
+ comparación tras otra. Sale con 1 si hay alguna de estas últimas.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <file>  Archivo C a revisar. [obligatorio]                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --opt   -O      <str>  Nivel de optimización con que se mira el assembly. [por defecto: -O2]     │
+│ --json                 Emitir en JSON.                                                           │
+│ --help  -h             Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-rachel-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `rachel desazucarar`
 
-Practicá el uso avanzado de **`rachel`** resolviendo los siguientes ejercicios:
+```text
+ Uso: rachel desazucarar [OPCIONES] {fuente}
 
-::::{exercise} Desafío 1: Verificación de Tabla de Saltos en Intérprete
-:label: rachel-desafio-1
-Comprobar que el switch del despachador de opcodes compila a Jump Table.
+ Assembly anotado: cada cmp/test y salto condicional con la condición en C que evalúa.
 
-**Instrucción de ejecución:**
-``` bash
-rachel check src/interprete.c
+ `jle .L2` después de `cmpl $5, -4(%rbp)` se lee «salta a .L2 si x <= 5: es decir, cuando «x > 5»
+ es
+ falsa». Los nombres de las variables y las líneas de C salen de gcc -fverbose-asm.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <file>  Archivo C a desensamblar. [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --funcion  -f      <str>  Sólo esta función.                                                     │
+│ --opt      -O      <str>  Nivel de optimización (con -O0 cada if se ve tal cual).                │
+│                           [por defecto: -O0]                                                     │
+│ --help     -h             Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Verificación de Tabla de Saltos en Intérprete -->
+:::{dropdown} `rachel compare`
 
-::::{solution} rachel-desafio-1
+```text
+ Uso: rachel compare [OPCIONES] {fuente}
 
-``` bash
-rachel check src/interprete.c
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Compara el costo computacional entre la implementación de switch vs cadenas de if-else.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a comparar. [obligatorio]                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} rachel-desafio-1 -->
+:::{dropdown} `rachel report`
 
-::::{exercise} Desafío 2: Densificación de Casos Esparsos
-:label: rachel-desafio-2
-Transformar un switch disperso (case 1, case 1000, case 50000) en densidad
-contigua.
+```text
+ Uso: rachel report [OPCIONES] {fuente}
 
-**Instrucción de ejecución:**
-``` bash
-rachel optimize-switch src/comandos.c
+ Genera directamente la sección de reporte Markdown de RACHEL para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a desensamblar. [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --opt     -O      <str>   Nivel de optimización. [por defecto: -O2]                              │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Densificación de Casos Esparsos -->
+:::{dropdown} `rachel doctor`
 
-::::{solution} rachel-desafio-2
+```text
+ Uso: rachel doctor [OPCIONES]
 
-``` bash
-rachel optimize-switch src/comandos.c
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
+ Verifica el estado del entorno de RACHEL (Python, GCC, objdump).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} rachel-desafio-2 -->
-
-::::{exercise} Desafío 3: Inspección de Instrucciones Ensamblador
-:label: rachel-desafio-3
-Desensamblar la función despachadora y examinar la tabla en `.rodata`.
-
-**Instrucción de ejecución:**
-``` bash
-rachel disasm src/procesador.c --function despachar_comando
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Inspección de Instrucciones Ensamblador -->
-
-::::{solution} rachel-desafio-3
-
-``` bash
-rachel disasm src/procesador.c --function despachar_comando
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} rachel-desafio-3 -->
-
----
-
-(manual-rachel-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `rachel` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-rachel:
-	@echo "=== Ejecutando verificación con rachel ==="
-	rachel check src/ include/
-
-.PHONY: check-rachel
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-rachel` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-rachel-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`rachel`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `GNU objdump / GDB Disassembler + Jump Table .rodata
-  Extractor + Control Flow Branch Predictor`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-rachel-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`rachel`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C: Sentencias switch] --> DAE[Daedalus: Compilador GCC]
-    DAE -->|Binario Compilado| RCH[Rachel: Desensamblador O(1)]
-    RCH -->|Inspección .rodata| OBJDUMP[GNU objdump Disassembler]
-    RCH -->|Verificación O(1) vs O(N)| FRR[Ferro: Perfilador de Rendimiento]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Binarios compilados con sentencias switch` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `ferro (análisis de saltos)`
-- `deckard (ejercicios de bajo nivel)` | Informes Markdown, diagnósticos Rich,
-  JSON, actas |
-| **Sincronización** | `daedalus`, `ferro`, `bishop` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `rachel` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-rachel check src/despachador.c --disasm
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-rachel-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `rachel`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`rachel@354fbe5`](https://github.com/INGCOM-UNRN-P1/rachel/tree/354fbe5).

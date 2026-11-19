@@ -1,557 +1,224 @@
 ---
 title: "wierzbowski"
-subtitle: "Wierzbowski — Auditor de Grafos de Inclusión de Headers, Dependencias Circulares y Makefiles"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Auditor de Grafos de Inclusión, Ciclos y Makefiles en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde wierzbowski@b9c628c: no editar a mano. -->
 
 (manual-wierzbowski)=
-# Wierzbowski — Auditor de Grafos de Inclusión de Headers, Dependencias Circulares y Makefiles
+# wierzbowski — Auditor de Grafos de Inclusión, Ciclos y Makefiles en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Auditoría estática de dependencias entre archivos `.h`
-y `.c`, detección de inclusiones circulares, includes redundantes o no
-utilizados y validación de reglas en Makefiles.
+Repositorio: [github.com/INGCOM-UNRN-P1/wierzbowski](https://github.com/INGCOM-UNRN-P1/wierzbowski).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**WIERZBOWSKI** analiza la arquitectura de proyectos multi-archivo en C, construyendo el grafo de dependencias de `#include`, detectando dependencias circulares, verificando guardas de inclusión y auditando Makefiles.
 
 ---
 
-(manual-wierzbowski-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`wierzbowski`** forma parte del ecosistema oficial de software
-de la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Auditoría estática de grafos de inclusión de archivos de cabecera (`#include`) y Makefiles en C.
+- Detección de dependencias circulares y ciclos de inclusión entre archivos `.h` y `.c`.
+- Verificación de presencia de guardas de inclusión defensivas (`#ifndef / #define` o `#pragma once`) en cabeceras `.h`.
+- Auditoría de sintaxis y coherencia de reglas en Makefiles de proyectos estudiantiles.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Compilación de código ni generación de binarios (delegado a `daedalus`).
+- Auditoría del interior de macros preprocesadas (delegado a `zhora`).
+- Auditoría de layout de memoria de structs declarados en cabeceras (delegado a `brett`).
 
 ---
 
-(manual-wierzbowski-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- Ninguno obligatorio (análisis estático de código fuente y Makefiles).
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `wierzbowski`. Plugin registrado en `ripley.plugins` (`headers_audit`).
 
 ---
 
-### 2.2 Métodos de Instalación de `wierzbowski`
+## Uso Rápido
 
-Podés instalar `wierzbowski` mediante cualquiera de los siguientes métodos
-estándar:
+```bash
+# Auditar dependencias en el directorio actual
+wierzbowski audit .
+wierzbowski check .
 
-::::{tab-set}
+# Auditar proyecto específico
+wierzbowski audit ./tp_modular/
 
-:::{tab-item} uv tool (Recomendado)
+# Generar informe en formato Markdown
+wierzbowski report .
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# Salida estructurada JSON
+wierzbowski audit . --json
 ```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Reglas Auditadas
 
-La interfaz CLI de `wierzbowski` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+- **Detección de Ciclos**: Grafos de inclusión circulares (`a.h ➔ b.h ➔ a.h`).
+- **Guardas de Inclusión**: Falta de `#ifndef / #define` o `#pragma once`.
+- **`MKF001`**: Recetas de Makefiles indentadas con espacios en lugar de TAB.
+- **`MKF002`**: Reglas sin archivo objetivo sin declaración en `.PHONY`.
+- **`MKF003`**: Ausencia de target `clean`.
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-wierzbowski --install-completion
+## Referencia rápida
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### Requisitos
 
-````
-<!-- {code-block} bash -->
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
----
+### Comandos
 
-### 2.4 Verificación del Entorno con `doctor`
+| Comando | Descripción |
+|:--|:--|
+| `wierzbowski check`, `wierzbowski audit` | Audita dependencias entre cabeceras, ciclos de inclusión y Makefiles. |
+| `wierzbowski makefile` | Audita un Makefile: flags de la cátedra, .PHONY, tabulaciones y trampas (antes dredd audit-makefile). |
+| `wierzbowski report` | Genera directamente la sección de reporte Markdown de WIERZBOWSKI para Dredd. |
+| `wierzbowski doctor` | Verifica el estado del entorno de auditoría de dependencias WIERZBOWSKI (Python, Make, GCC). |
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+Ayuda de cada comando: `wierzbowski <comando> -h`.
 
-````{code-block} bash
-wierzbowski doctor
+### Salida JSON
 
-````
-<!-- {code-block} bash -->
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `wierzbowski check`, `wierzbowski audit`, `wierzbowski makefile`, `wierzbowski doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Códigos de salida
 
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-wierzbowski-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en
-`wierzbowski`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `wierzbowski audit include/ src/` | Audita el grafo de dependencias de cabeceras buscando ciclos y redundancias. |
-| `wierzbowski graph include/ -o dependencias.dot` | Exporta el grafo de inclusiones en formato DOT / Graphviz. |
-| `wierzbowski check-makefile Makefile` | Valida que todas las dependencias declaradas en el Makefile sean consistentes. |
-| `wierzbowski unused-includes src/` | Detecta `#include` que no son necesarios en el archivo. |
+:::{dropdown} `wierzbowski`
+:open:
 
-::::{tip}
+```text
+ Uso: wierzbowski [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Auditor de grafos de inclusión de headers, dependencias circulares y Makefiles
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-wierzbowski-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Inclusión circular problemática:
-// include/a.h incluye "b.h"
-// include/b.h incluye "a.h"
-// Wierzbowski detecta el ciclo y propone forward declarations.
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-wierzbowski audit include/ src/
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[!] WIERZBOWSKI DEPENDENCY ALERT:
-    • Ciclo de inclusión circular detectado: include/a.h <───> include/b.h
-    • Inclusión redundante: 'src/main.c:2' incluye <stdlib.h> pero no utiliza ninguna función de esa cabecera.
-    • Makefile: La regla 'bin/programa' no declara 'include/tda.h' como prerrequisito.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-wierzbowski-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Encabezados con include guards estrictos y grafo de inclusión acíclico (DAG):
-
-```{code-block} c
-// lista.h
-#ifndef LISTA_H
-#define LISTA_H
-
-#include <stddef.h>
-#include <stdbool.h>
-
-typedef struct lista lista_t;
-// declaraciones...
-
-#endif // LISTA_H
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de wierzbowski y sale.                        │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check     Audita dependencias entre cabeceras, ciclos de inclusión y Makefiles.                  │
+│ audit     Audita dependencias entre cabeceras, ciclos de inclusión y Makefiles.                  │
+│ makefile  Audita un Makefile: flags de la cátedra, .PHONY, tabulaciones y trampas (antes dredd   │
+│           audit-makefile).                                                                       │
+│ report    Genera directamente la sección de reporte Markdown de WIERZBOWSKI para Dredd.          │
+│ doctor    Verifica el estado del entorno de auditoría de dependencias WIERZBOWSKI (Python, Make, │
+│           GCC).                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Auditoría con Wierzbowski:
+:::{dropdown} `wierzbowski check`
 
-```{code-block} bash
-wierzbowski audit-includes --src-dir ./
+```text
+ Uso: wierzbowski check [OPCIONES] [directory]
+
+ Audita dependencias entre cabeceras, ciclos de inclusión y Makefiles.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   directory      <path>  Directorio raíz del proyecto C a analizar [por defecto: .]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --mermaid                         Emitir el grafo de inclusiones en formato Mermaid.             │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] 18 encabezados auditados
-[✓] Include guards estándar presentes en todos los archivos
-[✓] Grafo de inclusión acíclico verificado: 0 ciclos de inclusión detectados
+:::{dropdown} `wierzbowski audit`
+
+```text
+ Uso: wierzbowski audit [OPCIONES] [directory]
+
+ Audita dependencias entre cabeceras, ciclos de inclusión y Makefiles.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   directory      <path>  Directorio raíz del proyecto C a analizar [por defecto: .]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --mermaid                         Emitir el grafo de inclusiones en formato Mermaid.             │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `wierzbowski makefile`
 
-Inclusión cíclica entre dos encabezados que dependen mutuamente:
+```text
+ Uso: wierzbowski makefile [OPCIONES] [objetivo]
 
-```{code-block} c
-// nodo.h incluye lista.h y lista.h incluye nodo.h sin forward declarations
+ Audita un Makefile: flags de la cátedra, .PHONY, tabulaciones y trampas (antes dredd
+ audit-makefile).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   objetivo      <path>  Makefile o directorio de la entrega. [por defecto: .]                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --librerias          <str>  Bibliotecas permitidas, separadas por comas (por defecto: m,         │
+│                             pthread, rt, p1_test, check).                                        │
+│ --json                      Emitir salida en formato JSON estructurado.                          │
+│ --help       -h             Muestra esta ayuda y sale.                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] INFRACCIÓN 0x400Bh: Ciclo de inclusión circular detectado:
-    nodo.h -> lista.h -> nodo.h
-[!] Error de compilación: tipos incompletos por dependencia cruzada.
-[!] Acción: utilizá forward declarations ('struct lista;') en lugar de incluir el encabezado completo.
+:::{dropdown} `wierzbowski report`
+
+```text
+ Uso: wierzbowski report [OPCIONES] [directory]
+
+ Genera directamente la sección de reporte Markdown de WIERZBOWSKI para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   directory      <path>  Directorio raíz del proyecto C a analizar [por defecto: .]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-wierzbowski-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `wierzbowski doctor`
 
-Practicá el uso avanzado de **`wierzbowski`** resolviendo los siguientes
-ejercicios:
+```text
+ Uso: wierzbowski doctor [OPCIONES]
 
-::::{exercise} Desafío 1: Detección de Inclusiones Circulares
-:label: wierzbowski-desafio-1
-Escanear todos los headers de un proyecto grande para resolver ciclos.
+ Verifica el estado del entorno de auditoría de dependencias WIERZBOWSKI (Python, Make, GCC).
 
-**Instrucción de ejecución:**
-``` bash
-wierzbowski audit include/
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Detección de Inclusiones Circulares -->
-
-::::{solution} wierzbowski-desafio-1
-
-``` bash
-wierzbowski audit include/
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} wierzbowski-desafio-1 -->
-
-::::{exercise} Desafío 2: Limpieza de Headers Inutilizados
-:label: wierzbowski-desafio-2
-remover includes innecesarios para acelerar el tiempo de compilación.
-
-**Instrucción de ejecución:**
-``` bash
-wierzbowski unused-includes src/
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Limpieza de Headers Inutilizados -->
-
-::::{solution} wierzbowski-desafio-2
-
-``` bash
-wierzbowski unused-includes src/
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} wierzbowski-desafio-2 -->
-
-::::{exercise} Desafío 3: Validación de Dependencias en Makefile
-:label: wierzbowski-desafio-3
-Comprobar que modificar un `.h` fuerza la recompilación de los `.c`
-correspondientes.
-
-**Instrucción de ejecución:**
-``` bash
-wierzbowski check-makefile Makefile
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Validación de Dependencias en Makefile -->
-
-::::{solution} wierzbowski-desafio-3
-
-``` bash
-wierzbowski check-makefile Makefile
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} wierzbowski-desafio-3 -->
-
----
-
-(manual-wierzbowski-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `wierzbowski` de forma automática a tu flujo de desarrollo,
-agregá la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-wierzbowski:
-	@echo "=== Ejecutando verificación con wierzbowski ==="
-	wierzbowski check src/ include/
-
-.PHONY: check-wierzbowski
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-wierzbowski` antes de cada commit para mantener que tu
-código conserve el estado de aprobación.
-
----
-
-(manual-wierzbowski-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`wierzbowski`** implementa un motor de alta precisión basado
-en:
-
-- **Tecnología Núcleo:** `C Preprocessor Inclusions Graph Builder + NetworkX
-  Cycle Detector + Makefile Dependency Parser`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-wierzbowski-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`wierzbowski`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    HDR[Archivos include/*.h y src/*.c] --> WRZ[Wierzbowski: Grafo de Includes]
-    MKF[Makefile del Proyecto] --> WRZ
-    WRZ -->|Detección de Ciclos de Inclusión| NETX[NetworkX Cycle Detector]
-    WRZ -->|Consistencia de Reglas| DAE[Daedalus: Compilador Defensivo]
-    WRZ -->|Limpieza de Includes| RIP[Ripley: Linter de Cátedra]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código fuente C (.c/.h) y archivos Makefile` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `daedalus (orden de compilación)`
-- `ripley (reglas de headers)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `daedalus`, `corbel`, `ripley` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `wierzbowski` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-wierzbowski audit include/ src/ && wierzbowski check-makefile Makefile
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-wierzbowski-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `wierzbowski`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`wierzbowski@b9c628c`](https://github.com/INGCOM-UNRN-P1/wierzbowski/tree/b9c628c).
