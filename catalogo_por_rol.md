@@ -54,7 +54,7 @@ Los perfiles son categorías de aprovisionamiento, no permisos exclusivos. `moth
 | Componente | Función | Tipo y estado |
 | :--- | :--- | :--- |
 | [ripley](https://github.com/INGCOM-UNRN-P1/ripley) | Orquesta verificaciones pedagógicas para proyectos C. | cli |
-| [weyl](https://github.com/INGCOM-UNRN-P1/weyl) | Compara funciones de archivos C mediante extracción textual; no construye AST. | cli |
+| [weyl](https://github.com/INGCOM-UNRN-P1/weyl) | Compara código C con la solución modelo función por función y mide similitud sobre el AST. | cli |
 | [dredd](https://github.com/INGCOM-UNRN-P1/dredd) | Orquesta la evaluación de entregas y el seguimiento de cohortes. | cli |
 | [uatu-tools](https://github.com/INGCOM-UNRN-P1/uatu-tools) | Administración y auditoría de exámenes con uatu. | cli |
 | [deckard](https://github.com/INGCOM-UNRN/deckard) | Curaduría y composición de guías de ejercicios. | cli |
@@ -80,7 +80,6 @@ Los perfiles son categorías de aprovisionamiento, no permisos exclusivos. `moth
 | [cast-tools-common](https://github.com/martinvilu/cast-tools-common) | Biblioteca compartida por las herramientas de transmisión. | biblioteca |
 | [uatu](https://github.com/INGCOM-UNRN-P1/uatu) | Extensión de VS Code para registrar evidencia verificable en exámenes. | extension-vscode |
 | [uatu-demo](https://github.com/INGCOM-UNRN-P1/uatu-demo) | Ejemplo de examen supervisado con uatu. | ejemplo |
-| [grid](https://github.com/INGCOM-UNRN-P1/grid) | Extensión de VS Code deprecada; sus funciones pertinentes están en uatu. | extension-vscode; **deprecado** |
 | `cyberdeck` | Aplicación Android de periféricos para hardboiled; el manifiesto aún la clasifica como especificación. | especificacion; **especificacion** |
 
 ## Análisis y diagnóstico (`analisis`)
@@ -95,27 +94,27 @@ Los perfiles son categorías de aprovisionamiento, no permisos exclusivos. `moth
 | [kaneda](https://github.com/INGCOM-UNRN-P1/kaneda) | Audita funciones inseguras y problemas de seguridad en C. | cli |
 | [nostromo](https://github.com/INGCOM-UNRN-P1/nostromo) | Ejecuta programas y pruebas en un entorno aislado. | cli |
 | [ripley](https://github.com/INGCOM-UNRN-P1/ripley) | Orquesta verificaciones pedagógicas para proyectos C. | cli |
-| [brett](https://github.com/INGCOM-UNRN-P1/brett) | Auditoría de empaquetado de memoria (*padding*), alineación natural y orden de campos en estructuras (`struct`). | cli |
-| [callahan](https://github.com/INGCOM-UNRN-P1/callahan) | Componente de tipo cli del ecosistema. | cli |
-| [corbel](https://github.com/INGCOM-UNRN-P1/corbel) | Herramienta para documentación y visualización de interfaces C. | cli |
-| [crowe](https://github.com/INGCOM-UNRN-P1/crowe) | Linter de portabilidad multi-arquitectura, dependencias de *endianness* y anchos de tipos enteros de ancho variable. | cli |
-| [dietrich](https://github.com/INGCOM-UNRN-P1/dietrich) | Componente de tipo cli del ecosistema. | cli |
-| [drake](https://github.com/INGCOM-UNRN-P1/drake) | Fuzzer guiado por límites para evaluación de robustez ante valores de frontera. | cli |
-| [ferro](https://github.com/INGCOM-UNRN-P1/ferro) | Perfilado de rendimiento por contadores de ciclos de hardware y optimización de microarquitectura. | cli |
-| [giger](https://github.com/INGCOM-UNRN-P1/giger) | Extractor de grafos de llamadas (*Call Graphs*), análisis de alcanzabilidad y detección de código muerto. | cli |
-| [holden](https://github.com/INGCOM-UNRN-P1/holden) | Generación automática de mocks, stubs e inyección de fallos a nivel de enlazador (`ld --wrap`). | cli |
-| [kane](https://github.com/INGCOM-UNRN-P1/kane) | Inspección forense de binarios compilados, secciones ELF y mapeo de layouts de memoria. | cli |
-| [motoko](https://github.com/INGCOM-UNRN-P1/motoko) | Verificación de encapsulamiento estricto y ocultamiento de información en Tipos de Datos Abstractos (TDA). | cli |
-| [parker](https://github.com/INGCOM-UNRN-P1/parker) | Auditor de interfaces binarias de aplicación (ABI) y visibilidad de símbolos exportados en bibliotecas dinámicas. | cli |
-| [rachel](https://github.com/INGCOM-UNRN-P1/rachel) | Desensamblador guiado y análisis de complejidad ciclomática en sentencias `switch` y *jump tables*. | cli |
-| [sebastian](https://github.com/INGCOM-UNRN-P1/sebastian) | Análisis estático de consumo de *stack frames* y detección de riesgos de recursión profunda descontrolada. | cli |
-| [tetsuo](https://github.com/INGCOM-UNRN-P1/tetsuo) | Componente de tipo cli del ecosistema. | cli |
+| [brett](https://github.com/INGCOM-UNRN-P1/brett) | Relleno (*padding*) de los `struct` y orden de campos que lo minimiza. | cli |
+| [callahan](https://github.com/INGCOM-UNRN-P1/callahan) | Verifica contratos ACSL con Frama-C (WP). | cli |
+| [corbel](https://github.com/INGCOM-UNRN-P1/corbel) | Documentación de cabeceras C: Markdown, `man 3` y README de librerías. | cli |
+| [crowe](https://github.com/INGCOM-UNRN-P1/crowe) | Asunciones no portables de hardware y compilación cruzada. | cli |
+| [dietrich](https://github.com/INGCOM-UNRN-P1/dietrich) | Cobertura MC/DC: tabla de verdad y vectores de prueba mínimos. | cli |
+| [drake](https://github.com/INGCOM-UNRN-P1/drake) | Fuzzing con valores límite para encontrar caídas. | cli |
+| [ferro](https://github.com/INGCOM-UNRN-P1/ferro) | Complejidad empírica con tiempo e instrucciones medidas con Cachegrind. | cli |
+| [giger](https://github.com/INGCOM-UNRN-P1/giger) | Grafo de llamadas, recursión y código muerto. | cli |
+| [holden](https://github.com/INGCOM-UNRN-P1/holden) | Mocks y envoltorios de enlace (`--wrap`) para simular fallos. | cli |
+| [kane](https://github.com/INGCOM-UNRN-P1/kane) | Muestra archivos binarios como registros de un `struct`. | cli |
+| [motoko](https://github.com/INGCOM-UNRN-P1/motoko) | Encapsulamiento de TDA: accesos a campos internos desde el cliente. | cli |
+| [parker](https://github.com/INGCOM-UNRN-P1/parker) | Interfaces binarias (ABI) y visibilidad de símbolos. | cli |
+| [rachel](https://github.com/INGCOM-UNRN-P1/rachel) | Tablas de salto de `switch` y diagramas de flujo. | cli |
+| [sebastian](https://github.com/INGCOM-UNRN-P1/sebastian) | Consumo de pila de la recursión y riesgo de desbordamiento. | cli |
+| [tetsuo](https://github.com/INGCOM-UNRN-P1/tetsuo) | Traduce al español los diagnósticos de AddressSanitizer y UndefinedBehaviorSanitizer. | cli |
 | [tyrell](https://github.com/INGCOM-UNRN-P1/tyrell) | Genera casos de prueba deterministas de entrada y salida. | cli |
-| [vasquez](https://github.com/INGCOM-UNRN-P1/vasquez) | Componente de tipo cli del ecosistema. | cli |
-| [vassili](https://github.com/INGCOM-UNRN-P1/vassili) | Componente de tipo cli del ecosistema. | cli |
-| [weyl](https://github.com/INGCOM-UNRN-P1/weyl) | Compara funciones de archivos C mediante extracción textual; no construye AST. | cli |
-| [wierzbowski](https://github.com/INGCOM-UNRN-P1/wierzbowski) | Auditoría de grafos de inclusión de encabezados (`#include`) y verificación de reglas en Makefiles. | cli |
-| [zhora](https://github.com/INGCOM-UNRN-P1/zhora) | Auditor de seguridad y buenas prácticas en macros complejas de preprocesador C. | cli |
+| [vasquez](https://github.com/INGCOM-UNRN-P1/vasquez) | Inyecta fallos en funciones de la biblioteca de C con `LD_PRELOAD`. | cli |
+| [vassili](https://github.com/INGCOM-UNRN-P1/vassili) | Pruebas de mutación: qué porcentaje de mutantes detecta la suite. | cli |
+| [weyl](https://github.com/INGCOM-UNRN-P1/weyl) | Compara código C con la solución modelo función por función y mide similitud sobre el AST. | cli |
+| [wierzbowski](https://github.com/INGCOM-UNRN-P1/wierzbowski) | Grafo de `#include`, guardas de inclusión y Makefiles. | cli |
+| [zhora](https://github.com/INGCOM-UNRN-P1/zhora) | Macros del preprocesador: evaluación múltiple, paréntesis y punto y coma. | cli |
 | [mother](https://github.com/INGCOM-UNRN-P1/mother) | Instala, actualiza y diagnostica herramientas por perfil. | cli |
 | [yutani](https://github.com/INGCOM-UNRN-P1/yutani) | Biblioteca común de infraestructura para las herramientas. | biblioteca |
 
@@ -123,4 +122,4 @@ Los perfiles son categorías de aprovisionamiento, no permisos exclusivos. `moth
 
 `puppetmaster` figura en el manifiesto como proyecto Android **ajeno**, sin perfil asignado: [repositorio](https://github.com/martinvilu/puppetmaster).
 
-El estado indicado procede del manifiesto local de `p1-tools`. En particular, `grid` está deprecado. Cyberdeck tiene una aplicación Android documentada en su repositorio local, aunque el manifiesto todavía la clasifica como especificación.
+El estado indicado procede del manifiesto local de `p1-tools`. Cyberdeck tiene una aplicación Android documentada en su repositorio local, aunque el manifiesto todavía la clasifica como especificación.
