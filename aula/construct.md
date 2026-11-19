@@ -1,135 +1,583 @@
 ---
 title: "construct"
-subtitle: "IDE pedagógico y orquestador de máquina virtual del ecosistema Programación 1"
-author: "Cátedra de Programación 1"
-date: "2026-10-27"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde construct@f23c488: no editar a mano. -->
 
 (manual-construct)=
-# construct — IDE Pedagógico y Orquestador de Máquina Virtual
+# construct
 
-::::{admonition} Resumen Técnico del Componente
-:class: note
-**Rol en el ecosistema:** Orquestador de máquina virtual Debian acelerada por hardware (QEMU con KVM, WHPX o HVF) e interfaz de terminal unificada (`construct ui`) para el dictado y evaluación práctica en laboratorios y entornos multiplataforma (Linux, Windows, macOS).
-::::
+Repositorio: [github.com/INGCOM-UNRN-P1/construct](https://github.com/INGCOM-UNRN-P1/construct).
 
----
+IDE pedagógico y orquestador de máquina virtual del perfil `estudiante` de Programación 1
+(UNRN Sede Andina). Corre `daedalus`, `ripley`, `nostromo`, `tetsuo`, `hal`, `bishop` y el resto
+de las herramientas dentro de una VM Debian acelerada por hardware, con la misma experiencia en
+Windows, macOS y Linux.
 
-(manual-construct-proposito)=
-## 1. Propósito y Filosofía de Diseño
+> **Estado:** Fases 1 a 6 de [`PLAN.md`](https://github.com/INGCOM-UNRN-P1/construct/blob/main/PLAN.md) implementadas: la línea de comandos completa, el
+> IDE en la terminal (`construct ui`) y `construct jonesy`, verificados en Linux con KVM. Falta
+> completar la [matriz manual](https://github.com/INGCOM-UNRN-P1/construct/blob/main/docs/matriz_manual.md) en Windows, macOS y las terminales reales.
 
-`construct` estandariza el entorno de ejecución de la cátedra eliminando las disparidades entre sistemas operativos del alumnado y computadoras de laboratorio.
+## Requisitos
 
-1. **Aislamiento sin Fricción**: En el sistema Host únicamente se requieren QEMU (≥ 8.2), Git y `uv`. El compilador GCC, GDB, Valgrind, Bubblewrap y la totalidad de los satélites de cátedra residen preinstalados dentro de la imagen oficial de la máquina virtual.
-2. **Frontend Unificado**: Integra en un solo panel TUI (`construct ui`) el editor de código, la consola interactiva, el visualizador de memoria (Bishop/Valgrind) y el diagnóstico pedagógico en tiempo real (Jonesy, Daedalus, Ripley).
-3. **Reproducibilidad en Exámenes y Aula**: Garantiza que las restricciones de memoria, límites de tiempo y comprobaciones de concurrencia se evalúen bajo un kernel Linux idéntico, aun cuando la máquina anfitriona sea Windows o macOS.
+| | Windows 10/11 | macOS 13+ | Linux |
+| :--- | :--- | :--- | :--- |
+| Aceleración | Plataforma del hipervisor de Windows (WHPX) | Hypervisor.framework (HVF) | KVM |
+| QEMU | `winget install --id SoftwareFreedomConservancy.QEMU -e` | `brew install qemu` | paquete `qemu-system-x86` (o `-arm`/`-aarch64` en ARM) |
+| Git | `winget install --id Git.Git -e` | `xcode-select --install` | paquete `git` |
 
----
+En las Mac con Apple Silicon la VM usa un Guest `aarch64` (acelerado); en el resto, `x86_64`.
 
-(manual-construct-requisitos)=
-## 2. Requisitos y Aceleración por Plataforma
+## Instalación
 
-| Sistema Anfitrión | Hipervisor / Aceleración | Instalación de QEMU y Dependencias |
-| :--- | :--- | :--- |
-| **Linux (x86_64 / ARM)** | KVM (`/dev/kvm`) | `sudo apt install qemu-system-x86 git` (o `qemu-system-arm`) |
-| **Windows 10/11** | Windows Hypervisor Platform (WHPX) | `winget install --id SoftwareFreedomConservancy.QEMU -e` |
-| **macOS 13+** | Hypervisor.framework (HVF) | `brew install qemu` |
+Una sola vez por computadora. Ninguno de los pasos instala compiladores ni herramientas de la
+cátedra en tu sistema: todo eso vive en la VM.
 
-En equipos con arquitectura Apple Silicon la máquina virtual ejecuta una imagen nativa `aarch64` con aceleración completa sin emulación de instrucciones.
+### Windows 10/11
 
----
+1. Activá la plataforma del hipervisor en una PowerShell **como administrador** y reiniciá:
 
-(manual-construct-instalacion)=
-## 3. Instalación y Puesta en Marcha
+   ```powershell
+   Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
+   ```
 
-`construct` se instala en el Host mediante `uv`:
+   Si `construct doctor` dice que la virtualización está apagada, activá VT-x/AMD-V en el BIOS.
+2. Instalá QEMU, Git y uv (en una PowerShell común):
+
+   ```powershell
+   winget install --id SoftwareFreedomConservancy.QEMU -e
+   winget install --id Git.Git -e
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+3. Cerrá y abrí la terminal (mejor **Windows Terminal**) y seguí con
+   [los pasos comunes](#manual-construct-en-los-tres-sistemas).
+
+### macOS 13+
 
 ```bash
-# Instalación del orquestador en el sistema Host
-uv tool install git+https://github.com/INGCOM-UNRN-P1/construct
-
-# Descarga y aprovisionamiento de la imagen oficial
-construct setup
-
-# Diagnóstico de aceleración y estado de la VM
-construct doctor
+xcode-select --install            # git
+brew install qemu                 # https://brew.sh si todavía no tenés Homebrew
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
----
+En las Mac con Apple Silicon la VM es `aarch64` y anda acelerada; no hace falta Rosetta.
+
+### Linux
+
+```bash
+# Debian / Ubuntu
+sudo apt install qemu-system-x86 qemu-utils git          # en ARM: qemu-system-arm
+# Fedora
+sudo dnf install qemu-system-x86 qemu-img git
+# Arch
+sudo pacman -S qemu-system-x86 qemu-img git
+
+sudo usermod -aG kvm "$USER"      # y volvé a iniciar sesión: KVM sin sudo
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+(manual-construct-en-los-tres-sistemas)=
+### En los tres sistemas
+
+```bash
+uv tool install git+https://github.com/INGCOM-UNRN-P1/construct
+construct setup                   # baja la imagen de la VM y te dice qué falta, con el comando exacto
+construct doctor                  # todo en verde: listo
+```
+
+Para actualizar: `uv tool upgrade construct` y, si cambió la imagen, `construct setup --forzar`.
+
+## Uso
+
+```bash
+construct setup             # carpetas, diagnóstico y descarga verificada (SHA-256) de la imagen
+construct setup --forzar    # vuelve a bajar la imagen
+construct setup -m RUTA     # usa otro manifiesto de imágenes (URL o archivo local)
+construct setup -i CARPETA  # instala una imagen construida en tu máquina, sin bajar nada
+construct doctor            # diagnóstico del Host y, con la VM arriba, `mother doctor` adentro
+construct doctor --json     # el mismo informe en JSON (sobre común de yutani)
+construct doctor --dev      # además, lo que necesita el modo desarrollo (GDB del Host)
+construct -v                # versión
+```
+
+En la carpeta del trabajo práctico (la VM arranca sola la primera vez y queda prendida un rato):
+
+```bash
+construct build             # F7: daedalus con -Wall -Wextra -Werror -pedantic -std=c11
+construct check             # F8: ripley (gaff, spunkmeyer y kaneda)
+construct fix               # arreglos automáticos de gaff, de vuelta en tus archivos
+construct run [-- args]     # F5: ejecuta con telemetría; si se cae, hal explica por qué
+construct run --tetsuo      # Shift+F5: con AddressSanitizer y UBSan explicados por tetsuo
+construct run --aislado     # dentro del sandbox de nostromo
+construct test              # F6: suites de treadstone (tests/test_*.c)
+construct sync              # sube, baja con fusión de 3 vías y trae artefactos (.bmp, .wav, …)
+construct sync estado       # también subir, bajar y artefactos
+construct jonesy [archivo]  # jonesy, el IDE de terminal de la cátedra, dentro de la VM
+construct entrar [CMD]      # la terminal del entorno de la cátedra dentro de la VM (como ~/p1/entrar)
+construct vm start|stop|status
+construct vm exec -- CMD    # un comando dentro de la VM (diagnóstico)
+```
+
+`construct run` avisa, además, de lo que vio la telemetría: espera activa, posibles deadlocks,
+archivos sin `fclose` y memoria sin liberar, con su línea. Los artefactos quedan en
+`.construct/artefactos/`.
+
+`construct jonesy` conecta tu terminal directo con jonesy en la VM (con colores, mouse y el tamaño
+de la ventana); al salir, lo que guardaste allá vuelve a tus archivos. En Windows necesita Windows
+Terminal o la consola de Windows 10 1809 en adelante.
+
+`construct entrar` abre, de la misma forma, una terminal dentro de la VM en la carpeta de tu
+proyecto, con el [entorno de la cátedra](https://github.com/INGCOM-UNRN-P1/entorno) igual que en tu
+máquina: la bienvenida con `ayuda`, el prompt `(p1)` y sus comandos (`nuevo-proyecto`, `verificar`,
+`entregar`, `configure-git.sh`, `customize-terminal.sh`, `doctor`…), con el `.gdbinit` de la cátedra.
+Con `exit` volvés, y lo que cambiaste o creaste allá (los archivos de texto, no lo compilado ni lo
+que ignora tu `.gitignore`) se trae a tu carpeta. `construct entrar ayuda` corre un solo comando del
+entorno y vuelve. La VM no tiene red, así que lo que necesita internet (`clonar`, `gh`,
+`update-env.sh`, `install-lib.sh` desde GitHub) se hace en tu máquina.
+
+### El IDE: `construct ui`
+
+Cuatro paneles: el editor (con los hallazgos marcados al costado de cada línea), la memoria de
+`bishop` con los registros de la depuración y los `.bmp`/`.wav` que genera tu programa, los
+hallazgos (con «Explicar» por IA y el autofix de `gaff`) y la consola con la entrada del
+programa, las pruebas de `treadstone` y el consumo de recursos. Si el programa se cae, `hal`
+explica por qué en una ventana.
+
+Al depurar, la memoria se actualiza en cada paso. La toma `bishop` desde la misma sesión de GDB,
+sin volver a correr el programa (ver `bishop gdb-script`). Se ve:
+
+- la pila con sus variables;
+- cada bloque del heap con su número y la línea que lo pidió;
+- los punteros entre bloques;
+- las fugas, que son los bloques que ya nadie apunta;
+- los `malloc` y `free` desde la parada anterior.
+
+| Acción | Atajo | Alternativa |
+| :--- | :--- | :--- |
+| Ejecutar / continuar la depuración | `F5` | `Ctrl+R` |
+| Ejecutar con `tetsuo` | `Shift+F5` | paleta |
+| Pruebas (`treadstone`) | `F6` | `Ctrl+T` |
+| Compilar (`daedalus`) | `F7` | `Ctrl+L` |
+| Auditar (`ripley`) | `F8` | `Ctrl+G` |
+| Breakpoint / step over / step into | `F9` / `F10` / `F11` | `Ctrl+B` / `Ctrl+N` / `Ctrl+O` |
+| Empezar / terminar la depuración | `Ctrl+F5` / `Ctrl+F2` | paleta |
+| Memoria con `bishop` en la línea del cursor | `F12` | paleta |
+| Guardar, sincronizar y auditar | `Ctrl+S` | — |
+| Autofix de `gaff` | `Ctrl+.` | `Alt+Enter` |
+| Explicar el hallazgo (`yutani.ia`) | `F1` | paleta |
+| Paleta de comandos (todas las acciones) | `Ctrl+P` | — |
+
+Si tu terminal no manda alguna tecla (en macOS, F10 y F11 suelen ser del sistema), usá la
+alternativa, la paleta o cambiala en `[teclas]`. «Explicar» usa la configuración común de
+`yutani.ia` (`~/.config/p1/ia.toml`); sin configurar, un servidor local como `ollama`.
+
+## Configuración (`project.toml`)
+
+Opcional, en el directorio de trabajo:
+
+```toml
+[vm]
+accel = "auto"      # auto | kvm | whpx | hvf | tcg
+arch = "auto"       # auto | x86_64 | aarch64
+memoria_mb = 1024
+cpus = 2
+qemu = ""           # ruta a qemu-system-* si no está en el PATH
+
+[sync]
+automatico = true
+
+[dev]
+habilitado = false
+
+[teclas]            # cambiar atajos del IDE: acción = "tecla" o ["tecla", "alternativa"]
+paso_dentro = ["f11", "ctrl+o"]
+```
+
+Variables de entorno:
+
+- `CONSTRUCT_HOME`: reemplaza las carpetas de datos, estado, caché y logs por una sola.
+- `CONSTRUCT_MANIFIESTO`: manifiesto de imágenes por defecto de `construct setup`.
+- `http_proxy` / `https_proxy`: se respetan para las descargas (nunca para `localhost`).
+
+## Desarrollo
+
+```bash
+uv sync
+uv run pytest                     # incluye el agente del Guest compilado en Linux
+```
+
+Imagen del Guest (Linux con podman o docker; ver [`docs/protocolo.md`](https://github.com/INGCOM-UNRN-P1/construct/blob/main/docs/protocolo.md)):
+
+```bash
+vm_image/build_vm.sh --arch x86_64 --version 0.1.0 --salida dist/imagenes
+CONSTRUCT_IMAGEN_PRUEBA=dist/imagenes/x86_64 uv run pytest tests/e2e -s   # la arranca de verdad
+CONSTRUCT_IMAGEN_PRUEBA=dist/imagenes/x86_64 uv run pytest \
+    tests/test_student_tools_ide.py tests/test_media_artifacts.py      # el perfil estudiante entero
+construct setup --imagen dist/imagenes                                 # la instala para usarla
+```
+
+El workflow `imagenes.yml` construye y prueba las dos arquitecturas y, con un tag `imagen-vX.Y.Z`,
+publica el release que `construct setup` baja por defecto (`vm_image/generar_manifiesto.py` arma esa
+carpeta, que también se instala con `construct setup -m dist/release/imagenes.json`).
+
+`construct setup --imagen` acepta la carpeta que deja `build_vm.sh`, la de una arquitectura
+(`dist/imagenes/x86_64`) o la de un release con `imagenes.json`. La versión queda como
+`local-<hash del rootfs>`: si reconstruís la imagen, el mismo comando instala la nueva.
+
+Modo desarrollo (`[dev] habilitado = true` o `CONSTRUCT_DEV=1`): `construct dev gdb [binario]`
+abre el GDB del Host contra un `gdbserver` del Guest, con el sysroot de la VM y las rutas de tus
+fuentes; `construct dev gdbserver` es el puente que usa (`target remote | …`).
+
+Ver [`AGENTS.md`](https://github.com/INGCOM-UNRN-P1/construct/blob/main/AGENTS.md) para las convenciones de trabajo y [`PLAN.md`](https://github.com/INGCOM-UNRN-P1/construct/blob/main/PLAN.md) para la hoja de ruta.
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.12 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `git`, `qemu-system-x86_64`, `qemu-img`.
+
+| Sistema | `git` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install git` |
+| Fedora | `sudo dnf install git` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `construct ui` | Abre el IDE en la terminal: editor, hallazgos, memoria, consola y pruebas sobre la VM. |
+| `construct doctor` | Verifica el Host y, si la máquina virtual está corriendo, las herramientas de adentro. |
+| `construct build` | Compila con daedalus en la VM (F7): -Wall -Wextra -Werror -pedantic -std=c11, errores en español. |
+| `construct check` | Audita con ripley (F8): estilo (gaff), antipatrones (spunkmeyer) y seguridad (kaneda). |
+| `construct fix` | Aplica los arreglos automáticos de gaff en la VM y los trae a tus archivos. |
+| `construct run` | Ejecuta el programa en la VM conectado a esta terminal (F5); si falla con una señal, lo explica hal. |
+| `construct test` | Compila y corre las pruebas de treadstone (tests/test_*.c) con tu código (F6). |
+| `construct jonesy` | Abre jonesy, el IDE de terminal de la cátedra, dentro de la VM y en esta terminal (RF-05). |
+| `construct entrar` | Abre la terminal del entorno de la cátedra dentro de la VM, como `~/p1/entrar` (salís con `exit`). |
+| `construct sync` | Sincroniza tu carpeta con la VM (único responsable de mover archivos entre los dos). |
+| `construct setup` | Prepara el Host: carpetas, diagnóstico con instrucciones y descarga de la imagen del Guest. |
+| `construct vm` | Máquina virtual: arrancarla, apagarla, ver su estado o ejecutar algo adentro. |
+
+Ayuda de cada comando: `construct <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `construct doctor`, `construct build`, `construct check`, `construct test`, `construct sync`, `construct setup`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-construct-comandos)=
-## 4. Guía Integral de Comandos (CLI)
+## Ayuda de los comandos
 
-| Comando | Descripción Operativa |
-| :--- | :--- |
-| `construct ui` | Inicia el entorno de desarrollo integrado en terminal (editor, consola, memoria, tests). |
-| `construct build` | Compila el proyecto actual dentro de la VM aplicando los flags estrictos de cátedra. |
-| `construct check` | Ejecuta la suite de linters pedagógicos (Ripley, Gaff, Spunkmeyer, Kaneda). |
-| `construct run` | Ejecuta el binario compilado bajo el entorno aislado de la VM. |
-| `construct run --tetsuo` | Ejecuta instrumentando con AddressSanitizer y UndefinedBehaviorSanitizer. |
-| `construct test` | Ejecuta el arnés de pruebas unitarias (`p1_test.h` / `treadstone.h`). |
-| `construct jonesy <archivo.c>` | Invoca el diagnóstico pedagógico interactivo de errores inline. |
-| `construct sync` | Sincroniza bidireccionalmente los fuentes y artefactos (`.bmp`, `.wav`) entre Host y VM. |
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
----
+:::{dropdown} `construct`
+:open:
 
-(manual-construct-atajos)=
-## 5. Atajos de Teclado en `construct ui`
+```text
+ Uso: construct [OPCIONES] COMANDO [ARGUMENTOS]...
 
-* <kbd>F5</kbd>: Ejecutar programa (`construct run`).
-* <kbd>F6</kbd>: Ejecutar batería de tests (`construct test`).
-* <kbd>F7</kbd>: Compilar solución (`construct build`).
-* <kbd>F8</kbd>: Verificar estilo y antipatrones (`construct check`).
-* <kbd>Ctrl+S</kbd>: Guardar archivo y sincronizar automáticamente con la máquina virtual.
-* <kbd>Ctrl+Q</kbd>: Salir de la interfaz de terminal.
+ IDE pedagógico de Programación 1: corre las herramientas del perfil estudiante dentro de una
+ máquina virtual Debian acelerada por hardware, igual en Windows, macOS y Linux.
 
-(manual-construct-ejemplos)=
-## Ejemplos y Contraejemplos
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Instalá/aprovisioná el entorno y verificá la VM antes de compilar y ejecutar
-un proyecto:
-
-```bash
-construct setup
-construct doctor
-construct build
-construct run
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de construct y sale.                          │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ ui      Abre el IDE en la terminal: editor, hallazgos, memoria, consola y pruebas sobre la VM.   │
+│ doctor  Verifica el Host y, si la máquina virtual está corriendo, las herramientas de adentro.   │
+│ build   Compila con daedalus en la VM (F7): -Wall -Wextra -Werror -pedantic -std=c11, errores en │
+│         español.                                                                                 │
+│ check   Audita con ripley (F8): estilo (gaff), antipatrones (spunkmeyer) y seguridad (kaneda).   │
+│ fix     Aplica los arreglos automáticos de gaff en la VM y los trae a tus archivos.              │
+│ run     Ejecuta el programa en la VM conectado a esta terminal (F5); si falla con una señal, lo  │
+│         explica hal.                                                                             │
+│ test    Compila y corre las pruebas de treadstone (tests/test_*.c) con tu código (F6).           │
+│ jonesy  Abre jonesy, el IDE de terminal de la cátedra, dentro de la VM y en esta terminal        │
+│         (RF-05).                                                                                 │
+│ entrar  Abre la terminal del entorno de la cátedra dentro de la VM, como `~/p1/entrar` (salís    │
+│         con `exit`).                                                                             │
+│ sync    Sincroniza tu carpeta con la VM (único responsable de mover archivos entre los dos).     │
+│ setup   Prepara el Host: carpetas, diagnóstico con instrucciones y descarga de la imagen del     │
+│         Guest.                                                                                   │
+│ vm      Máquina virtual: arrancarla, apagarla, ver su estado o ejecutar algo adentro.            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-`setup` aprovisiona la imagen, `doctor` diagnostica aceleración y estado de la
-VM, `build` compila dentro de ella y `run` ejecuta el binario. **Salida
-esperada (ilustrativa):** diagnóstico de VM disponible, compilación exitosa y
-salida del programa. El manual no fija el texto exacto de esas salidas.
+:::{dropdown} `construct ui`
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+```text
+ Uso: construct ui [OPCIONES]
 
-Una fuga de memoria es un caso que conviene ejecutar con la instrumentación
-AddressSanitizer/UndefinedBehaviorSanitizer documentada por `--tetsuo`:
+ Abre el IDE en la terminal: editor, hallazgos, memoria, consola y pruebas sobre la VM.
 
-```c
-#include <stdlib.h>
-
-int main(void) {
-    int *datos = malloc(sizeof *datos);
-    if (datos == NULL) {
-        return 1;
-    }
-    datos[0] = 42;
-    return 0;
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-El programa no libera `datos` antes de retornar. Compilalo y corré la
-instrumentación con los comandos que figuran en esta guía:
+:::{dropdown} `construct doctor`
 
-```bash
-construct build
-construct run --tetsuo
+```text
+ Uso: construct doctor [OPCIONES]
+
+ Verifica el Host y, si la máquina virtual está corriendo, las herramientas de adentro.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Informe en JSON con schema_version.                                            │
+│ --dev             Verifica también lo que necesita el modo desarrollo (GDB del Host).            │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-**Salida esperada (ilustrativa):** el reporte del sanitizador señala una fuga
-asociada a la asignación de `datos`. La guía documenta que `--tetsuo` activa
-AddressSanitizer y UndefinedBehaviorSanitizer, pero no especifica el formato del
-reporte ni confirma la configuración del detector de fugas.
+:::{dropdown} `construct build`
+
+```text
+ Uso: construct build [OPCIONES] [fuentes]...
+
+ Compila con daedalus en la VM (F7): -Wall -Wextra -Werror -pedantic -std=c11, errores en español.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   fuentes      <str>  Archivos .c (por defecto, todos los del proyecto salvo test_*.c).          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <str>  Nombre del ejecutable. [por defecto: programa]                          │
+│ --json                   Resultado y hallazgos en JSON.                                          │
+│ --help    -h             Muestra esta ayuda y sale.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct check`
+
+```text
+ Uso: construct check [OPCIONES] [objetivo]
+
+ Audita con ripley (F8): estilo (gaff), antipatrones (spunkmeyer) y seguridad (kaneda).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   objetivo      <str>  Archivo o carpeta a auditar. [por defecto: .]                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Hallazgos en JSON.                                                             │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct fix`
+
+```text
+ Uso: construct fix [OPCIONES] [rutas]...
+
+ Aplica los arreglos automáticos de gaff en la VM y los trae a tus archivos.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   rutas      <str>  Archivos a corregir (por defecto, todos los .c y .h).                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct run`
+
+```text
+ Uso: construct run [OPCIONES] [binario] [argumentos]...
+
+ Ejecuta el programa en la VM conectado a esta terminal (F5); si falla con una señal, lo explica
+ hal.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   binario         <str>  Ejecutable ya compilado en la VM (por defecto, compila el proyecto y lo │
+│                          corre).                                                                 │
+│   argumentos      <str>  Argumentos para el programa.                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --tetsuo             Con AddressSanitizer y UBSan explicados por tetsuo (Shift+F5).              │
+│ --aislado            Confinado por nostromo, con límites de tiempo y memoria.                    │
+│ --help     -h        Muestra esta ayuda y sale.                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct test`
+
+```text
+ Uso: construct test [OPCIONES]
+
+ Compila y corre las pruebas de treadstone (tests/test_*.c) con tu código (F6).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Resultados en JSON.                                                            │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct jonesy`
+
+```text
+ Uso: construct jonesy [OPCIONES] [argumentos]...
+
+ Abre jonesy, el IDE de terminal de la cátedra, dentro de la VM y en esta terminal (RF-05).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   argumentos      <str>  Argumentos para jonesy (por ejemplo, un archivo).                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct entrar`
+
+```text
+ Uso: construct entrar [OPCIONES] [comando]...
+
+ Abre la terminal del entorno de la cátedra dentro de la VM, como `~/p1/entrar` (salís con `exit`).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   comando      <str>  Comando a correr en lugar de la terminal interactiva.                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct sync`
+
+```text
+ Uso: construct sync [OPCIONES] [subir|bajar|artefactos|estado]
+
+ Sincroniza tu carpeta con la VM (único responsable de mover archivos entre los dos).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   [subir|bajar|artefactos|estado]      <str>  Sin acción: baja, fusiona, sube y trae artefactos. │
+│                                               [por defecto: todo]                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Estado en JSON (con `estado`).                                                 │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct setup`
+
+```text
+ Uso: construct setup [OPCIONES]
+
+ Prepara el Host: carpetas, diagnóstico con instrucciones y descarga de la imagen del Guest.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --manifiesto  -m      <str>        URL o ruta del manifiesto de imágenes (por defecto, la última │
+│                                    publicada).                                                   │
+│ --imagen      -i      <directory>  Instala una imagen construida en esta máquina (la carpeta que │
+│                                    deja vm_image/build_vm.sh) en lugar de bajarla.               │
+│ --forzar                           Vuelve a bajar la imagen aunque ya esté instalada.            │
+│ --sin-imagen                       Sólo prepara las carpetas y diagnostica el Host.              │
+│ --json                             Resultado en JSON con schema_version.                         │
+│ --help        -h                   Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct vm`
+
+```text
+ Uso: construct vm [OPCIONES] COMANDO [ARGUMENTOS]...
+
+ Máquina virtual: arrancarla, apagarla, ver su estado o ejecutar algo adentro.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ start   Arranca la máquina virtual (si no estaba corriendo) y deja la sesión lista.              │
+│ stop    Apaga la máquina virtual de forma ordenada.                                              │
+│ status  Muestra si la máquina virtual está corriendo y con qué acelerador.                       │
+│ exec    Ejecuta un comando dentro de la VM conectado a esta terminal (para diagnóstico).         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct vm start`
+
+```text
+ Uso: construct vm start [OPCIONES]
+
+ Arranca la máquina virtual (si no estaba corriendo) y deja la sesión lista.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct vm stop`
+
+```text
+ Uso: construct vm stop [OPCIONES]
+
+ Apaga la máquina virtual de forma ordenada.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct vm status`
+
+```text
+ Uso: construct vm status [OPCIONES]
+
+ Muestra si la máquina virtual está corriendo y con qué acelerador.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Estado en JSON.                                                                │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `construct vm exec`
+
+```text
+ Uso: construct vm exec [OPCIONES] {comando}...
+
+ Ejecuta un comando dentro de la VM conectado a esta terminal (para diagnóstico).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    comando      <str>  Comando y argumentos a ejecutar en la VM. [obligatorio]                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --root                 Como root en lugar del usuario estudiante.                                │
+│ --cwd           <str>  Directorio de trabajo en la VM.                                           │
+│ --help  -h             Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+Generado desde [`construct@f23c488`](https://github.com/INGCOM-UNRN-P1/construct/tree/f23c488).

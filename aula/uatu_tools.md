@@ -1,447 +1,703 @@
 ---
 title: "uatu-tools"
-subtitle: "uatu-admin y uatu-audit — Gestión Criptográfica de Exámenes y Validación Forense"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-09-25"
 ---
 
-(manual-uatu-tools)=
-# uatu-tools — Gestión Criptográfica de Exámenes y Validación Forense
+<!-- Generado por scripts/generar_paginas.py desde uatu-tools@b77e6d6: no editar a mano. -->
 
-````{admonition} Resumen Técnico
-:class: note
-**Rol en el ecosistema:** Herramientas de línea de comandos del lado docente de [uatu](https://github.com/INGCOM-UNRN-P1/uatu). `uatu-admin` administra claves, registro de docentes, manifiestos firmados y la configuración de GitHub; `uatu-audit` verifica la telemetría de las entregas, aplica heurísticas forenses y descifra la evidencia.
-````
+(manual-uatu_tools)=
+# uatu-tools
 
-La guía de uso del sistema completo (estudiantes, cátedra, modelo de amenazas)
-está en el [manual de uatu](https://github.com/INGCOM-UNRN-P1/uatu/blob/main/manual/index.md).
-Este documento es la referencia exhaustiva de los comandos.
+Repositorio: [github.com/INGCOM-UNRN-P1/uatu-tools](https://github.com/INGCOM-UNRN-P1/uatu-tools).
 
----
+Herramientas de línea de comandos de [uatu](https://github.com/INGCOM-UNRN-P1/uatu),
+el sistema de proctorización y auditoría criptográfica Git-native para
+exámenes prácticos en VS Code.
 
-(manual-uatu-tools-instalacion)=
-## 1. Instalación
+| Comando | Uso |
+|---|---|
+| `uatu-audit` | Validador forense para CI: audita las ramas `uatu-audit/<usuario>/<sesión>` de una entrega (firmas Ed25519, hash-chain, micro-lotes, bloque génesis y ventana temporal), aplica heurísticas y descifra los pegados con la clave docente. |
+| `uatu-admin` | Herramientas de cátedra: almacén de claves en `~/.config/uatu/keys`, registro público de claves docentes, firma de `.uatu.conf`, secretos de GitHub Actions y protección de las ramas de telemetría. |
+
+📖 **[Manual de referencia](https://github.com/INGCOM-UNRN-P1/uatu-tools/blob/main/manual/index.md)** con todos los comandos y opciones.
+La guía del sistema completo está en el
+[manual de uatu](https://github.com/INGCOM-UNRN-P1/uatu/blob/main/manual/index.md),
+y los formatos en su [`docs/protocolo.md`](https://github.com/INGCOM-UNRN-P1/uatu/blob/main/docs/protocolo.md).
+
+## Instalación
+
+Requiere [uv](https://docs.astral.sh/uv/) y Python 3.9+.
 
 ```bash
-uv tool install "git+https://github.com/INGCOM-UNRN-P1/uatu-tools"   # última versión
-uv tool install "git+https://github.com/INGCOM-UNRN-P1/uatu-tools@v2.1.0"  # versión fija
-uv tool upgrade uatu-tools
+# Como herramienta global
+uv tool install "git+https://github.com/INGCOM-UNRN-P1/uatu-tools"
+
+# Desde un clon local
+uv tool install .
+
+# Sin instalar
+uvx --from "git+https://github.com/INGCOM-UNRN-P1/uatu-tools" uatu-audit --help
 ```
 
-Sin instalar: `uvx --from "git+https://github.com/INGCOM-UNRN-P1/uatu-tools" uatu-audit --help`.
+`src/uatu_tools/audit.py` es autocontenido y declara sus dependencias con
+metadatos PEP 723: también puede copiarse a un repositorio y ejecutarse con
+`uv run audit.py ...`.
 
-`src/uatu_tools/audit.py` es autocontenido (PEP 723) y también funciona suelto:
-`uv run audit.py --help`.
+## Almacén de claves
 
-Requisitos: Python 3.9+, `cryptography>=42`. Las operaciones sobre GitHub
-(`keys export --gh-*`, `keys setup-*`, `protect-branches`) usan la CLI `gh` o
-un token en `GH_TOKEN`/`GITHUB_TOKEN`.
-
-### Variables de entorno
-
-| Variable | Uso |
-|---|---|
-| `UATU_KEYS_DIR` | Ubicación del almacén de claves. |
-| `XDG_CONFIG_HOME` | Base del almacén si no se define `UATU_KEYS_DIR` (`$XDG_CONFIG_HOME/uatu/keys`). |
-| `UATU_TEACHER_PUBLIC_KEY` | Valor por omisión de `uatu-audit --teacher-key`. |
-| `GH_TOKEN`, `GITHUB_TOKEN` | Token para la API de GitHub; si faltan se usa `gh auth token`. |
-
----
-
-(manual-uatu-tools-almacen)=
-## 2. Almacén de Claves
-
-```
-${UATU_KEYS_DIR:-${XDG_CONFIG_HOME:-~/.config}/uatu/keys}/   (0700)
-├── <raíz>/     key.json · root.ed25519.pem
-└── <docente>/  key.json · signing.ed25519.pem · decryption.x25519.pem
-```
-
-- Un directorio por clave (0700); los PEM privados son PKCS#8 sin cifrar (0600).
-- `key.json` contiene solo datos públicos:
-
-  ```json
-  {
-    "format": 1,
-    "key_id": "prof-lead-2026",
-    "kind": "teacher",
-    "created_at_utc": "2026-09-25T13:10:59Z",
-    "ed25519_verify_key": "ab53…",
-    "x25519_encryption_key": "66fb…",
-    "name": "Programación I - 2026"
-  }
-  ```
-
-- Los identificadores admiten letras, dígitos, `.`, `_` y `-`. Nunca se
-  sobrescribe una clave existente.
-
-La opción global `--keys-dir DIR` (antes del subcomando) cambia el almacén en
-cualquier invocación de `uatu-admin`.
-
----
-
-(manual-uatu-tools-admin)=
-## 3. `uatu-admin`
-
-```
-uatu-admin [--keys-dir DIR] <comando> [opciones]
-```
-
-Todos los comandos devuelven `0` si tienen éxito y `1` ante un error, que se
-informa en una línea por stderr.
-
-### 3.1 `root-keygen`
-
-Genera la clave raíz institucional Ed25519.
-
-| Opción | Descripción |
-|---|---|
-| `--key-id ID` | Identificador (obligatorio). |
-| `--name TEXTO` | Descripción legible. |
-
-Imprime en stdout `{"key_id", "kind", "directory", "anchor"}` y en stderr los
-próximos pasos.
-
-### 3.2 `keygen`
-
-Genera el par docente: Ed25519 (firma de manifiestos) y X25519 (descifrado).
-
-| Opción | Descripción |
-|---|---|
-| `--key-id ID` | Identificador; es el `crypto.teacher_key_id` de los manifiestos. |
-| `--name TEXTO` | Descripción; se copia a la entrada del registro. |
-
-`--out DIR` se acepta como sinónimo de `--keys-dir` por compatibilidad.
-
-### 3.3 `keys list`
-
-Lista las claves del almacén: identificador, tipo, prefijo de la clave
-pública, fecha y descripción. `--json` devuelve los `key.json` completos.
-
-### 3.4 `keys show ID`
-
-Muestra los metadatos de una clave y las rutas de sus archivos.
-
-### 3.5 `keys import ID`
-
-Incorpora claves PEM existentes (valida el tipo de cada una).
-
-| Opción | Descripción |
-|---|---|
-| `--root PEM` | Clave raíz Ed25519. |
-| `--signing PEM --decryption PEM` | Claves docentes Ed25519 y X25519. |
-| `--name TEXTO` | Descripción. |
-
-### 3.6 `keys export ID [ID…]`
-
-Extrae una clave en el formato que necesita cada destino.
-
-| `--format` / `-f` | Tipo | Salida |
-|---|---|---|
-| `public` | ambos | `key.json` |
-| `anchor` | raíz | `{"key_id", "ed25519_public_key"}` |
-| `trust-anchors` | raíz (una o varias) | `{"anchors": [...]}` |
-| `root-key` 🔒 | raíz | PEM privado |
-| `root-key-path` | raíz | Ruta del PEM |
-| `verify-key` | docente | Ed25519 pública (hex) |
-| `encrypt-key` | docente | X25519 pública (hex) |
-| `registry-entry` | docente | `{"<id>": {...}}` para el registro |
-| `signing-key` 🔒 / `signing-key-path` | docente | PEM Ed25519 / ruta |
-| `decryption-key` 🔒 / `decryption-key-path` | docente | PEM X25519 / ruta |
-
-Destinos (uno por invocación; por omisión, stdout):
-
-| Opción | Destino |
-|---|---|
-| `--out ARCHIVO` | Archivo (0600 si el formato es privado 🔒). |
-| `--gh-secret NOMBRE` | Secreto de GitHub Actions (vía `gh secret set`, valor por stdin). |
-| `--gh-variable NOMBRE` | Variable de Actions (rechazado para formatos 🔒). |
-| `--repo OWNER/REPO` \| `--org ORG` | Alcance del secreto o variable. |
-| `--visibility all\|private\|selected` | Visibilidad de un secreto de organización. |
-| `--show-secret` | Permite mostrar un formato 🔒 en una terminal interactiva. |
+`uatu-admin` guarda las claves en `~/.config/uatu/keys/<id>/` (directorios
+0700, claves privadas 0600). La ubicación se cambia con `--keys-dir` o
+`UATU_KEYS_DIR`. Los demás comandos aceptan el identificador de la clave en
+lugar de rutas.
 
 ```bash
-uatu-admin keys export inicial_unrn -f trust-anchors
-uatu-admin keys export prof-lead-2026 -f verify-key
-uatu-admin keys export prof-lead-2026 -f decryption-key --out ~/respaldo/docente.pem
-uatu-admin keys export prof-lead-2026 -f decryption-key | age -r "$RECIPIENT" > docente.pem.age
-uatu-admin keys export prof-lead-2026 -f decryption-key --gh-secret UATU_TEACHER_PRIVATE_KEY --repo ORG/examen
+uatu-admin keys list
+uatu-admin keys show prof-lead-2026
+uatu-admin keys import prof-lead-2026 --signing firma.pem --decryption descifrado.pem
+uatu-admin keys export prof-lead-2026 -f verify-key                 # hex para --teacher-key
+uatu-admin keys export inicial_unrn -f trust-anchors                # anclas para la extensión
+uatu-admin keys export prof-lead-2026 -f decryption-key --out docente.pem
 ```
 
-### 3.7 `keys setup-audit ID`
+## Flujo para la cátedra
 
-Carga los dos secretos del workflow de evaluación forense:
-`UATU_TEACHER_PUBLIC_KEY` (Ed25519 hex) y `UATU_TEACHER_PRIVATE_KEY` (PEM
-X25519). Acepta `--repo`, `--org` y `--visibility`.
+1. **Clave raíz institucional** (una vez), embebida en la extensión a través
+   de la variable `UATU_TRUST_ANCHORS` del repositorio uatu:
 
-```bash
-uatu-admin keys setup-audit prof-lead-2026 --repo ORG/examen
-uatu-admin keys setup-audit prof-lead-2026 --org ORG --visibility private
-```
+   ```bash
+   uatu-admin root-keygen --key-id inicial_unrn --name "Raíz institucional"
+   uatu-admin keys setup-anchors inicial_unrn --repo INGCOM-UNRN-P1/uatu
+   ```
 
-### 3.8 `keys setup-anchors ID [ID…]`
+2. **Clave del docente y registro público**, que se publica en la URL de
+   `auth.public_key_registry_url`:
 
-Publica las anclas raíz donde las consume la extensión.
+   ```bash
+   uatu-admin keygen --key-id prof-lead-2026 --name "Programación I - 2026"
+   uatu-admin registry-add --registry keys.json --key-id prof-lead-2026
+   uatu-admin registry-sign --registry keys.json --root-key-id inicial_unrn
+   uatu-admin verify-registry --registry keys.json
+   ```
 
-| Opción | Descripción |
-|---|---|
-| `--repo OWNER/REPO` | Carga la variable de Actions (por omisión `UATU_TRUST_ANCHORS`) que usa el workflow *Release* de uatu. |
-| `--variable NOMBRE` | Otro nombre de variable. |
-| `--file RUTA` | Escribe `trust-anchors.json`. |
+3. **Manifiesto del examen**:
 
-### 3.9 `registry-add`
+   ```bash
+   uatu-admin sign-config --config .uatu.conf --key-id prof-lead-2026
+   uatu-admin verify-config --config .uatu.conf
+   ```
 
-Agrega o reemplaza un docente en el registro (lo crea si no existe) y descarta
-la firma previa.
+4. **Repositorio del examen en GitHub**: secretos del workflow forense y ramas
+   de telemetría protegidas contra borrado y force-push:
 
-| Opción | Descripción |
-|---|---|
-| `--registry ARCHIVO` | Registro (`keys.json`). |
-| `--key-id ID` | Identificador del docente. |
-| `--verify-key HEX --encrypt-key HEX` | Claves públicas; si se omiten, se toman del almacén. |
-| `--name TEXTO` | Descripción (por omisión la del almacén). |
-| `--not-before ISO`, `--not-after ISO` | Vigencia de la clave. |
+   ```bash
+   uatu-admin keys setup-audit prof-lead-2026 --repo ORG/examen
+   uatu-admin protect-branches --repo ORG/examen
+   # o, para todos los repositorios de una tarea de GitHub Classroom:
+   uatu-admin protect-branches --org ORG --repo-pattern 'examen-parcial-1-*'
+   ```
 
-### 3.10 `registry-sign`
+5. **Consigna sellada** (opcional): no está en ninguna máquina de estudiante
+   antes de `start_utc`. Se sella antes del examen y se libera a la hora del
+   servidor de GitHub; la clave nunca va a los repositorios:
 
-Firma el registro con la clave raíz y fija `root_key_id` e `issued_at_utc`.
+   ```bash
+   uatu-admin consigna sellar parcial1/ --config .uatu.conf --key-id prof-lead-2026
+   # el día del examen (con --esperar se puede lanzar antes: espera start_utc)
+   uatu-admin consigna liberar --org ORG --prefijo examen-parcial-1- --esperar
+   ```
 
-| Opción | Descripción |
-|---|---|
-| `--registry ARCHIVO` | Registro. |
-| `--root-key-id ID` | Raíz (del almacén, salvo `--root-key`). |
-| `--root-key PEM` | Clave raíz explícita. |
+   Si cada estudiante tiene su tema, se usa `uatu-admin paquetes` en lugar de `consigna`: el examen
+   cifrado se reparte antes y a la hora sólo viaja la clave. Ver
+   [`uatu/docs/paquetes_de_examen.md`](https://github.com/INGCOM-UNRN-P1/uatu-tools/blob/main/../uatu/docs/paquetes_de_examen.md).
 
-### 3.11 `verify-registry`
+6. **Auditoría de una entrega** (con la clave en el almacén, `uatu-audit` la
+   toma del `teacher_key_id` del manifiesto):
 
-Verifica la firma raíz. `--anchor-key HEX` explícita o, por omisión, la del
-almacén según el `root_key_id` del registro. Devuelve `1` si la firma es
-inválida.
+   ```bash
+   git fetch origin '+refs/heads/uatu-audit/*:refs/remotes/origin/uatu-audit/*'
+   uatu-audit --repo . --md-out reporte.md --json-out reporte.json [--user <github_user>]
+   ```
 
-### 3.12 `sign-config`
+   | Código | Significado |
+   |---|---|
+   | `0` | Integridad criptográfica verificada sin anomalías. |
+   | `1` | Falla de integridad: cadena rota, firmas inválidas, manifiesto alterado o ausencia de registros. |
+   | `2` | Cadena íntegra con alertas heurísticas: pegados masivos, inserciones externas, extensiones no autorizadas, silencios de telemetría. |
 
-Firma el manifiesto excluyendo el bloque `crypto`.
+En GitHub Actions, el workflow de ejemplo de uatu
+(`templates/exam-repo/.github/workflows/uatu-audit.yml`) clona este
+repositorio y lo instala con `uv tool install`; la variable `UATU_TOOLS_REF`
+permite fijar una versión.
 
-| Opción | Descripción |
-|---|---|
-| `--config ARCHIVO` | Por omisión `.uatu.conf`. |
-| `--key-id ID` | Clave del almacén; se escribe como `crypto.teacher_key_id`. Por omisión, el `teacher_key_id` del manifiesto. |
-| `--key PEM` | Clave Ed25519 explícita. |
-
-### 3.13 `verify-config`
-
-Verifica la firma del manifiesto con `--verify-key HEX` o con la clave del
-almacén (`--key-id` o el `teacher_key_id` del manifiesto). Devuelve `1` si es
-inválida.
-
-### 3.14 `protect-branches`
-
-Crea o actualiza (por nombre) un ruleset de GitHub que impide **borrar** y
-**reescribir con force-push** las ramas `refs/heads/<prefijo>/**`, sin
-excepciones ni siquiera para administradores. La creación de ramas y los push
-con avance rápido siguen permitidos.
-
-| Opción | Descripción |
-|---|---|
-| `--repo OWNER/REPO` | Ruleset del repositorio del examen. |
-| `--org ORG --repo-pattern PATRÓN` | Ruleset de organización para los repositorios que coinciden (repetible; `~ALL` para todos). |
-| `--prefix PREFIJO` | Prefijo de las ramas. |
-| `--config ARCHIVO` | Manifiesto del que leer `git.telemetry_branch_prefix` (por omisión `.uatu.conf`; si no existe, `uatu-audit`). |
-| `--name NOMBRE` | Nombre del ruleset (por omisión `uatu: telemetría inmutable`). |
-| `--dry-run` | Muestra el endpoint y el JSON sin aplicarlos. |
-
-```bash
-uatu-admin protect-branches --repo ORG/examen --dry-run
-uatu-admin protect-branches --org ORG --repo-pattern 'examen-parcial-1-*'
-```
-
-Requiere permisos de administración sobre el repositorio u organización.
-
-### 3.15 `consigna`
-
-Consigna con bloqueo de tiempo (Decisión 1; diseño en
-`uatu/docs/propuesta_liberacion_consignas.md`). Ningún secreto llega a los
-repositorios de los estudiantes: un workflow ahí podría editarse para
-imprimirlo antes de hora.
-
-| Comando | Qué hace |
-|---|---|
-| `consigna sellar CARPETA [--config] [--salida consigna.enc] [--clave-salida] [--carpeta-destino consigna] [--key-id]` | Cifra la carpeta (AES-256-GCM), escribe el paquete y la clave (0600) y agrega `consigna: {carpeta, sha256}` al manifiesto; con `--key-id` lo vuelve a firmar. |
-| `consigna liberar (--repo R … \| --org ORG --prefijo P) [--paquete] [--clave] [--rama] [--esperar]` | Con la hora del servidor de GitHub: antes de `start_utc` sale con **3** sin descifrar (con `--esperar`, espera). Después descifra en memoria y publica `CARPETA/` en cada repositorio con un commit `uatu: liberar consigna (…)` de fecha del servidor. Idempotente: los ya liberados se saltean; sale con 1 si alguno falló. |
-| `consigna hash CARPETA [--config]` | El hash de la carpeta (el de `consigna.sha256`) y, con `--config`, si coincide. |
-
-El hash es SHA-256 de las líneas `<ruta con />\n<sha256 del archivo>\n`,
-ordenadas por ruta; la extensión y `uatu-audit` lo calculan igual. `uatu-audit`
-verifica que el commit de liberación sea posterior a `start_utc`, que el
-contenido sea el sellado y que la consigna no haya entrado por otro commit.
-
----
-
-(manual-uatu-tools-audit)=
-## 4. `uatu-audit`
-
-```
-uatu-audit [--repo DIR] [--teacher-key HEX|ID] [--decrypt-key PEM|ID] [--key-id ID]
-           [--md-out ARCHIVO] [--json-out ARCHIVO] [--user USUARIO] [--remote REMOTO]
-           [--max-paste-chars N] [--grace-seconds N] [--code-ref REF] [--keys-dir DIR]
-```
-
-| Opción | Por omisión | Descripción |
-|---|---|---|
-| `--repo` | `.` | Repositorio de la entrega (con las ramas de telemetría descargadas). |
-| `--teacher-key` | `$UATU_TEACHER_PUBLIC_KEY` | Ed25519 docente en hex o identificador del almacén. |
-| `--decrypt-key` | — | PEM X25519 o identificador del almacén; sin ella no se descifra. |
-| `--key-id` | — | Clave docente del almacén: verifica y descifra con ella. |
-| `--keys-dir` | almacén por omisión | Ubicación del almacén. |
-| `--md-out` | `summary.md` | Reporte Markdown. |
-| `--json-out` | — | Reporte JSON. |
-| `--user` | todos | Audita solo las ramas de ese usuario. |
-| `--remote` | `git.remote_name` | Remoto donde buscar `refs/remotes/<remoto>/<prefijo>/*` (si no hay, se usan `refs/heads/`). |
-| `--max-paste-chars` | 50 | Umbral de alerta para pegados. |
-| `--grace-seconds` | 60 | Tolerancia posterior al deadline. |
-| `--code-ref` | `HEAD` | Referencia de código a correlacionar con la telemetría. |
-
-Sin `--teacher-key` ni `--key-id`, si el `crypto.teacher_key_id` del
-manifiesto existe en el almacén, se usa esa clave y se informa por stderr.
-
-### 4.1 Códigos de salida
-
-| Código | Significado |
-|---|---|
-| `0` | OK: integridad criptográfica verificada sin anomalías. |
-| `1` | CRITICAL: falla de integridad o ausencia de registros. |
-| `2` | WARNING: cadena íntegra con alertas heurísticas. |
-
-### 4.2 Verificaciones
-
-**Críticas**: firma del manifiesto; rama huérfana sin merges y con commits que
-solo agregan lotes; secuencia, conteo, encadenamiento y firma de cada lote;
-génesis (`session_start`, H₀, manifiesto, commit raíz, usuario y sesión de la
-rama); cadena de eventos (secuencia, `prev_hash`, clave constante, firma de
-cada H_i); eventos anteriores a `start_utc`; manifiesto alterado en sesión;
-contenido descifrado distinto de `sha256_plaintext`; ausencia de ramas.
-
-**Heurísticas**: pegados sobre el umbral e inserciones externas (con snippet
-descifrado), inserciones con el editor sin foco, eventos posteriores al
-deadline, reloj que retrocede o desfasado, extensiones prohibidas, silencios
-mayores a tres latidos, sesiones sin `session_end`, lotes sin firma y commits
-de código dentro de la ventana sin telemetría activa.
-
-### 4.3 Reporte JSON
-
-```json
-{
-  "version": "2.1",
-  "status": "ok | critical | warning",
-  "exam_id": "demo-p1-2026",
-  "errors": ["..."],
-  "warnings": ["..."],
-  "sessions": [
-    {
-      "branch": "uatu-audit/octocat/<uuid>",
-      "github_user": "octocat",
-      "session_uuid": "<uuid>",
-      "batches": 3,
-      "events": 7,
-      "first_event_utc": "...",
-      "last_event_utc": "...",
-      "clipboard_pastes": 2,
-      "external_insertions": 0,
-      "unfocused_ms": 12000,
-      "disallowed_extensions": [],
-      "closed_reason": "deadline"
-    }
-  ]
-}
-```
-
----
-
-(manual-uatu-tools-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Verificación criptográfica exitosa de telemetría y firmas de commits en una entrega de parcial:
-
-```{code-block} bash
-uatu-audit verify --repo ./entrega_alumno --signer-key keys/docente.pub
-```
-
-Salida esperada en consola:
-```{code-block} text
-[✓] Clave pública de estudiante validada: ED25519-P1-2026
-[✓] Cadena de commits íntegra: 14 commits firmados cronológicamente
-[✓] Telemetría temporal coherente: sin anomalías de reloj ni desfase NTP
-[✓] Veredicto: ENTREGA_AUTENTICADA (exit 0)
-```
-
-### Contraejemplo (Antipatrón o Caso Infractor)
-
-Entrega con commits manipulados, firma forjada o reloj modificado artificialmente:
-
-```{code-block} bash
-uatu-audit verify --repo ./entrega_manipulada --signer-key keys/docente.pub
-```
-
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ERROR: Discrepancia criptográfica en commit a8f1c3d
-[!] Firma digital no coincide con la clave registrada del alumno.
-[!] Timestamp del commit anterior (14:32:00) es posterior al actual (14:15:10).
-[!] Veredicto: RECHAZADO — ALTERACION_CRIPTOGRAFICA_DETECTADA (exit 1)
-```
-
-(manual-uatu-tools-flujos)=
-## 5. Flujos Completos
-
-### 5.1 Puesta en marcha institucional
-
-```bash
-uatu-admin root-keygen --key-id inicial_unrn --name "Raíz institucional"
-uatu-admin keys setup-anchors inicial_unrn --repo INGCOM-UNRN-P1/uatu
-# en el repositorio uatu: git tag vX.Y.Z && git push origin vX.Y.Z
-```
-
-### 5.2 Alta de un docente
-
-```bash
-uatu-admin keygen --key-id prof-lead-2026 --name "Programación I - 2026"
-uatu-admin registry-add --registry keys.json --key-id prof-lead-2026 --not-after 2027-03-31T23:59:59Z
-uatu-admin registry-sign --registry keys.json --root-key-id inicial_unrn
-uatu-admin verify-registry --registry keys.json
-# publicar keys.json en la URL del registro
-```
-
-### 5.3 Preparación de un examen
-
-```bash
-cp uatu/templates/exam-repo/uatu.conf.example examen/.uatu.conf   # editar ventana y reglas
-uatu-admin sign-config --config examen/.uatu.conf --key-id prof-lead-2026
-uatu-admin keys setup-audit prof-lead-2026 --repo ORG/examen
-uatu-admin protect-branches --repo ORG/examen --config examen/.uatu.conf
-```
-
-### 5.4 Corrección
-
-```bash
-cd entrega
-git fetch origin '+refs/heads/uatu-audit/*:refs/remotes/origin/uatu-audit/*'
-uatu-audit --md-out reporte.md --json-out reporte.json
-```
-
----
-
-(manual-uatu-tools-desarrollo)=
-## 6. Desarrollo
+## Desarrollo
 
 ```bash
 uv sync
 uv run pytest -q
 ```
 
-El CI ejecuta la suite en Python 3.9, 3.11 y 3.13, verifica la instalación
-como `uv tool` y corre las pruebas de la extensión uatu contra el validador del
-commit en curso, para detectar roturas del protocolo compartido.
+## Limitaciones
+
+- Trabaja sobre lo que ya registró uatu: `uatu-audit` audita las ramas `uatu-audit/<usuario>/<sesión>`
+  de una entrega; la vigilancia durante el examen la hace uatu en VS Code, no estas herramientas.
+- Sin la clave docente, `uatu-audit` verifica firmas, cadena de hashes y tiempos, pero no puede
+  descifrar los pegados.
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.9 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `git`.
+
+| Sistema | `git` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install git` |
+| Fedora | `sudo dnf install git` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` |
+
+### Opciones de `uatu-audit`
+
+| Opción | Descripción |
+|:--|:--|
+| `--repo` | Ruta del repositorio de la entrega |
+| `--teacher-key` | Clave pública Ed25519 docente (hex) o identificador del almacén. Por omisión $UATU_TEACHER_PUBLIC_KEY |
+| `--decrypt-key` | Clave privada docente X25519 (ruta PEM) o identificador del almacén, para descifrar la evidencia |
+| `--key-id` | Clave docente del almacén de uatu-admin: usa su pública para verificar y su privada para descifrar. Sin --teacher-key ni --key-id se intenta con el crypto.teacher_key_id del manifiesto |
+| `--keys-dir` | Almacén de claves (por omisión $UATU_KEYS_DIR o ~/.config/uatu/keys) |
+| `--md-out` | Reporte Markdown de salida |
+| `--json-out` | Reporte JSON opcional para integraciones |
+| `--user` | Auditar solo las sesiones de este usuario de GitHub |
+| `--remote` | Remoto donde buscar las ramas (por omisión git.remote_name) |
+| `--max-paste-chars` | Umbral heurístico de pegado masivo |
+| `--grace-seconds` | Tolerancia posterior al deadline_utc |
+| `--code-ref` | Referencia de código a correlacionar con la telemetría |
+
+### Opciones de `uatu-admin`
+
+| Opción | Descripción |
+|:--|:--|
+| `--keys-dir` | Almacén de claves (por omisión $UATU_KEYS_DIR o ~/.config/uatu/keys) |
+
+### Comandos de `uatu-admin`
+
+| Comando | Descripción |
+|:--|:--|
+| `uatu-admin doctor` | Verifica los requisitos (Python, cryptography, git, gh) |
+| `uatu-admin root-keygen` | Genera la clave raíz institucional en el almacén |
+| `uatu-admin keygen` | Genera las claves Ed25519/X25519 de un docente en el almacén |
+| `uatu-admin keys` | Gestiona el almacén de claves y las exporta donde se usan |
+| `uatu-admin registry-add` | Agrega un docente al registro de claves |
+| `uatu-admin registry-sign` | Firma el registro con la clave raíz |
+| `uatu-admin verify-registry` | Verifica la firma raíz del registro |
+| `uatu-admin sign-config` | Firma .uatu.conf |
+| `uatu-admin verify-config` | Verifica la firma de .uatu.conf |
+| `uatu-admin protect-branches` | Impide borrar o reescribir las ramas de telemetría (ruleset de GitHub) |
+| `uatu-admin consigna` | Sella la consigna del examen y la libera en start_utc (hora de GitHub) |
+| `uatu-admin paquetes` | Un paquete cifrado por estudiante, que su equipo descifra desde start_utc |
+
+Ayuda de cada comando: `uatu-admin <comando> -h`.
+
+### Salida JSON de `uatu-admin`
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `uatu-admin doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
+
+(manual-uatu_tools-comandos)=
+## Ayuda de los comandos
+
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
+
+:::{dropdown} `uatu-audit`
+:open:
+
+```text
+uso: uatu-audit [-h] [-v] [--repo REPO] [--teacher-key TEACHER_KEY] [--decrypt-key DECRYPT_KEY]
+                [--key-id KEY_ID] [--keys-dir KEYS_DIR] [--md-out MD_OUT] [--json-out JSON_OUT]
+                [--user USER] [--remote REMOTE] [--max-paste-chars MAX_PASTE_CHARS]
+                [--grace-seconds GRACE_SECONDS] [--code-ref CODE_REF]
+
+Validador Forense Uatu v2.1
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  -v, --version         muestra la versión y sale
+  --repo REPO           Ruta del repositorio de la entrega
+  --teacher-key TEACHER_KEY
+                        Clave pública Ed25519 docente (hex) o identificador del almacén. Por
+                        omisión $UATU_TEACHER_PUBLIC_KEY
+  --decrypt-key DECRYPT_KEY
+                        Clave privada docente X25519 (ruta PEM) o identificador del almacén, para
+                        descifrar la evidencia
+  --key-id KEY_ID       Clave docente del almacén de uatu-admin: usa su pública para verificar y
+                        su privada para descifrar. Sin --teacher-key ni --key-id se intenta con el
+                        crypto.teacher_key_id del manifiesto
+  --keys-dir KEYS_DIR   Almacén de claves (por omisión $UATU_KEYS_DIR o ~/.config/uatu/keys)
+  --md-out MD_OUT       Reporte Markdown de salida
+  --json-out JSON_OUT   Reporte JSON opcional para integraciones
+  --user USER           Auditar solo las sesiones de este usuario de GitHub
+  --remote REMOTE       Remoto donde buscar las ramas (por omisión git.remote_name)
+  --max-paste-chars MAX_PASTE_CHARS
+                        Umbral heurístico de pegado masivo
+  --grace-seconds GRACE_SECONDS
+                        Tolerancia posterior al deadline_utc
+  --code-ref CODE_REF   Referencia de código a correlacionar con la telemetría
+
+`uatu-audit doctor [--json]` verifica los requisitos (Python, cryptography, git).
+```
+:::
+
+:::{dropdown} `uatu-admin`
+:open:
+
+```text
+uso: uatu-admin [-h] [-v] [--keys-dir KEYS_DIR]
+                {doctor,root-keygen,keygen,keys,registry-add,registry-sign,verify-registry,sign-config,verify-config,protect-branches,consigna,paquetes} ...
+
+Herramientas de cátedra para Uatu v2.1
+
+argumentos:
+  {doctor,root-keygen,keygen,keys,registry-add,registry-sign,verify-registry,sign-config,verify-config,protect-branches,consigna,paquetes}
+    doctor              Verifica los requisitos (Python, cryptography, git, gh)
+    root-keygen         Genera la clave raíz institucional en el almacén
+    keygen              Genera las claves Ed25519/X25519 de un docente en el almacén
+    keys                Gestiona el almacén de claves y las exporta donde se usan
+    registry-add        Agrega un docente al registro de claves
+    registry-sign       Firma el registro con la clave raíz
+    verify-registry     Verifica la firma raíz del registro
+    sign-config         Firma .uatu.conf
+    verify-config       Verifica la firma de .uatu.conf
+    protect-branches    Impide borrar o reescribir las ramas de telemetría (ruleset de GitHub)
+    consigna            Sella la consigna del examen y la libera en start_utc (hora de GitHub)
+    paquetes            Un paquete cifrado por estudiante, que su equipo descifra desde start_utc
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  -v, --version         muestra la versión y sale
+  --keys-dir KEYS_DIR   Almacén de claves (por omisión $UATU_KEYS_DIR o ~/.config/uatu/keys)
+```
+:::
+
+:::{dropdown} `uatu-admin doctor`
+
+```text
+uso: uatu-admin doctor [-h] [--json]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+  --json      Salida estructurada en JSON
+```
+:::
+
+:::{dropdown} `uatu-admin root-keygen`
+
+```text
+uso: uatu-admin root-keygen [-h] --key-id KEY_ID [--name NAME]
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+  --key-id KEY_ID
+  --name NAME      Descripción legible (p. ej. la institución)
+```
+:::
+
+:::{dropdown} `uatu-admin keygen`
+
+```text
+uso: uatu-admin keygen [-h] --key-id KEY_ID [--name NAME]
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+  --key-id KEY_ID
+  --name NAME      Descripción legible (p. ej. el docente o la materia)
+```
+:::
+
+:::{dropdown} `uatu-admin keys`
+
+```text
+uso: uatu-admin keys [-h] {list,show,import,export,setup-audit,setup-anchors} ...
+
+argumentos:
+  {list,show,import,export,setup-audit,setup-anchors}
+    list                Lista las claves del almacén
+    show                Muestra los metadatos y archivos de una clave
+    import              Importa claves PEM existentes al almacén
+    export              Extrae una clave en el formato que necesita cada destino
+    setup-audit         Carga UATU_TEACHER_PUBLIC_KEY y UATU_TEACHER_PRIVATE_KEY para el workflow
+                        forense
+    setup-anchors       Publica las anclas raíz para empaquetar la extensión
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `uatu-admin keys list`
+
+```text
+uso: uatu-admin keys list [-h] [--json]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+  --json
+```
+:::
+
+:::{dropdown} `uatu-admin keys show`
+
+```text
+uso: uatu-admin keys show [-h] key_id
+
+argumentos:
+  key_id
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `uatu-admin keys import`
+
+```text
+uso: uatu-admin keys import [-h] [--root ROOT] [--signing SIGNING] [--decryption DECRYPTION]
+                            [--name NAME]
+                            key_id
+
+argumentos:
+  key_id
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --root ROOT           Clave privada raíz Ed25519 (PEM)
+  --signing SIGNING     Clave privada docente Ed25519 (PEM)
+  --decryption DECRYPTION
+                        Clave privada docente X25519 (PEM)
+  --name NAME
+```
+:::
+
+:::{dropdown} `uatu-admin keys export`
+
+```text
+uso: uatu-admin keys export [-h]
+                            --format {public,anchor,trust-anchors,root-key,root-key-path,verify-key,encrypt-key,registry-entry,signing-key,signing-key-path,decryption-key,decryption-key-path}
+                            [--out OUT] [--gh-secret NAME] [--gh-variable NAME] [--show-secret]
+                            [--repo REPO | --org ORG] [--visibility {all,private,selected}]
+                            key_id [key_id ...]
+
+argumentos:
+  key_id
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --format, -f {public,anchor,trust-anchors,root-key,root-key-path,verify-key,encrypt-key,registry-entry,signing-key,signing-key-path,decryption-key,decryption-key-path}
+                        raíz: anchor, trust-anchors, root-key, root-key-path | docente: verify-
+                        key, encrypt-key, registry-entry, signing-key, signing-key-path,
+                        decryption-key, decryption-key-path | ambas: public
+  --out OUT             Escribir en un archivo (0600 si es una clave privada)
+  --gh-secret NAME      Cargar como secreto de Actions (requiere gh)
+  --gh-variable NAME    Cargar como variable de Actions (requiere gh)
+  --show-secret         Permitir mostrar una clave privada en la terminal
+  --repo REPO           Repositorio destino OWNER/REPO
+  --org ORG             Organización destino (secretos/variables de organización)
+  --visibility {all,private,selected}
+                        Visibilidad de un secreto de organización (por omisión la de gh)
+```
+:::
+
+:::{dropdown} `uatu-admin keys setup-audit`
+
+```text
+uso: uatu-admin keys setup-audit [-h] [--repo REPO | --org ORG]
+                                 [--visibility {all,private,selected}]
+                                 key_id
+
+argumentos:
+  key_id
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --repo REPO           Repositorio destino OWNER/REPO
+  --org ORG             Organización destino (secretos/variables de organización)
+  --visibility {all,private,selected}
+                        Visibilidad de un secreto de organización (por omisión la de gh)
+```
+:::
+
+:::{dropdown} `uatu-admin keys setup-anchors`
+
+```text
+uso: uatu-admin keys setup-anchors [-h] [--repo REPO] [--variable VARIABLE] [--file FILE]
+                                   key_id [key_id ...]
+
+argumentos:
+  key_id
+
+opciones:
+  -h, --help           muestra esta ayuda y sale
+  --repo REPO          Repositorio de la extensión: carga la variable UATU_TRUST_ANCHORS
+  --variable VARIABLE  Nombre de la variable (por omisión UATU_TRUST_ANCHORS)
+  --file FILE          Escribir trust-anchors.json en esta ruta
+```
+:::
+
+:::{dropdown} `uatu-admin registry-add`
+
+```text
+uso: uatu-admin registry-add [-h] --registry REGISTRY --key-id KEY_ID [--verify-key VERIFY_KEY]
+                             [--encrypt-key ENCRYPT_KEY] [--name NAME] [--not-before NOT_BEFORE]
+                             [--not-after NOT_AFTER]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --registry REGISTRY
+  --key-id KEY_ID       Identificador del docente (y clave del almacén si no se dan las públicas)
+  --verify-key VERIFY_KEY
+                        Ed25519 pública (hex); por omisión la del almacén
+  --encrypt-key ENCRYPT_KEY
+                        X25519 pública (hex); por omisión la del almacén
+  --name NAME
+  --not-before NOT_BEFORE
+  --not-after NOT_AFTER
+```
+:::
+
+:::{dropdown} `uatu-admin registry-sign`
+
+```text
+uso: uatu-admin registry-sign [-h] --registry REGISTRY --root-key-id ROOT_KEY_ID
+                              [--root-key ROOT_KEY]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --registry REGISTRY
+  --root-key-id ROOT_KEY_ID
+  --root-key ROOT_KEY   Clave privada raíz (PEM); por omisión la del almacén
+```
+:::
+
+:::{dropdown} `uatu-admin verify-registry`
+
+```text
+uso: uatu-admin verify-registry [-h] --registry REGISTRY [--anchor-key ANCHOR_KEY]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --registry REGISTRY
+  --anchor-key ANCHOR_KEY
+                        Ed25519 pública raíz (hex); por omisión la del almacén según root_key_id
+```
+:::
+
+:::{dropdown} `uatu-admin sign-config`
+
+```text
+uso: uatu-admin sign-config [-h] [--config CONFIG] [--key-id KEY_ID] [--key KEY]
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+  --config CONFIG
+  --key-id KEY_ID  Clave docente del almacén y valor de crypto.teacher_key_id (por omisión el
+                   teacher_key_id del manifiesto)
+  --key KEY        Clave privada Ed25519 docente (PEM), en lugar del almacén
+```
+:::
+
+:::{dropdown} `uatu-admin verify-config`
+
+```text
+uso: uatu-admin verify-config [-h] [--config CONFIG] [--verify-key VERIFY_KEY] [--key-id KEY_ID]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --config CONFIG
+  --verify-key VERIFY_KEY
+                        Ed25519 pública docente (hex); por omisión la del almacén
+  --key-id KEY_ID       Clave docente del almacén (por omisión el teacher_key_id del manifiesto)
+```
+:::
+
+:::{dropdown} `uatu-admin protect-branches`
+
+```text
+uso: uatu-admin protect-branches [-h] [--repo REPO | --org ORG] [--repo-pattern PATRÓN]
+                                 [--prefix PREFIX] [--config CONFIG] [--name NAME] [--dry-run]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --repo REPO           Repositorio del examen OWNER/REPO
+  --org ORG             Organización (ruleset para todos los repositorios que coincidan)
+  --repo-pattern PATRÓN
+                        Con --org: patrón de nombres de repositorio (repetible; '~ALL' para todos)
+  --prefix PREFIX       Prefijo de las ramas (por omisión el de --config o 'uatu-audit')
+  --config CONFIG       Manifiesto del que leer git.telemetry_branch_prefix
+  --name NAME           Nombre del ruleset (se actualiza si ya existe)
+  --dry-run             Mostrar el ruleset sin aplicarlo
+```
+:::
+
+:::{dropdown} `uatu-admin consigna`
+
+```text
+uso: uatu-admin consigna [-h] {sellar,liberar,hash} ...
+
+argumentos:
+  {sellar,liberar,hash}
+    sellar              Cifra la carpeta de la consigna y agrega su hash a .uatu.conf
+    liberar             Descifra en memoria y publica la consigna en cada repositorio, desde
+                        start_utc
+    hash                Hash de una carpeta (el que va en consigna.sha256) y si coincide con
+                        .uatu.conf
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `uatu-admin consigna sellar`
+
+```text
+uso: uatu-admin consigna sellar [-h] [--config CONFIG] [--salida SALIDA]
+                                [--clave-salida CLAVE_SALIDA] [--carpeta-destino CARPETA_DESTINO]
+                                [--key-id KEY_ID]
+                                carpeta
+
+argumentos:
+  carpeta               Carpeta con el enunciado y las pruebas base
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --config CONFIG
+  --salida SALIDA       Paquete cifrado (por omisión consigna.enc)
+  --clave-salida CLAVE_SALIDA
+                        Archivo 0600 para la clave (por omisión <salida>.clave)
+  --carpeta-destino CARPETA_DESTINO
+                        Carpeta donde aparece en el repositorio del examen
+  --key-id KEY_ID       Firmar .uatu.conf con esta clave docente del almacén
+```
+:::
+
+:::{dropdown} `uatu-admin consigna liberar`
+
+```text
+uso: uatu-admin consigna liberar [-h] [--repo REPO | --org ORG] [--prefijo PREFIJO]
+                                 [--config CONFIG] [--paquete PAQUETE] [--clave CLAVE]
+                                 [--rama RAMA] [--esperar]
+
+opciones:
+  -h, --help         muestra esta ayuda y sale
+  --repo REPO        Repositorio OWNER/REPO (repetible)
+  --org ORG          Organización de los repositorios del examen
+  --prefijo PREFIJO  Con --org: prefijo de los repositorios (el de la tarea de Classroom)
+  --config CONFIG
+  --paquete PAQUETE
+  --clave CLAVE      Archivo con la clave de la consigna
+  --rama RAMA        Rama donde publicarla (por omisión la principal de cada repositorio)
+  --esperar          Si todavía no es start_utc, esperar y liberarla a la hora
+```
+:::
+
+:::{dropdown} `uatu-admin consigna hash`
+
+```text
+uso: uatu-admin consigna hash [-h] [--config CONFIG] carpeta
+
+argumentos:
+  carpeta
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+  --config CONFIG  Comparar con el consigna.sha256 de este manifiesto
+```
+:::
+
+:::{dropdown} `uatu-admin paquetes`
+
+```text
+uso: uatu-admin paquetes [-h] {sellar,distribuir,liberar} ...
+
+argumentos:
+  {sellar,distribuir,liberar}
+    sellar              Cifra <carpeta>/<usuario>/ con una clave por estudiante y agrega los
+                        hashes a .uatu.conf
+    distribuir          Publica cada paquete cifrado en el repositorio de su dueño, antes del
+                        examen
+    liberar             Publica la clave de cada estudiante en su repositorio, desde start_utc
+                        (hora de GitHub)
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `uatu-admin paquetes sellar`
+
+```text
+uso: uatu-admin paquetes sellar [-h] [--config CONFIG] [--salida SALIDA] [--claves CLAVES]
+                                [--carpeta-destino CARPETA_DESTINO] [--key-id KEY_ID]
+                                carpeta
+
+argumentos:
+  carpeta               Carpeta con una subcarpeta por usuario de GitHub (la arma alucard
+                        repartir)
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --config CONFIG
+  --salida SALIDA       Carpeta de los paquetes cifrados (por omisión paquetes.enc)
+  --claves CLAVES       Archivo de claves, 0600 (por omisión paquetes.claves)
+  --carpeta-destino CARPETA_DESTINO
+                        Carpeta donde se descifra en el repositorio del examen
+  --key-id KEY_ID       Firmar .uatu.conf con esta clave del almacén
+```
+:::
+
+:::{dropdown} `uatu-admin paquetes distribuir`
+
+```text
+uso: uatu-admin paquetes distribuir [-h] [--config CONFIG] [--paquetes PAQUETES]
+                                    [--repo OWNER/REPO=USUARIO] [--org ORG] [--prefijo PREFIJO]
+                                    [--rama RAMA]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --config CONFIG
+  --paquetes PAQUETES   Carpeta de los paquetes cifrados
+  --repo OWNER/REPO=USUARIO
+                        Repositorio de un estudiante (repetible)
+  --org ORG             Organización de los repositorios del examen
+  --prefijo PREFIJO     Prefijo de los repositorios: <prefijo>-<usuario>
+  --rama RAMA           Rama (por omisión, la principal de cada repositorio)
+```
+:::
+
+:::{dropdown} `uatu-admin paquetes liberar`
+
+```text
+uso: uatu-admin paquetes liberar [-h] [--config CONFIG] [--paquetes PAQUETES]
+                                 [--repo OWNER/REPO=USUARIO] [--org ORG] [--prefijo PREFIJO]
+                                 [--rama RAMA] [--claves CLAVES] [--esperar]
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --config CONFIG
+  --paquetes PAQUETES   Carpeta de los paquetes cifrados
+  --repo OWNER/REPO=USUARIO
+                        Repositorio de un estudiante (repetible)
+  --org ORG             Organización de los repositorios del examen
+  --prefijo PREFIJO     Prefijo de los repositorios: <prefijo>-<usuario>
+  --rama RAMA           Rama (por omisión, la principal de cada repositorio)
+  --claves CLAVES       Archivo de claves
+  --esperar             Esperar a start_utc en lugar de fallar
+```
+:::
+
+Generado desde [`uatu-tools@b77e6d6`](https://github.com/INGCOM-UNRN-P1/uatu-tools/tree/b77e6d6).

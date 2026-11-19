@@ -1,249 +1,192 @@
 ---
 title: "hardboiled"
-subtitle: "Emulador RISC-V RV32I bare-metal con periféricos MMIO y depuración en terminal"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde hardboiled@4e0100f: no editar a mano. -->
 
 (manual-hardboiled)=
-# Manual de Uso y Guía de Referencia: hardboiled
+# hardboiled
 
-`hardboiled` es un emulador pedagógico bare-metal de un microcontrolador RISC-V de 32 bits (RV32I, con
-las extensiones M y C opcionales). Integra una TUI en la terminal con depuración a nivel de C (DWARF),
-periféricos mapeados en memoria que se ven y se manejan en vivo, paso atrás y trampas que explican los
-errores típicos de la programación de bajo nivel.
+Repositorio: [github.com/INGCOM-UNRN-P1/hardboiled](https://github.com/INGCOM-UNRN-P1/hardboiled).
 
-Este manual resume lo que se usa en clase. El [README](README.md) es la referencia completa (GPIO
-bidireccional, ADC, rebote de contactos, guion de entrada, avisos y arquitectura interna).
+Emulador pedagógico de un microcontrolador **RISC-V 32 bits (RV32I) bare-metal**
+con depurador de código C en la terminal. Pensado para enseñar programación de
+bajo nivel, arquitectura de computadoras y sistemas embebidos: se ejecuta un
+programa C paso a paso, se inspeccionan registros y pila, y se interactúa con
+periféricos simulados (LEDs, switches, UART, timer con interrupciones).
 
----
+- CPU emulada con [Unicorn Engine](https://www.unicorn-engine.org/): el programa
+  nunca toca recursos del host.
+- Depuración a nivel de fuente con la información DWARF del ELF (`-g`).
+- Periféricos mapeados en memoria (MMIO) e interrupciones asíncronas.
+- Motor y vista desacoplados: la TUI ([Textual](https://textual.textualize.io/))
+  sólo intercambia mensajes inmutables con el motor por dos colas.
 
-## 1. Arquitectura y Mapa de Memoria
+## Instalación
 
-La CPU virtual tiene 32 registros generales (`x0`–`x31`) y el contador de programa (`pc`). El conjunto
-de instrucciones lo declara la placa con `isa` en `[board]` (`rv32i` por defecto). El mapa de memoria
-de la placa por defecto es:
+Requiere Python 3.12+ y [`uv`](https://docs.astral.sh/uv/). No hace falta `sudo`.
 
-| Rango | Tamaño | Permisos | Uso |
-| :--- | :--- | :--- | :--- |
-| `0x0000_0000` – `0x0000_FFFF` | 64 KB | ninguno | Trampa de punteros nulos: leer, escribir o saltar ahí detiene el programa. |
-| `0x0001_0000` – `0x0001_FFFF` | 64 KB | R X | Flash: vectores, `crt0`, `.text`, `.rodata` e imagen de `.data`. Escribirla es una trampa. |
-| `0x2000_0000` – `0x2000_FFFF` | 64 KB | R W | SRAM: `.data`, `.bss`, heap y pila (desde `0x2001_0000` hacia abajo). |
-| `0x4000_0000` – `0x4000_0FFF` | 4 KB | MMIO | Periféricos: cada acceso va al bus de periféricos. |
-
-Un acceso fuera de estas regiones detiene el programa con la trampa `unmapped`.
-
-### Mapa de Registros MMIO (base `0x4000_0000`)
-
-Los offsets de la placa por defecto. El SDK (`hardboiled.h`) y el linker script se **generan a partir
-de la placa**: con un `board.toml` propio cambian, y `hardboiled gen-header [board.toml]` imprime los
-vigentes. En la TUI, `?` muestra el mapa de la placa cargada.
-
-<!-- registros: la tabla se verifica contra la placa por defecto en tests/test_manual.py -->
-
-| Offset | Registro | Descripción |
-| :--- | :--- | :--- |
-| `0x000` | `LEDS` | 8 LEDs, un bit por LED. Admite accesos de 8/16/32 bits. |
-| `0x004` | `SWITCHES` | 4 DIP switches, sólo lectura. Escribirlos es una trampa. |
-| `0x010` | `UART_TX` | Byte a transmitir a la consola. |
-| `0x014` | `UART_STATUS` | Bit 0: listo para transmitir; bit 1: hay un byte recibido. |
-| `0x018` | `UART_RX` | Siguiente byte recibido (0 si no hay). |
-| `0x01C` | `UART_CTRL` | Bit 0: pedir la IRQ 1 mientras haya bytes recibidos. |
-| `0x020` | `TIMER_CTRL` | Bit 0 habilita, bit 1 genera IRQ. |
-| `0x024` | `TIMER_RELOAD` | Período en ciclos (divisor). |
-| `0x028` | `TIMER_COUNT` | Ciclos restantes hasta el próximo vencimiento (sólo lectura). |
-| `0x02C` | `TIMER_STATUS` | Bit 0: venció (escribir 1 para limpiar). |
-| `0x030` | `BUTTONS_STATE` | 4 botones: bit en 1 mientras está presionado (sólo lectura). |
-| `0x034` | `BUTTONS_IRQ_EN` | Botones que piden la IRQ 2. |
-| `0x038` | `BUTTONS_EDGE` | Por botón: 0 avisa al presionar, 1 al soltar. |
-| `0x03C` | `BUTTONS_PENDING` | Flancos detectados (escribir 1 limpia y retira la IRQ). |
-| `0x040` | `SEG_DIGITS` | Display de 4 dígitos: un byte por dígito (el 0 a la derecha), segmentos a-g en los bits 0-6 y el punto en el 7. |
-| `0xF00` | `PIC_ENABLE` | Máscara de IRQs habilitadas. |
-| `0xF04` | `PIC_PENDING` | IRQs pendientes (escribir 1 para limpiar). |
-| `0xF08` | `PIC_GLOBAL` | Bit 0: interrupciones habilitadas globalmente. |
-| `0xF0C` | `PIC_ACTIVE` | Línea que se está atendiendo (`0xFFFFFFFF` si ninguna). |
-| `0xF10` | `HB_CYCLES_LO` | Sólo lectura: ciclos desde el reset (32 bits bajos). Es el reloj del emulador, determinista; `hb_cycles()` lee los 64 bits. |
-| `0xF14` | `HB_CYCLES_HI` | Sólo lectura: ciclos desde el reset (32 bits altos). |
-
-Líneas de interrupción de la placa por defecto: `IRQ_TIMER0` = 0, `IRQ_UART0` = 1 e `IRQ_BUTTONS` = 2.
-Leer o escribir un offset que no es un registro, o escribir uno de sólo lectura, es la trampa `mmio`.
-
----
-
-## 2. Instalación y Diagnóstico
-
-### Instalación vía `uv`
-
-Instalación estándar (desde el repositorio; hardboiled no se publica en PyPI):
 ```bash
+# herramienta + compilador C para RV32I (zig)
+uv tool install "hardboiled[zig] @ git+https://github.com/INGCOM-UNRN-P1/hardboiled"
+# sólo la herramienta (si ya tenés riscv*-gcc)
 uv tool install git+https://github.com/INGCOM-UNRN-P1/hardboiled
 ```
 
-Instalación recomendada, con el compilador C para RV32I incluido (el paquete `ziglang` queda dentro
-del entorno aislado de la herramienta: no requiere `sudo` ni instalar GCC para RISC-V):
-```bash
-uv tool install "hardboiled[zig] @ git+https://github.com/INGCOM-UNRN-P1/hardboiled"
-```
+hardboiled no se publica en PyPI: se instala siempre desde el repositorio.
 
-Desde un clon del repositorio:
-```bash
-git clone https://github.com/INGCOM-UNRN-P1/hardboiled.git
-cd hardboiled
-uv sync          # entorno de desarrollo: tests, ruff, mypy y zig
-```
+Después de instalar, `hardboiled doctor` verifica Python, el emulador, el
+runtime, la configuración, el compilador (compila y ejecuta un programa de
+prueba) y la terminal. Es lo primero que conviene adjuntar en una consulta.
 
-Para actualizar: `uv tool upgrade hardboiled`.
+Para probar sin instalar nada: `uvx --from git+https://github.com/INGCOM-UNRN-P1/hardboiled hardboiled doctor`.
+Para actualizar a la última versión del repositorio: `uv tool upgrade hardboiled`.
 
-### Verificación del Entorno (`hardboiled doctor`)
+El extra `[zig]` instala el paquete `ziglang` dentro del entorno aislado de la
+herramienta: no toca el sistema ni requiere `sudo`, pero pesa decenas de MB.
+
+Desde el repositorio:
 
 ```bash
-hardboiled doctor
+uv venv && uv pip install -e ".[zig]"   # instalación editable
+uv sync                                 # entorno de desarrollo (tests, ruff, mypy, zig)
 ```
 
-Verifica Python, el emulador, el runtime, la configuración, el compilador (compila y ejecuta un
-programa de prueba) y la terminal. Es lo primero que conviene adjuntar en una consulta; con `--json`
-el informe sale en JSON.
-
----
-
-## 3. Flujo de Trabajo y Compilación
-
-### Crear un Nuevo Proyecto
+## Empezar un proyecto
 
 ```bash
-hardboiled new mi-tp
-cd mi-tp
-hardboiled run main.c
+hardboiled new mi-tp            # main.c, Makefile, board.toml, compile_flags.txt, .gitignore
+cd mi-tp && hardboiled run main.c
+hardboiled new mi-tp --example interrupciones   # partir de un ejemplo incluido
 ```
 
-Estructura creada:
-```
-mi-tp/
-├── main.c             # punto de entrada
-├── board.toml         # la placa (copia de la placa por defecto)
-├── Makefile           # make, make run, make headless y make clean
-├── compile_flags.txt  # target RV32I y ruta de hardboiled.h para clangd
-└── .gitignore
-```
+El `Makefile` generado ofrece `make`, `make run`, `make headless` y
+`make clean`. `compile_flags.txt` le indica a clangd (VS Code, Neovim, etc.)
+el target RV32I y dónde está `hardboiled.h`, así el autocompletado y los
+diagnósticos funcionan sin configurar nada. Si se reinstala hardboiled y cambia
+la ruta, `hardboiled new . --editor-only` lo regenera.
 
-`hardboiled new mi-tp --example interrupciones` parte de un ejemplo incluido. Si se reinstala
-hardboiled y cambia la ruta del runtime, `hardboiled new . --editor-only` regenera
-`compile_flags.txt`.
-
-### Compilar el Firmware (`hardboiled build`)
+## Compilar un programa
 
 ```bash
-# Compilación estándar: programa.c -> programa.elf
-hardboiled build programa.c
-
-# Varios fuentes, salida, optimización, extensión M y el comando completo
+hardboiled build programa.c                  # -> programa.elf
 hardboiled build main.c util.c -o main.elf -O1 --march rv32im -v
 ```
 
-`build` agrega el runtime del paquete (`crt0.s`, el linker script y `hardboiled.h`) y compila siempre
-con símbolos de depuración. Opciones:
+`build` agrega solo el runtime incluido en el paquete y los flags de la placa:
 
-- `-o`: archivo de salida.
-- `-O`: nivel de optimización (`0` por defecto: con `-O1` o más el paso a paso salta líneas).
-- `--march`: `rv32i`, `rv32im`, `rv32ic` o `rv32imc` (por defecto, el `isa` de la placa).
-- `--cc`: compilador: `auto`, `gcc`, `zig` o una ruta (también la variable `HARDBOILED_CC`).
-- `-D` e `-I`: macros y directorios de includes; `--cflags`: flags extra (`--cflags="-std=c99"`).
-- `--board`: otra placa (por defecto `./board.toml` si existe).
-- `-v`: muestra el comando del compilador.
+| Archivo | Contenido |
+|---|---|
+| `crt0.s` | Arranque: inicializa `sp = 0x2001_0000`, copia `.data`, limpia `.bss`, llama a `main()` y define la tabla de vectores. |
+| `hardboiled.ld` | Linker script alineado con el mapa de memoria de la placa. |
+| `include/hardboiled.h` | SDK: `led_set()`, `switch_get()`, `uart_puts()`, `timer_start()`, `attach_irq()`, … |
 
-`hardboiled run` acepta también fuentes `.c`/`.s` con las mismas opciones: los compila en la caché del
-usuario y sólo recompila si cambiaron. Para compilar a mano, `hardboiled runtime` imprime las rutas del
-runtime (`--include`, `--linker-script`, `--crt0`).
+La placa declara su conjunto de instrucciones con `isa` en `[board]`
+(`"rv32i"` por defecto, `"rv32im"` con multiplicación y división por
+hardware, y `"rv32ic"`/`"rv32imc"` que suman instrucciones comprimidas de 16
+bits: el paso a paso, los breakpoints y Step Over funcionan igual con ellas). `build` lo usa como `--march` por defecto, y al cargar un programa
+se verifica con el atributo `Tag_RISCV_arch` del ELF que no use extensiones
+que la placa no tiene. Con `rv32im` desaparecen las llamadas a `__mulsi3` y
+compañía, que "ensucian" el Step Into.
 
----
+El compilador se elige así: `--cc` (`auto`, `gcc`, `zig` o una ruta), si no la
+variable `HARDBOILED_CC`, y si no el primero disponible entre una toolchain GNU
+para RISC-V en el `PATH` (`riscv64-unknown-elf-gcc`, `riscv32-unknown-elf-gcc`,
+`riscv-none-elf-gcc`, …) y el clang del extra `[zig]`. Otras opciones: `-O`,
+`--march` (`rv32i`, `rv32im`, `rv32ic`, `rv32imc`), `-D`, `-I`, `--cflags` y
+`-v` para ver el comando completo.
 
-## 4. Interfaz TUI y Depuración Interactiva
-
-```bash
-hardboiled run main.c          # compila (con caché) y abre la TUI, detenida al inicio de main()
-hardboiled run programa.elf
-```
-
-La pantalla muestra el código C (con el desensamblado intercalado si se pide), la placa (LEDs,
-switches, botones, display y la consola de la UART) y las pestañas de inspección: **Variables**,
-**Registros**, **Pila**, **Memoria**, **Puntos** y **Llamadas**.
-
-### Atajos de Teclado y Control de Ejecución
-
-| Tecla | Acción |
-| :--- | :--- |
-| `F5` / `c` | Continue: corre hasta un breakpoint, una trampa o el fin |
-| `F6` / `p` | Pausa una ejecución en curso |
-| `F9` / `b` | Pone o quita un breakpoint en la línea del cursor (también: click en el margen) |
-| `F10` / `n` | Step Over: siguiente línea sin entrar en las funciones |
-| `F11` / `s` | Step Into: siguiente línea, entrando en las funciones llamadas |
-| `Shift+F11` / `o` | Step Out: termina la función actual e informa el valor devuelto |
-| `F7` / `i` | Stepi: una sola instrucción de máquina |
-| `F8` / `u` | Paso atrás: vuelve al estado previo al último comando de ejecución |
-| `F4` / `g` | Run to cursor: ejecuta hasta la línea del cursor sin dejar breakpoint |
-| `0`–`7` | Conmuta un switch (también: click en el switch) |
-| `Alt+0`–`Alt+7` | Aprieta un botón (también: click en el botón) |
-| `B` / `Ctrl+F9` | Breakpoint condicional en la línea del cursor (`i == 3`, `#5`, `n > 2 #2`) |
-| `w` | Watchpoint: vigila una expresión y detiene cuando su valor cambia |
-| `d` | Muestra u oculta el desensamblado mixto (C + RV32I) |
-| `h` | Mapa de calor: instrucciones ejecutadas por línea desde el último Reset |
-| `x` | Cambia el formato de los registros: hex, con signo, sin signo, ASCII, símbolo |
-| `f` | Abre otro archivo fuente del programa |
-| `?` | Ayuda: atajos vigentes, marcadores y mapa de memoria de la placa |
-| `+` / `-` / `=` | Reloj de la CPU al doble / a la mitad / alterna fijo y sin límite |
-| `r` | Reset de la placa |
-| `q` | Salir |
-
-Si la terminal captura alguna tecla (F10 abre el menú en GNOME Terminal, F11 pasa a pantalla
-completa), los atajos se reasignan en `[keys]` del `config.toml` del usuario (`hardboiled config
-init` lo crea), por ejemplo `step_over = "f2,n"`.
-
-### Pestañas del Inspector
-
-1. **Variables:** parámetros y locales de la función en curso (respetando el alcance de los bloques) y
-   las globales, con su tipo C: enteros, `char`, `enum`, punteros (con lo apuntado expandible),
-   arreglos, estructuras, uniones y campos de bits. Lo que cambió desde la última detención se resalta.
-2. **Registros:** el estado crudo de `x0`–`x31` con sus nombres del ABI y el `pc`.
-3. **Pila:** la pila separada por marcos: qué función ocupa cada palabra, dónde guardó `ra` y `s0`,
-   dónde vive cada variable local y, si hubo una interrupción, el contexto que guardó la CPU.
-4. **Memoria:** volcado hexadecimal y ASCII de Flash o SRAM a partir de una dirección, un símbolo o una
-   expresión (`counter`, `&results`, `0x20000000`, `p`). El espacio MMIO no se lee, porque leerlo
-   tendría efectos sobre los periféricos.
-5. **Puntos:** breakpoints y watchpoints (Supr los quita). Se recuerdan entre sesiones en
-   `.hardboiled/`, junto al programa.
-6. **Llamadas:** la pila de llamadas (`main → sum_squares → square`), incluidas las entradas de
-   interrupción; elegir un marco muestra su línea y sus variables.
-
-Mientras la TUI está abierta, si el programa se recompila se vuelve a cargar solo (`--no-watch` lo
-desactiva).
-
----
-
-## 5. Modo Headless y Automatización (CI/CD)
-
-Sin interfaz, la salida de la UART va a stdout y las trampas a stderr:
+Para compilar a mano o desde un Makefile propio, `hardboiled runtime` imprime
+las rutas del runtime instalado:
 
 ```bash
-# Ejecutar hasta terminar, con switches iniciales y una cuota de instrucciones
-hardboiled run programa.elf --headless --switches 0b0011 --max-instructions 100000
-
-# Resultado en JSON (la salida de la UART va dentro del objeto)
-hardboiled run programa.elf --headless --json
-
-# Traza por instrucción (.csv o .jsonl) y perfil de funciones y líneas más ejecutadas
-hardboiled run programa.elf --headless --trace traza.csv
-hardboiled run programa.elf --headless --profile
+riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -g -O0 -ffreestanding \
+    -nostdlib -nostartfiles -I"$(hardboiled runtime --include)" \
+    -T"$(hardboiled runtime --linker-script)" "$(hardboiled runtime --crt0)" \
+    programa.c -lgcc -o programa.elf
 ```
 
-Otras opciones de `run`: `--uart-input ARCHIVO` (bytes que llegan por la UART; `-` es la entrada
-estándar), `--script ARCHIVO` (guion de estímulos en ciclos dados), `--trace-limit N` y `--realtime`
-(respetar el `clock_hz` de la placa).
+`tests/fixtures/build.py` recompila con este mismo módulo los ELF de prueba.
 
-Códigos de salida con `--headless`: el valor que devolvió `main()` (módulo 256), `3` si hubo una
-trampa o se agotó la cuota de instrucciones y `2` ante errores de uso.
+## Uso
 
-### Testing Automatizado (`hardboiled test`)
+```bash
+hardboiled run programa.c                   # compila (con caché) y abre la TUI
+hardboiled run programa.elf                 # TUI, detenida al inicio de main()
+hardboiled run programa.elf --headless      # sin TUI: UART a stdout, trampas a stderr
+hardboiled run traps.elf --headless --switches 0b0011 --max-instructions 100000
+hardboiled info programa.elf                # segmentos, uso de memoria, funciones, fuentes
+hardboiled test programa.c --suite casos.toml # corrige con salidas esperadas
+hardboiled validate [board.toml]            # valida una placa
+hardboiled board init                       # copia la placa por defecto a ./board.toml
+```
 
-Ejecuta el programa sin interfaz con entradas fijas y compara lo esperado. Termina con `0` si todo
-coincide y con `1` si algo falla, y muestra las diferencias de la UART línea por línea:
+Si existe `./board.toml` se usa como placa; si no, la placa por defecto que
+viene con el paquete. `hardboiled board init` copia esa placa al directorio
+actual para editarla y `hardboiled board show` la imprime. Con `--headless` se
+ignora `clock_hz` (la ejecución no se demora) salvo que se pase `--realtime`.
+Con `--headless`, el código de salida es el valor devuelto por `main()` (módulo
+256), `3` si hubo una trampa y `2` ante errores de uso.
+
+Para integrar con otras herramientas, `info`, `run --headless`, `test` y
+`doctor` aceptan `--json`. Imprimen un único objeto JSON por stdout y conservan
+los mismos códigos de salida. En `run --headless --json` la salida de la UART
+va dentro del objeto (`uart`), junto con `outcome` (`exited`, `trap` o
+`limit`), `exit_code`, la trampa con su ubicación, pista y pila de llamadas,
+los avisos, las instrucciones y los ciclos.
+
+`run` acepta un ELF o fuentes `.c`/`.s` (con las mismas opciones de
+compilación que `build`). Los fuentes se compilan en la caché del usuario
+(`~/.cache/hardboiled/builds` en Linux, o `HARDBOILED_CACHE_DIR`) y sólo se
+recompilan si cambian ellos, los encabezados de sus directorios, las opciones
+o el compilador. Los mensajes del compilador van a stderr, así que en
+`--headless` stdout contiene sólo la salida de la UART.
+
+### Traza de ejecución
+
+`run --headless --trace traza.csv` (o `.jsonl`) guarda una fila por
+instrucción ejecutada, para ejercicios de seguimiento de código:
+
+```
+n,cycle,pc,function,file,line,instruction,changes,event
+0,0,0x00010000,_start,crt0.s,20,"auipc gp, 0x1fff1",gp=0x20001000,
+...
+```
+
+Cada fila tiene el número de instrucción, el ciclo, el PC, la función, la
+línea, la instrucción desensamblada y los registros que cambió. La entrada a una
+interrupción figura como evento (`IRQ 0`) en la primera instrucción de la ISR, y
+`mret` muestra los registros que restaura. `--trace-limit N` (1 000 000 por
+defecto) corta la traza, pero el programa sigue hasta terminar. Trazar corre
+instrucción por instrucción, a unas 65 000 por segundo.
+
+### Perfil de ejecución
+
+`run --headless --profile` informa por stderr las funciones y líneas que más
+instrucciones ejecutaron, con su porcentaje. Sirve para ver el costo de un
+bucle o de una recursión, o que el tiempo se va en `__mulsi3` en una placa
+sin la extensión M:
+
+```
+Perfil: 520,067 instrucciones ejecutadas
+  funciones:
+     64.6%      335,824  main
+     35.4%      183,937  fib
+  líneas más ejecutadas:
+     64.2%      334,000  bench.c:8 │ for (int i = 0; i < 64; i++) { ... }
+```
+
+En la TUI, `h` agrega al margen del código la cantidad de instrucciones que
+ejecutó cada línea, con una barra de intensidad en escala logarítmica
+(`▁`…`█`). Se actualiza en vivo mientras el programa corre. Con `--json`, el
+perfil completo va en `profile`. Contarlo no hace más lenta la ejecución: en
+modo rápido se cuenta por bloque.
+
+### Corrección automática: `hardboiled test`
+
+Ejecuta el programa sin interfaz con entradas fijas y compara lo que se
+espera. Termina con `0` si todo coincide y con `1` si algo falla, y muestra las
+diferencias de la UART línea por línea:
 
 ```bash
 hardboiled test main.c --switches 5 --expect-uart esperado.txt --expect-exit 3
@@ -251,10 +194,11 @@ hardboiled test main.c --expect-trap null-pointer     # o --expect-trap '*'
 hardboiled test main.c --suite casos.toml              # varios casos
 ```
 
-Una suite describe cada caso con sus entradas (`switches`, `uart_input` o `uart_input_file`, `script`
-o un guion en línea `at = [...]`, `max_instructions`) y lo esperado (`expect_uart` o
-`expect_uart_file`, `expect_uart_contains`, `expect_exit` o `expect_trap`). Las rutas son relativas al
-archivo de la suite:
+Una suite describe cada caso con sus entradas (`switches`, `uart_input` o
+`uart_input_file`, `script` o un guion en línea `at = [...]`,
+`max_instructions`) y lo esperado (`expect_uart` o `expect_uart_file`,
+`expect_uart_contains`, `expect_exit` o `expect_trap`). Las rutas son relativas
+al archivo de la suite:
 
 ```toml
 [[case]]
@@ -267,15 +211,12 @@ expect_exit = 3
 name = "sale enseguida"
 uart_input = "q"
 expect_uart = "listo\nfin\n"
-
-[[case]]
-name = "detecta el puntero nulo"
-expect_trap = "null-pointer"
 ```
 
-El programa se compila y carga una sola vez, y cada caso arranca de un Reset. `expect_exit` compara el
-valor completo que devolvió `main()`. Si un caso no espera una trampa, que ocurra una, o que se agote
-la cuota, cuenta como falla. Con `--json` los resultados salen en JSON.
+El programa se compila y carga una sola vez, y cada caso arranca de un Reset.
+`expect_exit` compara el valor completo que devolvió `main()`, sin el módulo
+256 del código de salida del proceso. Si un caso no espera una trampa, que
+ocurra una, o que se agote la cuota, cuenta como falla.
 
 #### Firmware que no termina y controles en el camino
 
@@ -350,137 +291,11 @@ hardboiled examples copy pruebas.c
 hardboiled test pruebas.c --press 0@20000 --expect-exit 0
 ```
 
----
+### Tutorial guiado
 
-## 6. Programación con el SDK (`hardboiled.h`)
-
-`hardboiled.h` se genera a partir de la placa (`hardboiled gen-header` lo imprime) y ofrece las macros
-de cada registro (`LEDS`, `UART_STATUS`, `TIMER_RELOAD`…) y funciones `static inline` para la placa por
-defecto:
-
-```c
-#include "hardboiled.h"
-
-// --- LEDs y switches ---
-void     led_set(uint32_t mask);           // todos los LEDs (un bit por LED)
-uint32_t led_get(void);
-void     led_on(unsigned int index);       // también led_off() y led_toggle()
-uint32_t switch_get(void);                 // los 4 switches
-int      switch_read(unsigned int index);  // un switch: 0 o 1
-
-// --- Botones ---
-uint32_t buttons_get(void);                // botones presionados
-int      button_read(unsigned int index);
-void     button_irq_enable(uint32_t mask); // también button_irq_disable()
-uint32_t buttons_pending(void);            // flancos detectados (en la ISR)
-void     buttons_clear(uint32_t mask);
-
-// --- Display de 7 segmentos ---
-void    seg_show_dec(uint32_t value);
-void    seg_show_hex(uint32_t value);
-void    seg_set_digit(unsigned int index, uint8_t segments);
-uint8_t seg_pattern(unsigned int digit);   // el dibujo de una cifra
-void    seg_clear(void);
-
-// --- UART ---
-void uart_putc(char c);
-void uart_puts(const char *text);
-void uart_puthex(uint32_t value);
-int  uart_available(void);                 // 1 si hay un byte recibido
-char uart_getc(void);                      // espera hasta que llegue un byte
-int  uart_gets(char *buffer, int size);    // lee hasta fin de línea
-void uart_rx_irq(int enabled);             // IRQ mientras haya bytes recibidos
-
-// --- Timer ---
-void timer_start(uint32_t period_cycles, int with_irq);
-void timer_stop(void);
-int  timer_expired(void);                  // sondeo: ¿venció?
-void timer_clear(void);
-
-// --- Interrupciones ---
-void attach_irq(unsigned int line, irq_handler_t handler);  // registra el handler y habilita la línea
-void detach_irq(unsigned int line);
-void interrupts_enable(void);              // habilitador global (también interrupts_disable())
-void wait_for_interrupt(void);             // wfi: espera la próxima interrupción
-```
-
-### Ejemplo de Programa Bare-Metal
-
-```c
-#include "hardboiled.h"
-
-static volatile uint32_t ticks = 0;
-
-static void al_vencer_el_timer(void)
-{
-    timer_clear();
-    ticks++;
-    led_set(ticks);
-    seg_show_hex(ticks);
-}
-
-int main(void)
-{
-    uart_puts("Iniciando...\n");
-    attach_irq(IRQ_TIMER0, al_vencer_el_timer);
-    timer_start(50000, 1);                 /* vence cada 50 000 ciclos y pide la IRQ 0 */
-    interrupts_enable();
-
-    while (ticks < 16) {
-        if (button_read(0)) {
-            uart_puts("Botón 0 presionado\n");
-        }
-        wait_for_interrupt();
-    }
-    timer_stop();
-    return 0;
-}
-```
-
-Cuando una IRQ habilitada está pendiente, la CPU guarda el PC y los registros que el ABI no preserva en
-un marco de la pila, salta a `__vector_table[línea]` (en `crt0.s`), que llama al handler, y al `mret`
-final restaura el marco. Por defecto no hay anidamiento; la sección `[pic]` de `board.toml` fija
-prioridades y lo habilita.
-
----
-
-## 7. Catálogo de Trampas y Diagnóstico de Errores
-
-Una trampa detiene el programa con un mensaje, una pista y la línea donde ocurrió:
-
-| Trampa | Disparador | Causa frecuente |
-| :--- | :--- | :--- |
-| `null-pointer` | Acceso a `0x0000_0000`–`0x0000_FFFF` | Puntero nulo o sin inicializar; una función devolvió NULL y no se verificó. |
-| `flash-write` | Escritura en la Flash | Modificar un literal de cadena o una variable `const` (usá un `char[]`). |
-| `unmapped` | Acceso fuera de las regiones de memoria | Puntero sin inicializar, índice fuera de rango o aritmética de punteros. |
-| `bad-jump` | Salto fuera del código (por ejemplo, a la SRAM) | Puntero a función corrupto, o un buffer overflow pisó el `ra` guardado en la pila. |
-| `stack-overflow` | `sp` por debajo del fin de `.bss` | Recursión sin caso base o un arreglo local demasiado grande; el mensaje nombra la global que pisaría. |
-| `misaligned` | `lw`/`sw` a una dirección no múltiplo de 4 (`lh`/`sh`: de 2) | Un `int *` que apunta dentro de un `char[]`. |
-| `mmio` | Registro MMIO inexistente o de sólo lectura | Una dirección escrita a mano en lugar de las macros de `hardboiled.h`. |
-| `wfi-deadlock` | `wfi` sin ninguna interrupción que pueda despertar la CPU | Falta `attach_irq()`, `interrupts_enable()` o activar la IRQ del periférico. |
-| `vector` | Interrupción sin tabla de vectores | Programa enlazado sin `crt0.s` ni `hardboiled.ld` (compilá con `hardboiled build`). |
-| `isr-stack` | Una ISR devolvió `sp` distinto | Una ISR escrita en ensamblador que no restauró la pila. |
-| `exception` | Instrucción ilegal | Salto a datos o programa compilado para otra arquitectura (`--march`). |
-
-Además hay **avisos**, que no detienen el programa salvo que se configure así en `[board]`: `div0`
-(división o resto por cero), `uninit` (lectura de una variable sin inicializar) y `limit` (se agotó la
-cuota de instrucciones; F5 continúa).
-
-Para la explicación completa (causas típicas y cómo encontrarlas con el depurador):
-```bash
-hardboiled explain                 # lista los tipos
-hardboiled explain null-pointer
-hardboiled explain stack-overflow
-```
-
----
-
-## 8. Tutoriales y Ejemplos Integrados
-
-### Tutorial Interactivo
-
-Siete lecciones que se corrigen solas: LEDs, switches, UART, timer por sondeo, interrupciones, botones
-con IRQ y un programa con tres errores para cazar con el depurador:
+Siete lecciones progresivas que se corrigen solas: LEDs, switches, UART, timer
+por sondeo, interrupciones, botones con IRQ y, al final, un programa con tres
+errores para cazar con el depurador.
 
 ```bash
 hardboiled tutorial                  # lista las lecciones
@@ -489,119 +304,1104 @@ hardboiled run leccion-01-leds/main.c
 hardboiled tutorial check 1          # compila tu main.c y corre los casos de prueba
 ```
 
-### Galería de Ejemplos
+`check` usa la suite de la lección que viene con el paquete, así que editar
+la copia no cambia la corrección. Si un caso falla, muestra por qué: las
+diferencias en la UART, el valor de los LEDs o del display, o la trampa con su
+función y línea.
+
+### Ejemplos incluidos
 
 ```bash
 hardboiled examples                  # lista los ejemplos con su descripción
-hardboiled examples show errores     # imprime un ejemplo
-hardboiled examples copy hola leds   # copia los fuentes al directorio actual
 hardboiled demo                      # compila y abre la demo interactiva
 hardboiled demo interrupciones       # cualquier ejemplo, con las opciones de run
+hardboiled examples copy hola leds   # copia fuentes al directorio actual
+hardboiled examples show errores     # imprime un ejemplo
 ```
 
-Ejemplos: `hola`, `leds`, `switches`, `botones`, `display`, `eco`, `interrupciones`, `errores`
-(catálogo de trampas elegidas con los switches) y `demo`. `hardboiled demo` es además una buena prueba
-de humo después de instalar.
+`hola`, `leds`, `switches`, `interrupciones`, `errores` (catálogo de trampas
+elegidas con los switches) y `demo`. `hardboiled demo` es además una buena
+prueba de humo después de instalar.
 
----
+### Autocompletado
 
-## 9. Configuración del Hardware (`board.toml`)
+```bash
+hardboiled completion bash > ~/.local/share/bash-completion/completions/hardboiled
+hardboiled completion fish > ~/.config/fish/completions/hardboiled.fish
+hardboiled completion zsh  > ~/.zfunc/_hardboiled.zsh   # y `source` desde ~/.zshrc
+```
 
-Si existe `./board.toml` se usa como placa; si no, la placa por defecto del paquete.
-`hardboiled board init` la copia al directorio actual para editarla, `hardboiled board show` la
-imprime y `hardboiled validate [board.toml]` la valida (regiones alineadas y sin superposición,
-periféricos dentro del espacio MMIO, líneas de IRQ únicas). Un extracto de la placa por defecto:
+Completa subcomandos, opciones, nombres de ejemplos y archivos `.c`, `.s`,
+`.h`, `.elf` y `.toml`.
+
+### Preferencias del usuario
+
+`hardboiled config init` crea un `config.toml` con todas las opciones
+comentadas (`hardboiled config path` muestra dónde; `hardboiled config`, los
+valores efectivos). Permite fijar el compilador, `-O` y `--march` por defecto,
+un `clock_hz` para la TUI, si detenerse en `main()`, el tema (`dark`/`light`)
+y atajos de teclado. La línea de comandos siempre tiene prioridad.
+
+`theme = "light"` usa colores claros en toda la interfaz (útil con el
+proyector del aula) y `colorblind = true` cambia a la paleta Okabe-Ito
+(azul/naranja) y agrega forma donde antes sólo había color: LEDs `■`/`□` y
+valores cambiados subrayados.
+
+**Idioma**: los mensajes (trampas, avisos, pistas, la TUI y el informe de
+`--headless`) están en español y también en inglés. Se elige con `language =
+"en"` en `[ui]` o con la variable `HARDBOILED_LANG=en`, que tiene prioridad.
+`hardboiled explain` muestra la guía en el idioma elegido. La ayuda de las
+opciones de la línea de comandos queda en español.
+
+### Teclas de la TUI
+
+| Tecla | Acción |
+|---|---|
+| `F5` / `c` | Continue: corre hasta un breakpoint, una trampa o el fin |
+| `F6` / `p` | Pausa una ejecución en curso |
+| `F9` / `b` | Pone/quita un breakpoint en la línea del cursor (también: click en el margen) |
+| `F10` / `n` | Step Over: siguiente línea sin entrar en las funciones |
+| `F11` / `s` | Step Into: siguiente línea, entrando en las funciones llamadas |
+| `Shift+F11` / `o` | Step Out: termina la función actual e informa el valor devuelto |
+| `F7` / `i` | Stepi: una sola instrucción de máquina |
+| `F8` / `u` | Paso atrás: vuelve al estado previo al último comando de ejecución |
+| `F4` / `g` | Run to cursor: ejecuta hasta la línea del cursor sin dejar breakpoint |
+| `0`–`7` | Conmuta un switch (también: click en el botón) |
+| `Alt+0`–`Alt+7` | Aprieta un botón (también: click en el botón) |
+| `B` / `Ctrl+F9` | Breakpoint condicional en la línea del cursor (`i == 3`, `#5`, `n > 2 #2`) |
+| `w` | Watchpoint: vigila una expresión y detiene cuando su valor cambia |
+| `d` | Muestra u oculta el desensamblado mixto (C + RV32I) |
+| `h` | Mapa de calor: instrucciones ejecutadas por línea desde el último Reset |
+| `x` | Cambia el formato de los registros: hex, con signo, sin signo, ASCII, símbolo |
+| `f` | Abre otro archivo fuente del programa (para poner breakpoints antes de llegar) |
+| `?` | Ayuda: atajos vigentes, marcadores y mapa de memoria de la placa |
+| `+` / `-` / `=` | Reloj de la CPU al doble / a la mitad / alterna fijo y sin límite |
+| `r` | Reset de la placa |
+| `q` | Salir |
+
+Si la terminal captura alguna tecla (F10 abre el menú en GNOME Terminal, F11
+pasa a pantalla completa), los atajos se reasignan en `[keys]` de
+`config.toml`, por ejemplo `step_over = "f2,n"`; la ayuda (`?`) muestra los
+vigentes.
+
+`↑`/`↓`/`PgUp`/`PgDn` mueven el cursor en el código; `/` busca (F3 y
+Shift+F3 van a la coincidencia siguiente y anterior, resaltadas) y `:` va a
+una línea.
+
+La pestaña **Variables** muestra los parámetros y locales de la función en
+curso (respetando el alcance de los bloques, como el `int i` de un `for`) y
+las globales, con su tipo C: enteros, `char`, `_Bool`, `enum`, punteros (con
+el texto si apuntan a una cadena y lo apuntado expandible como `*p`),
+arreglos multidimensionales, estructuras, uniones y campos de bits. Los
+valores que cambiaron desde la última detención se resaltan. La pestaña
+**Registros** muestra el estado crudo y **Pila** la pila separada por marcos:
+qué función ocupa cada palabra, dónde guardó `ra` (con el destino de retorno)
+y `s0`, dónde vive cada variable local y, si hubo una interrupción, el
+contexto que guardó la CPU registro por registro.
+
+Los **watchpoints** (`w`) aceptan expresiones C: `results[1]`, `total`,
+`f->color`, `*p`, `matriz[i][j]`. La ejecución se detiene justo después de la
+escritura que cambió el valor e informa el valor anterior, el nuevo y la línea
+que escribió. Los de variables locales se eliminan cuando termina su función.
+La pestaña **Puntos** lista breakpoints y watchpoints (Supr los quita).
+
+Los **breakpoints condicionales** (`B`, marcados `◆`) detienen sólo si una
+expresión C es verdadera en ese punto y/o a partir de la pasada N (`#N`):
+evitan apretar F5 decenas de veces dentro de un bucle.
+
+El **paso atrás** (`F8`) restaura registros, memoria y periféricos al estado
+previo al último step o continue; sirve también para volver al instante
+anterior a una trampa. Se guardan hasta 200 pasos (`history` en
+`config.toml`); la salida ya impresa por la UART no se deshace.
+
+Breakpoints, condiciones y watchpoints de globales se **recuerdan entre
+sesiones** en `.hardboiled/<programa>.breakpoints.json`, junto al ELF o al
+primer fuente, con rutas relativas y ubicados por archivo:línea (sobreviven a
+recompilar). Se desactiva con `--no-save-breakpoints` o `save_breakpoints =
+false` en `config.toml`.
+
+**Recarga automática**: mientras la TUI está abierta, si el programa se
+recompila, se vuelve a cargar solo. Con `run main.c`, alcanza con guardar un
+fuente o un encabezado del proyecto: se recompila con las mismas opciones.
+Con `run main.elf`, se recarga al cambiar el ELF (por ejemplo, tras un `make`
+en otra terminal). Breakpoints, condiciones y watchpoints de globales se
+reubican por archivo:línea, y los switches quedan como estaban. Si la
+compilación falla, se muestra el error y sigue el programa anterior.
+`--no-watch` lo desactiva.
+
+El **desensamblado** (`d`) muestra la función en curso intercalando cada
+línea de C con sus instrucciones RV32I (con pseudoinstrucciones como `li`,
+`mv`, `ret` o `call` y los destinos de saltos con su símbolo); la instrucción
+actual se marca con `▶` y Enter o click sobre una instrucción pone un
+breakpoint en esa dirección. Junto con `F7` (stepi) permite seguir el código
+de máquina paso a paso.
+
+La pestaña **Memoria** muestra un volcado hexadecimal y ASCII de Flash o SRAM
+a partir de una dirección, un símbolo o una expresión (`counter`, `&results`,
+`0x20000000`, `p` para ver a dónde apunta un puntero), rotulado con las
+variables globales y con los bytes que cambiaron desde la detención anterior
+resaltados. PgUp/PgDn recorren la memoria; el espacio MMIO no se lee porque
+leerlo tendría efectos sobre los periféricos.
+
+El panel **Llamadas** muestra la pila de llamadas (`main → sum_squares →
+square`), incluidas las entradas de interrupción. Elegir un marco (Enter o
+click) muestra su línea marcada con `▷` y sus variables locales.
+
+## La placa
+
+### Mapa de memoria
+
+| Rango | Tamaño | Permisos | Uso |
+|---|---|---|---|
+| `0x0000_0000 - 0x0000_FFFF` | 64 KB | ninguno | Trampa de punteros nulos |
+| `0x0001_0000 - 0x0001_FFFF` | 64 KB | R X | Flash: vectores, `crt0`, `.text`, `.rodata`, imagen de `.data` |
+| `0x2000_0000 - 0x2000_FFFF` | 64 KB | R W | SRAM: `.data`, `.bss`, heap, pila (desde `0x2001_0000` hacia abajo) |
+| `0x4000_0000 - 0x4000_0FFF` | 4 KB | MMIO | Periféricos (sin memoria detrás: cada acceso va al bus en Python) |
+
+### Periféricos (placa por defecto)
+
+| Offset | Registro | Descripción |
+|---|---|---|
+| `0x000` | `LEDS` | 8 LEDs. Admite accesos de 8/16/32 bits; cada cambio se ve en la TUI. |
+| `0x004` | `SWITCHES` | 4 DIP switches, sólo lectura. Escribirlos es una trampa. |
+| `0x010` | `UART_TX` | Byte a transmitir a la consola. |
+| `0x014` | `UART_STATUS` | Bit 0: listo para transmitir; bit 1: hay un byte recibido. |
+| `0x018` | `UART_RX` | Siguiente byte recibido (0 si no hay). |
+| `0x01C` | `UART_CTRL` | Bit 0: pedir la IRQ 1 mientras haya bytes recibidos. |
+| `0x020` | `TIMER_CTRL` | Bit 0 habilita, bit 1 genera IRQ. |
+| `0x024` | `TIMER_RELOAD` | Período en ciclos (divisor). |
+| `0x028` | `TIMER_COUNT` | Ciclos restantes (sólo lectura). |
+| `0x02C` | `TIMER_STATUS` | Bit 0: venció (escribir 1 para limpiar). |
+| `0x030` | `BUTTONS_STATE` | 4 botones: bit en 1 mientras está presionado (sólo lectura). |
+| `0x034` | `BUTTONS_IRQ_EN` | Botones que piden la IRQ 2. |
+| `0x038` | `BUTTONS_EDGE` | Por botón: 0 avisa al presionar, 1 al soltar. |
+| `0x03C` | `BUTTONS_PENDING` | Flancos detectados (escribir 1 limpia y retira la IRQ). |
+| `0x040` | `SEG_DIGITS` | Display de 4 dígitos: un byte por dígito (el 0 a la derecha), segmentos a-g en los bits 0-6 y el punto en el 7. |
+| `0xF00` | `PIC_ENABLE` | Máscara de IRQs habilitadas. |
+| `0xF04` | `PIC_PENDING` | IRQs pendientes (escribir 1 para limpiar). |
+| `0xF08` | `PIC_GLOBAL` | Bit 0: interrupciones habilitadas globalmente. |
+| `0xF0C` | `PIC_ACTIVE` | Línea que se está atendiendo (`0xFFFFFFFF` si ninguna). |
+| `0xF10` | `HB_CYCLES_LO` | Sólo lectura: ciclos desde el reset (32 bits bajos). Es el reloj del emulador, determinista; `hb_cycles()` lee los 64 bits. |
+| `0xF14` | `HB_CYCLES_HI` | Sólo lectura: ciclos desde el reset (32 bits altos). |
+
+### Display de 7 segmentos
+
+`seg_show_dec()`, `seg_show_hex()` y `seg_set_digit(i, segmentos)` (con
+`seg_pattern(cifra)` para obtener el dibujo de una cifra). La cantidad de
+dígitos se configura con `digits` en `board.toml` (hasta 8). Ver el ejemplo
+`display`.
+
+### Botones
+
+En la TUI, un click en un botón `▣` lo presiona y lo suelta solo unos ciclos
+después (20 000), así un programa que encuesta alcanza a verlo. Con
+`button_irq_enable()` cada pulsación pide `IRQ_BUTTONS`; la ISR lee
+`buttons_pending()` y los limpia con `buttons_clear()`. Ver el ejemplo
+`botones`.
+
+### GPIO bidireccional
+
+Un puerto de hasta 32 pines (`type = "gpio"` en `board.toml`, no está en la placa por defecto) con
+registros `DIR` (1 = salida), `OUT`, `IN` (nivel de cada pin), `PULL` (pull-up: una entrada suelta
+lee 1), `IRQ_EN`, `EDGE` (0 = flanco de subida, 1 = de bajada), `PENDING` (escribir 1 limpia) y
+`SHORT` (pines en cortocircuito). Ocupa 32 bytes:
 
 ```toml
-[board]
-name = "lab-rv32-basics"
-arch = "riscv32"
-isa = "rv32i"                 # rv32i, rv32im, rv32ic o rv32imc
-max_instructions = 5_000_000
-clock_hz = 1_000_000          # opcional: acompasa la emulación al reloj real
-
-[memory]
-flash_base = "0x00010000"
-flash_size_kb = 64
-sram_base  = "0x20000000"
-sram_size_kb  = 64
-mmio_base  = "0x40000000"
-
 [[peripherals]]
-name = "leds"
-type = "gpio_out"
-offset = "0x00"
+name = "puerto"
+type = "gpio"
+offset = 0x60
 width_bits = 8
+irq_line = 3
+```
 
+Desde afuera, cada pin queda suelto o manejado a alto o bajo: en la TUI, un click en el pin cicla
+suelto → alto → bajo (`→` es salida y `←` entrada; subrayado, manejado desde afuera), y en el guion
+de entrada, `gpio_high`, `gpio_low` y `gpio_float`. Si el programa saca como salida el nivel
+contrario al de afuera hay **cortocircuito**: se marca en `SHORT`, el pin se ve en rojo y se avisa
+(en una placa real se quema el pin). El SDK suma `gpio_output()`, `gpio_input()`,
+`gpio_pullup()`, `gpio_write()`, `gpio_read()`, `gpio_toggle()`, `gpio_irq_enable(mask, falling)`,
+`gpio_pending()` y `gpio_clear()`. Es la base del bit-banging (qol.md #69).
+
+### ADC con potenciómetros
+
+Un convertidor analógico-digital (`type = "adc"`, 16 bytes) de hasta 8 canales: se elige el canal,
+se pide la conversión (`CTRL`: bits 0-2 el canal, bit 8 `START`, bit 9 pedir la IRQ al terminar), se
+espera `DONE` en `STATUS` (por sondeo o por IRQ) y se lee `DATA`. La tensión se toma al iniciar
+(muestreo y retención) y el resultado está `conversion_cycles` después; `INFO` dice la resolución y
+la cantidad de canales:
+
+```toml
 [[peripherals]]
-name = "uart0"
-type = "uart"
-offset = "0x10"
-irq_line = 1
+name = "adc0"
+type = "adc"
+offset = 0x80
+irq_line = 4
+channels = 4            # 1 a 8
+resolution_bits = 10    # 8 a 16: resultados de 0 a 1023
+conversion_cycles = 100
+vref_mv = 3300          # la tensión de referencia: el máximo
+```
 
+Cada canal tiene un potenciómetro entre 0 y `vref_mv` milivoltios: en la TUI se gira con `-` y `+`
+(5 % del recorrido por clic) y en el guion de entrada con `adc = [[canal, milivoltios], ...]`; su
+posición sobrevive al reset. El SDK suma `adc_read(canal)` (convierte y espera), `adc_start(canal,
+con_irq)`, `adc_done()`, `adc_value()` (lee y limpia `DONE`), `adc_to_mv(valor)` y las constantes
+`ADC_MAX`, `ADC_VREF_MV` y `ADC_CHANNELS`. Es la base de los sensores analógicos de la sección J de
+`qol.md` (qol.md #64).
+
+### Rebote de contactos
+
+Un botón o un switch real no cambia limpio: el contacto rebota. Con `bounce_cycles` en un
+periférico de entrada (`gpio_in`, `gpio_irq` o `gpio`), cada cambio llega al nivel nuevo, vuelve,
+llega, vuelve y recién se queda al cabo de esos ciclos: tres flancos por pulsación (y otros tres al
+soltar). Aparece el bug clásico de «apreté una vez y contó tres» y hace falta un antirrebote por
+software (esperar a que el nivel se estabilice, o ignorar flancos durante unos milisegundos):
+
+```toml
 [[peripherals]]
-name = "timer0"
-type = "timer"
-offset = "0x20"
-irq_line = 0
+name = "buttons"
+type = "gpio_irq"
+offset = 0x30
+width_bits = 4
+irq_line = 2
+bounce_cycles = 2000
+```
 
+Con 0 (el valor por defecto) los cambios son limpios. Un reset a mitad de un rebote deja la entrada
+en su nivel final.
+
+### Entrada por la UART
+
+En la TUI, el campo debajo de la consola envía lo escrito (más `\n`) a la UART;
+Esc vuelve al código. El firmware lo lee con `uart_available()`, `uart_getc()`
+o `uart_gets()`, o con la interrupción `IRQ_UART0` (`uart_rx_irq(1)`), que
+queda pedida mientras haya bytes sin leer. Con la interfaz, `wfi` espera lo que
+escriba el usuario en vez de reportar deadlock. Sin interfaz, la entrada se da
+explícitamente: `printf 'hola\nfin\n' | hardboiled demo eco --headless
+--uart-input -` (o `--uart-input archivo.txt`). Ver el ejemplo `eco`.
+
+### Guion de entrada
+
+Para probar firmware interactivo de forma reproducible, `--script guion.toml`
+(en `run` y `demo`, con o sin interfaz) aplica estímulos en ciclos dados:
+
+```toml
+[[at]]
+cycle = 60_000
+switches = 0b1010      # valor de todos los switches
+
+[[at]]
+ms = 5                 # en milisegundos: requiere clock_hz en [board]
+uart = "hola\n"        # bytes que llegan por la UART
+
+[[at]]
+cycle = 120_000
+press = [1, 2]         # botones (se sueltan solos)
+
+[[at]]
+cycle = 150_000
+gpio_low = [0]         # pines del GPIO manejados desde afuera: gpio_high, gpio_low, gpio_float
+adc = [[0, 1650]]      # potenciómetros del ADC: [canal, milivoltios]
+```
+
+Si el programa duerme con `wfi`, el reloj avanza directo hasta el próximo
+estímulo, igual que hasta el próximo tick de un timer. Reset y el paso atrás
+vuelven el guion al punto que corresponde.
+
+### Interrupciones
+
+`attach_irq(línea, handler)` registra una función C y habilita la línea;
+`interrupts_enable()` activa el habilitador global. Cuando una IRQ habilitada
+está pendiente, antes de la próxima instrucción la CPU virtual:
+
+1. guarda el PC y los registros que el ABI no preserva (`ra`, `t0-t6`, `a0-a7`)
+   en un marco de 80 bytes en la pila del programa;
+2. salta a `__vector_table[línea]` (definida en `crt0.s`), que llama al handler;
+3. al llegar al `mret` final restaura el marco y retoma el programa.
+
+Por defecto no hay anidamiento: mientras se atiende una IRQ las demás quedan
+pendientes y se atiende primero la de línea más baja. En `board.toml` se puede
+cambiar:
+
+```toml
 [pic]
 priorities = [1, 0, 2, 3, 4, 5, 6, 7]  # prioridad de cada línea (menor = más urgente)
 nesting = true                         # una IRQ más urgente interrumpe a la ISR en curso
 ```
 
-Los periféricos son una lista `[[peripherals]]` con `name`, `type` y `offset` (más los campos de cada
-tipo): `gpio_out`, `gpio_in`, `gpio_irq` (botones), `uart`, `timer`, `sevenseg` (con `digits`), `gpio`
-(puerto bidireccional) y `adc`. El primer periférico de cada tipo usa los nombres clásicos
-(`LEDS`/`led_set()`, `TIMER_CTRL`/`timer_start()`…) y los siguientes, su nombre (`BARRA`/
-`barra_set()`). En `[board]` también se configuran los avisos (`div_by_zero`, `uninitialized`:
-`"warn"`, `"break"` u `"off"`), `stack_guard` y `misaligned`.
+Con anidamiento, cada ISR interrumpida conserva su marco en la pila; `PIC_ACTIVE`
+indica la línea en atención y la pila de llamadas muestra cada nivel.
+`wait_for_interrupt()` (`wfi`) adelanta el reloj hasta la próxima interrupción.
 
-(manual-hardboiled-ejemplos)=
-## Ejemplos y Contraejemplos
+### Trampas
 
-### Ejemplo Válido (Patrón Recomendado)
+La ejecución se aborta con un mensaje descriptivo ante: desreferencia de
+puntero nulo, escritura en Flash, acceso a memoria no mapeada, salto a la SRAM,
+registro MMIO inexistente o de sólo lectura, stack overflow (`sp` por debajo
+del fin de `.bss`: la pila está por invadir las variables globales, y el
+mensaje nombra la que pisaría; con `stack_guard = "sram"` en `[board]` sólo
+se detecta al salir de la SRAM), `wfi` sin ninguna interrupción que pueda despertar la CPU,
+acceso desalineado (un `lw`/`sw` a una dirección no múltiplo de 4, o `lh`/`sh`
+no múltiplo de 2; con `misaligned = "allow"` en `[board]` se resuelve en
+silencio como hace el hardware que lo soporta) e instrucción ilegal.
 
-Leé los switches con la función del SDK y reflejá su valor en los LEDs. Compilá y ejecutá sin TUI;
-`--switches` fija la entrada inicial y `--max-instructions` pone un límite a la corrida:
+Cada trampa trae una pista ("¿El puntero se inicializó?") y un tipo;
+`hardboiled explain <tipo>` muestra la explicación completa (causas típicas y
+cómo encontrarlas con el depurador) y `hardboiled explain` lista los tipos. La
+guía completa está en `src/hardboiled/data/docs/trampas.md`.
 
-```c
-#include "hardboiled.h"
+### Avisos
 
-int main(void)
-{
-    led_set(switch_get());
-    uart_puts("LEDs configurados\n");
-    return 0;
-}
+Al cargar un programa se revisa cómo se compiló: sin `-g` no hay depuración a
+nivel de C, y con optimización (`-O1` o más) el paso a paso salta líneas y
+algunas variables figuran como no disponibles. En ambos casos se avisa con la
+explicación y la solución; `hardboiled info` lo informa en "Compilación".
+
+Algunas cosas no son trampas pero casi siempre son errores: el programa sigue
+y se muestra un aviso con la línea (en la TUI como notificación, en
+`--headless` por stderr). La **división o el resto por cero** no generan
+excepción en RISC-V (con la extensión M el cociente queda en −1; con división
+por software el resultado depende de la biblioteca). Cada aviso se configura en
+`[board]` como `"warn"` (por defecto), `"break"` (detiene ahí) u `"off"`:
+`div_by_zero = "break"`.
+
+Las **lecturas sin inicializar** también se avisan, con el nombre de la
+variable: `lectura de `suma` sin inicializar`. Una memoria "sombra" marca los
+bytes escritos de la SRAM y, cada vez que se reserva pila, lo reservado vuelve
+a quedar sin valor (así se detecta una local sin inicializar aunque ese lugar
+lo haya usado antes otra función). Se configura con `uninitialized` en
+`[board]`; en código con muchos accesos a memoria corre a la mitad de la
+velocidad.
+
+Continue, Run to y Step Out corren en **modo rápido**: la CPU sólo interviene
+una vez por bloque básico y en las instrucciones que importan (breakpoints,
+`mret`/`wfi`, divisiones, cambios de `sp`, accesos a memoria que podrían estar
+desalineados), en lugar de en cada instrucción. Rinde unos 1,7 millones de
+instrucciones por segundo, cuatro veces más que el paso a paso, con la misma
+cuenta de instrucciones y ciclos. Las IRQ se toman al comienzo de un bloque.
+
+Agotar la cuota de instrucciones (`max_instructions`) no es una trampa: la CPU
+se suspende con un aviso y, si se continúa (F5), se habilita otra cuota igual;
+no todo programa largo es un bucle infinito. En `--headless` termina con código
+3 y sugiere `--max-instructions`.
+
+### `board.toml`
+
+Declara la placa: límites de ejecución, regiones de memoria y periféricos. Se
+valida con pydantic (regiones alineadas y sin superposición, periféricos dentro
+del espacio MMIO, líneas de IRQ únicas). Ver `board.toml` en la raíz. El campo
+opcional `board.clock_hz` acompasa la emulación al reloj real para que un LED
+que parpadea con el timer tenga una velocidad visible; sin él, la CPU corre tan
+rápido como puede. El SDK (`hardboiled.h` y el linker script se generan a partir
+de la placa: si el proyecto tiene su propio `board.toml`, `build` y `run`
+generan un SDK acorde en la caché, y `hardboiled gen-header [board.toml]`
+(o `--linker-script`) lo imprime para inspeccionarlo. El primer periférico de
+cada tipo usa los nombres clásicos (`LEDS`/`led_set()`, `TIMER_CTRL`/
+`timer_start()`…) y los siguientes, su nombre (`BARRA`/`barra_set()`).
+
+## Arquitectura
+
 ```
+Vista (ui/)            ── cmd_queue: CmdStepInto, CmdContinue, CmdToggleSwitch, … ──▶
+  Textual, hilo principal                                                  RunnerThread (core/runner.py)
+                       ◀── evt_queue: EvtCpuSuspended, EvtHardwareUpdated, EvtTrap, … ──
+```
+
+| Módulo | Responsabilidad |
+|---|---|
+| `core/events.py` | Protocolo: dataclasses inmutables de comandos y eventos. |
+| `core/cpu.py` | Wrapper de Unicorn: memoria, hook de ciclo, trampas, stack guard, entrada/salida de ISR, `wfi`. |
+| `core/debugger.py` | Breakpoints por línea o dirección, Step Into, Step Over, Continue. |
+| `core/unwind.py` | Pila de llamadas: CFI de DWARF, frame pointer y marcos de interrupción. |
+| `core/variables.py` | Variables y tipos C desde `.debug_info`, evaluación de ubicaciones DWARF. |
+| `core/expressions.py` | Evaluador de expresiones C (watchpoints y condiciones). |
+| `core/disasm.py` | Desensamblador RV32I/M/Zicsr/C con pseudoinstrucciones. |
+| `core/dwarf.py` / `core/elf.py` | Tabla de líneas DWARF (PC ⇄ archivo:línea), segmentos y símbolos. |
+| `core/pic.py` | Controlador de interrupciones virtual. |
+| `core/machine.py` | Arma la placa a partir de `board.toml`. |
+| `core/runner.py` | Hilo de trabajo: atiende comandos y publica eventos. |
+| `hardware/` | Bus MMIO y periféricos (GPIO, UART, timer). |
+| `ui/` | Aplicación Textual y widgets. |
+
+`core/` y `hardware/` no importan nada de la interfaz (un test lo verifica),
+así que otro frontend sólo tiene que hablar el protocolo de `core/events.py`.
+
+Algunas decisiones de implementación:
+
+- El hook `UC_HOOK_CODE` corre **antes** de cada instrucción; para intervenir
+  (breakpoint, IRQ, `mret`, fin de programa) detiene la emulación sin
+  ejecutarla y el cambio de contexto se hace fuera de Unicorn.
+- El código vive en Flash (sólo lectura), así que se escanea una única vez al
+  cargar para indexar `mret`, `wfi`, `ebreak`/`ecall`, las llamadas
+  (`jal`/`jalr` con `rd = ra`, usadas por Step Over) y las instrucciones que
+  escriben `sp` (el stack guard sólo lee `sp` después de ellas).
+- Step Over pone un breakpoint efímero en `PC + 4` que sólo vale si `sp`
+  volvió a su valor: una llamada recursiva no lo dispara antes de tiempo.
+- Los pasos no se detienen dentro de una ISR que empezó durante el paso (los
+  breakpoints sí), para que una IRQ asíncrona no "secuestre" el step.
+- Los pasos saltean el código sin fuente disponible (compiler-rt, libgcc).
+- El espacio MMIO se mapea con `mmio_map` de Unicorn: cada lectura y escritura
+  de ese rango se atiende en Python, sin memoria de respaldo.
+
+## Desarrollo
 
 ```bash
-hardboiled build main.c -o main.elf
-hardboiled run main.elf --headless --switches 0b0011 --max-instructions 100000
+uv run python scripts/smoke_install.py # instala el wheel con uv tool en un entorno aislado
+uv run pytest                          # tests (incluye la TUI con el pilot de Textual)
+uv run ruff check . && uv run ruff format --check .
+uv run mypy                            # modo estricto
+uv run python tests/fixtures/build.py  # recompilar los ELF de prueba
 ```
 
-Así evitás codificar direcciones MMIO y accedés a los periféricos mediante el SDK. La UART debe
-emitir `LEDs configurados`; esa salida concreta es ilustrativa.
+Commits con [Conventional Commits](https://www.conventionalcommits.org/)
+(`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+## Con bishop y rachel (temas de arquitectura)
 
-`SWITCHES` es de sólo lectura. Aunque el compilador acepte la asignación, el emulador la detiene con
-la trampa `mmio`. Podés pedirle al runner que compruebe ese resultado:
+hardboiled muestra en una CPU real (RV32I, sin sistema operativo) lo que bishop y rachel muestran
+en la PC del alumno (x86-64 con Linux). Un mismo programa C, sin `stdio.h` (en la placa la salida
+es la UART del SDK), sirve para comparar las dos máquinas:
 
 ```c
-#include "hardboiled.h"
+int factorial(int n) { return n <= 1 ? 1 : n * factorial(n - 1); }
 
-int main(void)
+int dia_habil(int d)
 {
-    SWITCHES = 1;
-    return 0;
+    int r = 0;
+    switch (d) {
+    case 1: case 2: case 3: case 4: case 5: r = 1; break;
+    default: r = 0;
+    }
+    return r;
 }
+
+int main(void) { return factorial(5) + dia_habil(3); }
 ```
 
-```bash
-hardboiled test antipatron.c --expect-trap mmio
-```
+| Tema | En la PC | En la placa |
+| :-- | :-- | :-- |
+| Marcos de la pila en una recursión | `bishop trace programa.c` (o `bishop ascii`): cada marco de `factorial` con sus variables | `hardboiled run programa.c`: la pestaña **Pila** separa los mismos marcos palabra por palabra, con dónde quedó `ra` y `s0`, y **Llamadas** la cadena `main → factorial → …` |
+| `switch` y jump tables | `rachel switch programa.c` muestra cómo lo traduce gcc para x86-64 (con estos casos contiguos queda una comparación de rango; con casos dispersos, una tabla de saltos) y `rachel compare` lo compara con una cadena de `if-else` | paso a paso en la TUI, el mismo `switch` en instrucciones RV32I, con `-O0` y con `--cflags -O2` para ver qué cambia |
+| Costo en ciclos | — (el tiempo depende de la máquina) | `hardboiled run --headless --profile programa.c`: ciclos por línea de C y de `crt0.s`, deterministas |
 
-El diagnóstico identifica la escritura inválida y la trampa esperada; el comando de prueba termina
-con `0` si el caso coincide. La redacción exacta del diagnóstico es ilustrativa.
+La guía de la cátedra para estos temas parte del modelo de la PC (bishop, rachel) y usa
+hardboiled para mostrar que la pila, el `ra` y la traducción del `switch` no son cosa de x86.
+
+## Limitaciones
+
+- Emula RV32I con las extensiones M y C (`isa` de `board.toml`: rv32i, rv32im, rv32ic o rv32imc):
+  no hay punto flotante (F/D) ni instrucciones atómicas (A).
+- Es bare-metal: un solo núcleo, sin sistema operativo ni MMU; los programas usan el SDK
+  (`hardboiled.h`) para los periféricos.
+- El tiempo es simulado: cuenta ciclos, no depende de la velocidad de la máquina (con `clock_hz` la
+  TUI lo acompasa al reloj real, pero `--headless` lo ignora salvo con `--realtime`).
+- Solo existen los periféricos que describe este README; los demás de la sección J de `qol.md`
+  (I2C, SPI, PWM, sensores…) son propuestas todavía sin implementar.
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.12 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `hardboiled new` | crea un proyecto nuevo (main.c, Makefile, placa, editor) |
+| `hardboiled build` | compila fuentes C a un ELF para la placa |
+| `hardboiled run` | ejecuta un ELF en la TUI (o sin interfaz con --headless) |
+| `hardboiled test` | ejecuta el programa con entradas dadas y compara la salida esperada |
+| `hardboiled tutorial` | lecciones guiadas: LEDs, switches, UART, timer, ISR, depuración |
+| `hardboiled examples` | lista, muestra o copia los ejemplos incluidos |
+| `hardboiled demo` | compila y ejecuta un ejemplo (por defecto, la demo) |
+| `hardboiled info` | muestra segmentos, símbolos y fuentes de un ELF |
+| `hardboiled validate` | valida un board.toml |
+| `hardboiled board` | crea o muestra placas (board.toml) |
+| `hardboiled runtime` | imprime las rutas del runtime (include, linker script, crt0) |
+| `hardboiled gen-header` | genera hardboiled.h (o el linker script) para una placa |
+| `hardboiled config` | muestra o crea las preferencias del usuario |
+| `hardboiled doctor` | verifica Python, emulador, runtime, compilador y terminal |
+| `hardboiled explain` | explica una trampa o un aviso (sin tipo: la lista) |
+| `hardboiled completion` | imprime el script de autocompletado de la shell |
+
+Ayuda de cada comando: `hardboiled <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `hardboiled run`, `hardboiled test`, `hardboiled demo`, `hardboiled info`, `hardboiled doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0`–`255` | `run --headless`: el valor que devuelve `main()` del programa (módulo 256). |
+| `1` | `test`: algún caso no pasó. |
+| `2` | Error de uso. |
+| `3` | `run --headless`: el programa cayó en una trampa. |
+| `130` | Se interrumpió con Ctrl+C. |
+
+(manual-hardboiled-comandos)=
+## Ayuda de los comandos
+
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
+
+:::{dropdown} `hardboiled`
+:open:
+
+```text
+uso: hardboiled [-h] [-v]
+                {new,build,run,test,tutorial,examples,demo,info,validate,board,runtime,gen-header,config,doctor,explain,completion}
+                ...
+
+Emulador pedagógico RV32I bare-metal con depurador de código C.
+
+argumentos:
+  {new,build,run,test,tutorial,examples,demo,info,validate,board,runtime,gen-header,config,doctor,explain,completion}
+    new                 crea un proyecto nuevo (main.c, Makefile, placa, editor)
+    build               compila fuentes C a un ELF para la placa
+    run                 ejecuta un ELF en la TUI (o sin interfaz con --headless)
+    test                ejecuta el programa con entradas dadas y compara la salida esperada
+    tutorial            lecciones guiadas: LEDs, switches, UART, timer, ISR, depuración
+    examples            lista, muestra o copia los ejemplos incluidos
+    demo                compila y ejecuta un ejemplo (por defecto, la demo)
+    info                muestra segmentos, símbolos y fuentes de un ELF
+    validate            valida un board.toml
+    board               crea o muestra placas (board.toml)
+    runtime             imprime las rutas del `runtime` (include, linker script, crt0)
+    gen-header          genera hardboiled.h (o el linker script) para una placa
+    config              muestra o crea las preferencias del usuario
+    doctor              verifica Python, emulador, runtime, compilador y terminal
+    explain             explica una trampa o un aviso (sin tipo: la lista)
+    completion          imprime el script de autocompletado de la shell
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  -v, --version         muestra la versión y sale
+```
+:::
+
+:::{dropdown} `hardboiled new`
+
+```text
+uso: hardboiled new [-h] [--example EXAMPLE] [--no-board] [--editor-only] [--force] path
+
+argumentos:
+  path               directorio del proyecto (se crea si no existe)
+
+opciones:
+  -h, --help         muestra esta ayuda y sale
+  --example EXAMPLE  partir de un ejemplo incluido en lugar de la plantilla vacía
+  --no-board         no copiar board.toml
+  --editor-only      sólo (re)generar compile_flags.txt, p. ej. tras reinstalar hardboiled
+  --force            sobrescribir archivos existentes
+```
+:::
+
+:::{dropdown} `hardboiled build`
+
+```text
+uso: hardboiled build [-h] [-o OUTPUT] [-v] [-O OPT_LEVEL] [--march MARCH] [--cc CC] [-D DEFINES]
+                      [-I INCLUDE_DIRS] [--cflags CFLAGS] [--board BOARD]
+                      sources [sources ...]
+
+argumentos:
+  sources               archivos .c (y .s) del programa
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  -o OUTPUT, --output OUTPUT
+                        ELF de salida (por defecto, el del 1.er fuente)
+  -v, --verbose         mostrar el comando
+
+compilación:
+  -O OPT_LEVEL          nivel de optimización (0)
+  --march MARCH         rv32i, rv32im, rv32ic o rv32imc
+  --cc CC               compilador: auto, gcc, zig o una ruta (HARDBOILED_CC)
+  -D DEFINES            macro
+  -I INCLUDE_DIRS       includes
+  --cflags CFLAGS       flags extra, p. ej. --cflags="-std=c99"
+  --board BOARD         board.toml (por defecto ./board.toml si existe)
+```
+:::
+
+:::{dropdown} `hardboiled run`
+
+```text
+uso: hardboiled run [-h] [--board BOARD] [--headless] [--switches SWITCHES]
+                    [--max-instructions MAX_INSTRUCTIONS] [--no-stop-at-main]
+                    [--uart-input ARCHIVO] [--script ARCHIVO] [--no-watch] [--no-save-breakpoints]
+                    [--json] [--profile] [--trace ARCHIVO] [--trace-limit N] [--realtime]
+                    [--remote] [--remote-host REMOTE_HOST] [--remote-port REMOTE_PORT]
+                    [--remote-advertise-host REMOTE_ADVERTISE_HOST] [--web] [--web-port WEB_PORT]
+                    [-O OPT_LEVEL] [--march MARCH] [--cc CC] [-D DEFINES] [-I INCLUDE_DIRS]
+                    [--cflags CFLAGS]
+                    program [program ...]
+
+argumentos:
+  program               un ELF, o fuentes .c/.s que se compilan (con caché) antes de ejecutar
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --board BOARD         board.toml (por defecto ./board.toml si existe)
+  --headless            ejecutar sin TUI hasta terminar
+  --switches SWITCHES   estado inicial de los switches (0b0101)
+  --max-instructions MAX_INSTRUCTIONS
+                        cuota de instrucciones
+  --no-stop-at-main     no detenerse al inicio de main()
+  --uart-input ARCHIVO  bytes que llegan por la UART al empezar (`-` = entrada estándar)
+  --script ARCHIVO      guion TOML de estímulos (switches, UART, botones) en ciclos dados
+  --no-watch            no recargar el programa cuando se recompila o cambian sus fuentes
+  --no-save-breakpoints
+                        no recordar breakpoints en .hardboiled/ junto al programa
+  --json                con --headless, informar el resultado en JSON (la UART queda incluida)
+  --profile             con --headless, informar las funciones y líneas más ejecutadas
+  --trace ARCHIVO       con --headless, guardar una traza por instrucción (.csv o .jsonl)
+  --trace-limit N       máximo de instrucciones en la traza (1000000)
+  --realtime            con --headless, respetar clock_hz de la placa (por defecto corre sin
+                        pausas)
+  --remote              conectar sensores de cyberdeck por LAN
+  --remote-host REMOTE_HOST
+                        interfaz del puente móvil
+  --remote-port REMOTE_PORT
+                        puerto del puente móvil (8767)
+  --remote-advertise-host REMOTE_ADVERTISE_HOST
+                        IP LAN para mDNS y QR (detección automática)
+  --web                 panel local de teclado, LCD y RGB
+  --web-port WEB_PORT   puerto del panel local (8768)
+
+compilación:
+  -O OPT_LEVEL          nivel de optimización (0)
+  --march MARCH         rv32i, rv32im, rv32ic o rv32imc
+  --cc CC               compilador: auto, gcc, zig o una ruta (HARDBOILED_CC)
+  -D DEFINES            macro
+  -I INCLUDE_DIRS       includes
+  --cflags CFLAGS       flags extra, p. ej. --cflags="-std=c99"
+```
+:::
+
+:::{dropdown} `hardboiled test`
+
+```text
+uso: hardboiled test [-h] [--suite ARCHIVO] [--board BOARD] [--switches SWITCHES]
+                     [--uart-input ARCHIVO] [--script ARCHIVO] [--press BOTÓN@MOMENTO]
+                     [--hasta MOMENTO] [--max-instructions MAX_INSTRUCTIONS]
+                     [--expect-uart ARCHIVO] [--expect-exit EXPECT_EXIT] [--expect-trap TIPO] [-q]
+                     [--json] [-O OPT_LEVEL] [--march MARCH] [--cc CC] [-D DEFINES]
+                     [-I INCLUDE_DIRS] [--cflags CFLAGS]
+                     program [program ...]
+
+Corre el programa sin interfaz y verifica la salida por la UART, el código de salida o la trampa
+esperada. Un caso se arma con las opciones; varios, con --suite casos.toml. Termina con 0 si todos
+pasan y 1 si alguno falla.
+
+argumentos:
+  program               un ELF, o fuentes .c/.s que se compilan
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --suite ARCHIVO       TOML con varios casos [[case]]
+  --board BOARD         board.toml (por defecto ./board.toml si existe)
+  --switches SWITCHES   estado de los switches
+  --uart-input ARCHIVO  bytes que llegan por la UART
+  --script ARCHIVO      guion TOML de estímulos
+  --press BOTÓN@MOMENTO
+                        aprieta un botón en un ciclo (0@20000) o en un momento (0@5ms); repetible
+  --hasta MOMENTO       corre hasta ese ciclo (o 50ms) y juzga ahí: para firmware que no termina
+  --max-instructions MAX_INSTRUCTIONS
+                        cuota de instrucciones
+  --expect-uart ARCHIVO
+                        salida exacta esperada
+  --expect-exit EXPECT_EXIT
+                        código de salida esperado
+  --expect-trap TIPO    trampa esperada (p. ej. null-pointer, o *)
+  -q, --quiet           sólo el resumen
+  --json                resultados en JSON
+
+compilación:
+  -O OPT_LEVEL          nivel de optimización (0)
+  --march MARCH         rv32i, rv32im, rv32ic o rv32imc
+  --cc CC               compilador: auto, gcc, zig o una ruta (HARDBOILED_CC)
+  -D DEFINES            macro
+  -I INCLUDE_DIRS       includes
+  --cflags CFLAGS       flags extra, p. ej. --cflags="-std=c99"
+```
+:::
+
+:::{dropdown} `hardboiled tutorial`
+
+```text
+uso: hardboiled tutorial [-h] {show,start,check} ...
+
+argumentos:
+  {show,start,check}
+    show              imprime la explicación y la consigna de una lección
+    start             copia el punto de partida de una lección
+    check             compila tu solución y corre los casos de prueba
+
+opciones:
+  -h, --help          muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled tutorial show`
+
+```text
+uso: hardboiled tutorial show [-h] lesson
+
+argumentos:
+  lesson      número o tema de la lección
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled tutorial start`
+
+```text
+uso: hardboiled tutorial start [-h] [--dest DEST] [--force] lesson
+
+argumentos:
+  lesson       número o tema de la lección
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+  --dest DEST  directorio (por defecto leccion-NN-tema)
+  --force      sobrescribir archivos existentes
+```
+:::
+
+:::{dropdown} `hardboiled tutorial check`
+
+```text
+uso: hardboiled tutorial check [-h] [--dir DIR] [--cc CC] [-q] lesson
+
+argumentos:
+  lesson       número o tema de la lección
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+  --dir DIR    directorio con tu main.c (por defecto leccion-NN-tema o .)
+  --cc CC      compilador: auto, gcc, zig o una ruta
+  -q, --quiet  sólo el resumen
+```
+:::
+
+:::{dropdown} `hardboiled examples`
+
+```text
+uso: hardboiled examples [-h] {show,copy} ...
+
+argumentos:
+  {show,copy}
+    show       imprime el código de un ejemplo
+    copy       copia ejemplos al directorio actual (o a --dest)
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled examples show`
+
+```text
+uso: hardboiled examples show [-h] name
+
+argumentos:
+  name
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled examples copy`
+
+```text
+uso: hardboiled examples copy [-h] [--dest DEST] [--force] [names ...]
+
+argumentos:
+  names        ejemplos a copiar (todos si se omite)
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+  --dest DEST  directorio destino
+  --force      sobrescribir archivos existentes
+```
+:::
+
+:::{dropdown} `hardboiled demo`
+
+```text
+uso: hardboiled demo [-h] [--board BOARD] [--headless] [--switches SWITCHES]
+                     [--max-instructions MAX_INSTRUCTIONS] [--no-stop-at-main]
+                     [--uart-input ARCHIVO] [--script ARCHIVO] [--no-watch]
+                     [--no-save-breakpoints] [--json] [--profile] [--trace ARCHIVO]
+                     [--trace-limit N] [--realtime] [--remote] [--remote-host REMOTE_HOST]
+                     [--remote-port REMOTE_PORT] [--remote-advertise-host REMOTE_ADVERTISE_HOST]
+                     [--web] [--web-port WEB_PORT] [-O OPT_LEVEL] [--march MARCH] [--cc CC]
+                     [-D DEFINES] [-I INCLUDE_DIRS] [--cflags CFLAGS]
+                     [name]
+
+argumentos:
+  name                  nombre del ejemplo
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  --board BOARD         board.toml (por defecto ./board.toml si existe)
+  --headless            ejecutar sin TUI hasta terminar
+  --switches SWITCHES   estado inicial de los switches (0b0101)
+  --max-instructions MAX_INSTRUCTIONS
+                        cuota de instrucciones
+  --no-stop-at-main     no detenerse al inicio de main()
+  --uart-input ARCHIVO  bytes que llegan por la UART al empezar (`-` = entrada estándar)
+  --script ARCHIVO      guion TOML de estímulos (switches, UART, botones) en ciclos dados
+  --no-watch            no recargar el programa cuando se recompila o cambian sus fuentes
+  --no-save-breakpoints
+                        no recordar breakpoints en .hardboiled/ junto al programa
+  --json                con --headless, informar el resultado en JSON (la UART queda incluida)
+  --profile             con --headless, informar las funciones y líneas más ejecutadas
+  --trace ARCHIVO       con --headless, guardar una traza por instrucción (.csv o .jsonl)
+  --trace-limit N       máximo de instrucciones en la traza (1000000)
+  --realtime            con --headless, respetar clock_hz de la placa (por defecto corre sin
+                        pausas)
+  --remote              conectar sensores de cyberdeck por LAN
+  --remote-host REMOTE_HOST
+                        interfaz del puente móvil
+  --remote-port REMOTE_PORT
+                        puerto del puente móvil (8767)
+  --remote-advertise-host REMOTE_ADVERTISE_HOST
+                        IP LAN para mDNS y QR (detección automática)
+  --web                 panel local de teclado, LCD y RGB
+  --web-port WEB_PORT   puerto del panel local (8768)
+
+compilación:
+  -O OPT_LEVEL          nivel de optimización (0)
+  --march MARCH         rv32i, rv32im, rv32ic o rv32imc
+  --cc CC               compilador: auto, gcc, zig o una ruta (HARDBOILED_CC)
+  -D DEFINES            macro
+  -I INCLUDE_DIRS       includes
+  --cflags CFLAGS       flags extra, p. ej. --cflags="-std=c99"
+```
+:::
+
+:::{dropdown} `hardboiled info`
+
+```text
+uso: hardboiled info [-h] [--board BOARD] [--json] elf
+
+argumentos:
+  elf
+
+opciones:
+  -h, --help     muestra esta ayuda y sale
+  --board BOARD
+  --json         la misma información en JSON
+```
+:::
+
+:::{dropdown} `hardboiled validate`
+
+```text
+uso: hardboiled validate [-h] [board]
+
+argumentos:
+  board       por defecto ./board.toml o, si no existe, la placa empaquetada
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled board`
+
+```text
+uso: hardboiled board [-h] {init,show} ...
+
+argumentos:
+  {init,show}
+    init       copia la placa por defecto para editarla
+    show       imprime la placa por defecto
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled board init`
+
+```text
+uso: hardboiled board init [-h] [--force] [path]
+
+argumentos:
+  path        destino (./board.toml)
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+  --force     sobrescribir si ya existe
+```
+:::
+
+:::{dropdown} `hardboiled board show`
+
+```text
+uso: hardboiled board show [-h]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled runtime`
+
+```text
+uso: hardboiled runtime [-h] [--include | --linker-script | --crt0 | --dir]
+
+Sin opciones imprime las tres rutas; con una opción, sólo esa (para usar como $(hardboiled runtime
+--include) en un Makefile).
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+  --include        directorio de hardboiled.h
+  --linker-script  hardboiled.ld
+  --crt0           crt0.s
+  --dir            directorio del `runtime`
+```
+:::
+
+:::{dropdown} `hardboiled gen-header`
+
+```text
+uso: hardboiled gen-header [-h] [-o OUTPUT] [--linker-script] [board]
+
+Genera el SDK para los offsets de board.toml. `build` y `run` lo hacen solos cuando el proyecto
+tiene un board.toml propio.
+
+argumentos:
+  board                 board.toml (por defecto ./board.toml)
+
+opciones:
+  -h, --help            muestra esta ayuda y sale
+  -o OUTPUT, --output OUTPUT
+                        archivo de salida (por defecto, la salida estándar)
+  --linker-script       generar hardboiled.ld en lugar del header
+```
+:::
+
+:::{dropdown} `hardboiled config`
+
+```text
+uso: hardboiled config [-h] {path,init} ...
+
+argumentos:
+  {path,init}
+    path       imprime la ruta de config.toml
+    init       crea config.toml con todas las opciones comentadas
+
+opciones:
+  -h, --help   muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled config path`
+
+```text
+uso: hardboiled config path [-h]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled config init`
+
+```text
+uso: hardboiled config init [-h] [--force]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+  --force     sobrescribir si ya existe
+```
+:::
+
+:::{dropdown} `hardboiled doctor`
+
+```text
+uso: hardboiled doctor [-h] [--cc CC] [--no-build] [--json]
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+  --cc CC     compilador a verificar (como en build)
+  --no-build  no compilar el programa de prueba
+  --json      resultado en JSON
+```
+:::
+
+:::{dropdown} `hardboiled explain`
+
+```text
+uso: hardboiled explain [-h] [kind]
+
+argumentos:
+  kind        tipo, p. ej. null-pointer o stack-overflow
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled completion`
+
+```text
+uso: hardboiled completion [-h] {bash,fish,zsh}
+
+argumentos:
+  {bash,fish,zsh}
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled completion bash`
+
+```text
+uso: hardboiled completion [-h] {bash,fish,zsh}
+
+argumentos:
+  {bash,fish,zsh}
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled completion fish`
+
+```text
+uso: hardboiled completion [-h] {bash,fish,zsh}
+
+argumentos:
+  {bash,fish,zsh}
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+```
+:::
+
+:::{dropdown} `hardboiled completion zsh`
+
+```text
+uso: hardboiled completion [-h] {bash,fish,zsh}
+
+argumentos:
+  {bash,fish,zsh}
+
+opciones:
+  -h, --help       muestra esta ayuda y sale
+```
+:::
+
+Generado desde [`hardboiled@4e0100f`](https://github.com/INGCOM-UNRN-P1/hardboiled/tree/4e0100f).

@@ -1,6 +1,6 @@
 ---
 title: "Infraestructura de Aula y Exámenes"
-subtitle: "Emulación de hardware bare-metal, periféricos MMIO y supervisión criptográfica de evaluaciones"
+subtitle: "Máquina virtual de la cursada, emulación RISC-V bare-metal y exámenes supervisados con uatu"
 ---
 
 (aula-examenes-indice)=
@@ -12,6 +12,6 @@ Herramientas del perfil aula y docente orientadas a prácticas de laboratorio av
 
 ## Componentes de Aula
 
-* **[Construct](construct.md)**: IDE pedagógico y orquestador de máquina virtual (QEMU + Guest Debian) para estandarización de entornos en Linux, Windows y macOS.
-* **[Hardboiled](hardboiled.md)**: Emulador pedagógico bare-metal de microcontrolador RISC-V (RV32I) con periféricos mapeados en memoria (MMIO), temporizadores, pulsadores con rebote, UART y visualizador de terminal interactivo.
-* **[Uatu-Tools](uatu_tools.md)**: Herramientas docentes de administración criptográfica (`uatu-admin`) y auditoría forense (`uatu-audit`) para validación de telemetría y evidencia de exámenes.
+* **[construct](construct.md)**: IDE pedagógico y orquestador de la máquina virtual de la cursada (QEMU) en Linux, Windows y macOS.
+* **[hardboiled](hardboiled.md)**: Emulador pedagógico de un microcontrolador RISC-V 32 bits (RV32I) bare-metal, con periféricos mapeados en memoria descritos por placa y casos de prueba (`hardboiled test`).
+* **[uatu-tools](uatu_tools.md)**: CLIs docentes de [uatu](https://github.com/INGCOM-UNRN-P1/uatu): `uatu-admin` (claves, registro y configuración firmados, protección de ramas, consignas y paquetes con bloqueo de tiempo) y `uatu-audit` (verificación de la evidencia registrada en el examen).
