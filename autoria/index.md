@@ -20,5 +20,5 @@ Herramientas destinadas al cuerpo docente para el diseño curricular, la redacci
 * **[Moodle-Toolbox](moodle_toolbox.md)**: Validación e higiene de preguntas y categorías GIFT y Moodle XML.
 * **[MyST-Tools](myst_tools.md)**: Mantenimiento, linters pedagógicos y compilación de libros de cátedra y apuntes MyST.
 * **[SCORM-Tools](scorm_tools.md)**: Empaquetado e interoperabilidad SCORM 1.2 / 2004 para campus virtuales.
-* **[Tyrell](tyrell.md)**: Generación de datasets sintéticos, plantillas de código y esqueletos de proyectos.
+* **[Tyrell](tyrell.md)**: Generación determinista de casos de prueba de entrada y salida.
 * **[Corbel](corbel.md)**: Formateador arquitectónico, diagramado de TDAs y generador de man pages UNIX (`man 3`).
