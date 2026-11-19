@@ -13,11 +13,11 @@ Herramientas destinadas al cuerpo docente para el diseño curricular, la redacci
 
 ## Satélites de Autoría
 
-* **[Deckard](deckard.md)**: Curaduría pedagógica de ejercicios, composición taxonómica según Bloom y calibración de carga horaria.
-* **[Alucard](alucard.md)**: Generación y maquetación de exámenes presenciales en PDF con Typst, variantes barajadas y lectura óptica OMR.
-* **[Idkfa](idkfa.md)**: Generación procedural de variantes aleatorizadas de tracing y problemas en C con verificación por GCC embebido.
-* **[Voight](voight.md)**: Conversión bidireccional GIFT / Moodle XML, saneamiento tipográfico y validación estructural de bancos.
-* **[MyST-Tools](myst_tools.md)**: Mantenimiento, linters pedagógicos y compilación de libros de cátedra y apuntes MyST.
-* **[SCORM-Tools](scorm_tools.md)**: Empaquetado e interoperabilidad SCORM 1.2 / 2004 para campus virtuales.
-* **[Tyrell](tyrell.md)**: Generación determinista de casos de prueba de entrada y salida.
-* **[Corbel](corbel.md)**: Formateador arquitectónico, diagramado de TDAs y generador de man pages UNIX (`man 3`).
+* **[Deckard](deckard.md)**: Banco atómico de ejercicios de C: autoría, curaduría, verificación técnica, composición de guías por carga y nivel de Bloom, y exportación (`.ripkg`, MyST, Moodle).
+* **[alucarD](alucard.md)**: Exámenes impresos desde plantillas YAML y bancos GIFT/Moodle, con varios temas, layouts de impresión, registro de preguntas usadas y hojas OMR.
+* **[idkfa](idkfa.md)**: Cuestionarios Moodle XML con variantes anti-copia generadas desde plantillas de C (seguimiento de código, opción múltiple, respuesta corta), compiladas con GCC y verificadas con Valgrind antes de emitirse.
+* **[voight](voight.md)**: Bancos de preguntas de Moodle (ex moodle-toolbox): conversión GIFT ↔ Moodle XML, validación y limpieza, categorías, respaldo de cuestionarios y generación con IA.
+* **[myst-tools](myst_tools.md)**: Mantenimiento del material en MyST Markdown: formato, ortografía, enlaces, accesibilidad, fragmentos de C, glosario y exportación a Typst.
+* **[scorm-tools](scorm_tools.md)**: Paquetes SCORM para el campus virtual: armado (también desde deckard, GIFT o idkfa), validación, tamaño, accesibilidad y configuración para Moodle.
+* **[tyrell](tyrell.md)**: Casos de prueba deterministas (`.in`/`.out`) con restricciones configurables, en el formato de `nostromo test`.
+* **[corbel](corbel.md)**: Documentación de cabeceras C desde sus docblocks Doxygen: páginas Markdown, páginas `man 3` y el README de una librería (`corbel readme`).

@@ -1,582 +1,820 @@
 ---
 title: "idkfa"
-subtitle: "Idkfa — Síntesis Procedural de Código C, Cuestionarios Anti-Copia y Trazado para Moodle"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde idkfa@77a331f: no editar a mano. -->
 
 (manual-idkfa)=
-# Idkfa — Síntesis Procedural de Código C, Cuestionarios Anti-Copia y Trazado para Moodle
+# idkfa
 
-:::{note} Resumen Técnico del Satélite
+Repositorio: [github.com/INGCOM-UNRN-P1/idkfa](https://github.com/INGCOM-UNRN-P1/idkfa).
 
-**Rol en el ecosistema:** Generación de cuestionarios Moodle XML con variantes
-de código C compiladas y ejecutadas con GCC en tiempo real para obtener las
-respuestas numéricas exactas de cada tema.
+## Alcance
 
-:::
-<!-- {note} Resumen Técnico del Satélite -->
+### Qué cubre
+- Generación procedimental de cuestionarios didácticos y exámenes en formato Moodle XML.
+- Síntesis automatizada de variantes anti-copia a partir de plantillas con parámetros aleatorios.
+- Verificación rigurosa previa a la emisión: compilación obligatoria con GCC y ejecución contra Valgrind para garantizar cero advertencias y cero fugas de memoria en los ejemplos mostrados a los estudiantes.
+- Generación de preguntas de seguimiento de código (code tracing), opción múltiple y respuesta corta.
 
----
-
-(manual-idkfa-proposito)=
-## 1. Propósito y Filosofía Pedagógica
-
-La herramienta **`idkfa`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
-
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Corrección de exámenes físicos impresos mediante OMR (delegado a `alucard`).
+- Mantenimiento y normalización de bancos de preguntas GIFT existentes (delegado a `voight`).
+- Empaquetado SCORM para campus virtual (delegado a `scorm-tools`).
 
 ---
 
-(manual-idkfa-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Linux o WSL. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `gcc`, `valgrind`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `idkfa`. Subcomando `idkfa doctor`.
 
 ---
 
-### 2.2 Métodos de Instalación de `idkfa`
+## 1. Introducción
 
-Podés instalar `idkfa` mediante cualquiera de los siguientes métodos estándar:
+### 1.1. Descripción del Proyecto
 
-::::{tab-set}
+Este proyecto proporciona un sistema automatizado para generar cuestionarios de
+programación en C destinados a Moodle. El generador permite crear preguntas de
+opción múltiple con variantes aleatorias a partir de plantillas de código C,
+facilitando la evaluación de estudiantes con preguntas únicas que evitan el
+plagio y la memorización.
 
-:::{tab-item} uv tool (Recomendado)
+`generador.py` es el script principal que procesa plantillas de código C (`.c`)
+ubicadas en el directorio `templates/`, genera múltiples variantes de cada
+pregunta con valores aleatorios, compila y ejecuta el código para obtener las
+respuestas correctas automáticamente, genera distractores inteligentes, y
+finalmente produce un archivo XML compatible con Moodle listo para importar.
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+### 1.2. Características Principales
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+- **Generación automática de variantes**: Crea múltiples versiones de cada
+  pregunta con valores aleatorios.
+- **Ejecución automática**: Compila y ejecuta el código C para determinar la
+  respuesta correcta.
+- **Distractores inteligentes**: Genera respuestas incorrectas plausibles
+  basadas en errores comunes.
+- **Organización por categorías**: Utiliza la estructura de directorios para
+  categorizar preguntas en Moodle.
+- **Modo de verificación**: Permite generar solo el código C para revisión y
+  depuración antes de crear el XML.
+- **Intencionalmente ilegible por el compilador**: Se sustituyen diversos
+  caracteres como operadores y símbolos equivalentes _visualmente_ de Unicode
+  para hacerlos _resistentes_ a copypasteo, pero también para sumar legibilidad
+  a caracteres invisibles.
+
+![caracter impostor](https://raw.githubusercontent.com/INGCOM-UNRN-P1/idkfa/main/impostor.jpg)
+
+## 2. Uso Básico
+
+El script se ejecuta desde la línea de comandos:
+
+```bash
+./generador.py [opciones]
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Argumentos de Línea de Comandos
 
-:::{tab-item} pip / venv
+- **`-s` o `--source`**: Especifica el directorio donde se encuentran las
+  plantillas (`.c`). Por defecto es `templates`.
+- **`-o` o `--output`**: Especifica el nombre del archivo XML de salida. Por
+  defecto es `cuestionario_moodle.xml`.
+- **`-n` o `--num`**: El número de preguntas (variantes) a generar por cada
+  plantilla. Por defecto es `5`.
+- **`-c` o `--category`**: El nombre de la categoría raíz bajo la cual se
+  organizarán las preguntas en Moodle. Por defecto es
+  `programacion1_gen_codigo`.
+- **`-t` o `--template`**: Procesar solo un archivo `.c` específico en lugar de
+  un directorio completo. Acepta rutas absolutas o relativas. Útil para probar
+  una plantilla individual antes de procesar todas.
+- **`-g` o `--generate-only`**: Solo genera código C en el directorio
+  `generated` sin crear el XML de Moodle. Útil para verificar el funcionamiento
+  de las plantillas.
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+### 2.1. Procesamiento de Plantilla Individual
 
-# Instalar en modo editable para desarrollo
-pip install -e .
+El argumento `-t` o `--template` permite procesar un solo archivo `.c` en lugar de un directorio completo. Esto es especialmente útil cuando:
+
+- Estás desarrollando o probando una nueva plantilla
+- Necesitas regenerar rápidamente preguntas de una plantilla específica
+- Quieres verificar cambios en una plantilla sin procesar todas
+
+**Ejemplos de uso:**
+
+```bash
+# Generar XML para una sola plantilla
+python3 generador.py -t templates/punteros/basico.c -o test.xml -n 3
+
+# Generar código C de una sola plantilla para verificación
+python3 generador.py -g -t templates/punteros/basico.c -n 5
+
+# Usar ruta relativa
+python3 generador.py -t ./templates/arrays/ejercicio1.c
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
+**Nota:** Cuando se usa `-t`, el argumento `-s` es ignorado, ya que se procesa el archivo especificado directamente.
 
-:::{tab-item} pipx
+### 2.2. Modo de Verificación: Generación de Código C
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
+El argumento `-g` o `--generate-only` permite generar solo el código C de las
+plantillas sin crear el archivo XML de Moodle. Este modo es útil para:
+
+- Verificar que las plantillas se procesan correctamente
+- Compilar y probar manualmente las variantes generadas
+- Depurar problemas en las plantillas antes de generar el XML
+
+**Ejemplo de uso:**
+
+```bash
+./generador.py -g -n 3
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pipx -->
+Este comando generará 3 variantes de cada plantilla en el directorio
+`generated/`. La estructura de directorios interna será la misma que en
+`templates/`, pero cada archivo `.c` generará un subdirectorio con sus
+variantes.
 
-::::
-<!-- {tab-set} -->
+Por ejemplo, si existe `templates/punteros/basico.c`, se generarán:
 
----
+- `generated/punteros/basico/basico_v1.c`
+- `generated/punteros/basico/basico_v2.c`
+- `generated/punteros/basico/basico_v3.c`
 
-### 2.3 Autocompletado en la Shell
+El script también creará un `Makefile` en el directorio `generated/` para
+facilitar la compilación:
 
-La interfaz CLI de `idkfa` cuenta con autocompletado nativo para comandos, flags
-y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+cd generated
+make              # Compila todos los archivos
+make clean        # Elimina los ejecutables
+```
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-idkfa --install-completion
+### 2.3. Síntesis procedural y exportación autónoma
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+Además de las plantillas `.c`, `idkfa` trae generadores que compilan y ejecutan
+el código con GCC para fijar la salida correcta. Todos aceptan `--json`
+(`schema_version` `1.0.0`).
 
-````
-<!-- {code-block} bash -->
-
----
-
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
-idkfa doctor
-
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
+| Comando | Qué genera | Opciones |
 | :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| `idkfa synth-bst` | Árbol binario de búsqueda con recorrido | `--recorrido/-r` (`inorden`, `preorden`, `postorden`), `--seed/-s` |
+| `idkfa synth-matrix` | Matriz 2D indexada con puntero plano | `--filas/-f`, `--cols/-c`, `--seed/-s` |
+| `idkfa synth-linked-list` | Operaciones sobre lista enlazada dinámica | `--seed/-s` |
+| `idkfa synth-tf` | Pregunta Verdadero/Falso con justificación | `--tema/-t` (`arrays_decay`, `sizeof_pointer`, `free_null`, `string_null_terminator`) |
+| `idkfa export-standalone ARCHIVO.c` | Snippet C ejecutable con `assert()` de autoevaluación | `--output/-o` (por defecto `standalone_autoeval.c`) |
 
-(manual-idkfa-comandos)=
-## 3. Referencia Completa de Comandos CLI
+```bash
+idkfa synth-bst -r preorden --seed 7 --json
+idkfa export-standalone generated/punteros/basico/basico_v1.c -o autoeval.c
+```
 
-A continuación se detallan los subcomandos principales disponibles en `idkfa`:
+## 3. Estructura de Directorios y Categorías
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `idkfa generate <plantilla.yaml> -n 20 -o banco.xml` | Sintetiza 20 variantes de preguntas C y genera Moodle XML. |
-| `idkfa render <plantilla.yaml>` | Previsualiza el código C generado y su salida exacta de ejecución. |
-| `idkfa spellcheck <plantilla.yaml>` | Verifica ortografía y enunciados con LanguageTool. |
-| `idkfa doctor` | Verifica la instalación de GCC y Moodle XML parser. |
+El script utiliza la estructura de directorios dentro de la carpeta `source`
+para crear una jerarquía de categorías en Moodle.
 
-::::{tip}
+Por ejemplo, una plantilla ubicada en
+`templates/punteros/avanzado/mi_plantilla.c` se añadirá a la siguiente categoría
+en Moodle:
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+`$course$/top/programacion1_gen_codigo/punteros/avanzado`
 
-::::
-<!-- {tip} -->
+Esto permite organizar las preguntas de forma lógica y coherente con el temario
+del curso.
 
----
+## 4. Anatomía de una Plantilla `.c`
 
-(manual-idkfa-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
+Cada archivo `.c` es una plantilla que combina código C válido con bloques de
+metadatos especiales. Debe ser compilable y ejecutable por sí mismo para
+facilitar las pruebas.
 
-### Caso de Estudio
+### 4.1. Enunciado de la Pregunta (Comentarios `//`)
 
-Considerá el siguiente fragmento de código representativo:
+El enunciado de la pregunta se define mediante dos comentarios de una sola línea
+(`//`).
 
-````{code-block} c
-:linenos:
-// Plantilla Idkfa con variables procedurales {{A}}, {{B}}, {{OP}}
+- **Comentario de Introducción**: La primera línea de comentario `//` que
+  encuentra el script se usa como el texto que precede al bloque de código.
+- **Comentario de Cierre**: La última línea de comentario `//` que encuentra se
+  usa como el texto que va después del bloque de código.
+
+```c
+// Analiza el siguiente código. ¿Cuál es el valor final de 'x'?
 #include <stdio.h>
-int main(void) {
-    int x = {{A}};
-    int y = {{B}};
-    x {{OP}}= y;
-    printf("%d\n", x);
+
+int main() {
+    int x = 10 + 5;
+    printf("%d", x);
     return 0;
 }
+// ¿Qué valor se imprime en la consola?
+```
 
-````
-<!-- {code-block} c -->
+### 4.2. Código C y Macros de Prueba
 
-### Ejecución de la Herramienta
+El cuerpo del archivo debe ser un programa en C válido. Para permitir que las
+variables sean dinámicas, se utiliza un sistema de macros que el script
+reemplaza.
 
-Ejecutá el análisis desde tu terminal:
+- **Variables Dinámicas**: Se definen como `__nombre_variable__`.
+- **Macros de Prueba**: Para que el archivo `.c` se pueda compilar de forma
+  independiente para pruebas, puedes definir macros con los mismos nombres. El
+  script las eliminará automáticamente antes de procesar la plantilla.
 
-````{code-block} bash
-idkfa generate <plantilla.yaml> -n 20 -o banco.xml
+```c
+//# --- Macros para desarrollo y prueba ---
+#define __val_a__ 10
+#define __val_b__ 5
+//# ------------------------------------
 
-````
-<!-- {code-block} bash -->
+int a = __val_a__;
+int b = __val_b__;
+```
 
-### Salida Obtenida en Consola
+### 4.3. Bloques de Metadatos
 
-````{code-block} text
-[✓] Compilando variante 1 (A=12, B=4, OP=+): Salida GCC = '16'
-[✓] Compilando variante 2 (A=20, B=3, OP=*): Salida GCC = '60'
-[✓] Generadas 20 preguntas con retroalimentación paso a paso en banco_moodle.xml
+Los metadatos se definen en bloques de comentarios `/* seccion ... */`.
 
-````
-<!-- {code-block} text -->
+#### `/*name*/` (Obligatorio)
 
-::::{note}
+Define el nombre base de la pregunta en el banco de Moodle.
 
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
+```c
+/*name
+Operaciones Aritméticas Básicas
+*/
+```
 
-::::
-<!-- {note} -->
+#### `/*var*/` (Opcional)
 
----
+Define las variables dinámicas. Cada línea es una variable con la sintaxis
+`nombre: expresion_python`.
 
-(manual-idkfa-ejemplos)=
-## Ejemplos y Contraejemplos
+- `nombre`: El nombre de la variable (sin los `__`).
+- `expresion_python`: Cualquier expresión de Python válida que devuelva un
+  iterable (como una lista o un `range`). El script elegirá un valor al azar de
+  este iterable.
 
-### Ejemplo Válido (Patrón Recomendado)
-
-Usá una plantilla C con enunciado y respuesta delimitados por comentarios,
-variables declaradas en `/*var*/` e entrada simulada en `/*STDIN*/`. Este patrón
-permite que IDKFA sustituya los valores, compile cada variante y obtenga la
-respuesta del programa:
-
-````{code-block} c
-// Sumá dos valores y respondé qué imprime el programa.
-#include <stdio.h>
-int main(void) {
-    int a, b;
-    if (scanf("%d", &a) != 1 || scanf("%d", &b) != 1) return 1;
-    printf("%d\n", a + b);
-    return 0;
-}
-// Respuesta: el resultado de sumar los dos valores.
-
+```c
 /*var
-num_a: range(1, 20)
-num_b: range(1, 20)
+val_a: range(2, 11)
+val_b: range(2, 11)
+operador: ["+", "-", "*"]
+*/
+```
+
+#### `/*opciones*/` (Opcional)
+
+Define una lista de respuestas incorrectas **fijas** que siempre estarán
+disponibles.
+
+```c
+/*opciones
+Error de compilación.
+Comportamiento no definido.
+0
+*/
+```
+
+#### `/*distractors*/` (Opcional)
+
+Define "distractores inteligentes". Son expresiones de Python que se evalúan
+para generar respuestas incorrectas plausibles, basadas en los valores de las
+variables dinámicas.
+
+- Las variables se referencian con el formato `__nombre_variable__`.
+- Las líneas que comienzan con `//#` son comentarios de documentación interna y se ignoran.
+- **Las líneas que comienzan con `#` seguido de espacio son expresiones Python evaluables** que se procesan para generar distractores dinámicos.
+- Las líneas sin `#` también son expresiones evaluables (sin el prefijo).
+
+**Ejemplo básico:**
+
+```c
+/*distractors
+//#  Esto es un comentario que se ignora
+__val_a__ + __val_b__
+__val_a__ * __val_b__
+*/
+```
+
+**Ejemplo con expresiones condicionales:**
+
+```c
+/*var
+file_mode: ['"w"', '"a"']
+valor_1: range(100, 200)
+valor_2: range(300, 400)
+*/
+
+/*distractors
+# __valor_1__ if __file_mode__ == '"w"' else -1
+# __valor_2__ if __file_mode__ == '"a"' else -1
+*/
+```
+
+En este ejemplo, los distractores dependen del valor de `file_mode`, generando respuestas incorrectas contextuales según la variante.
+
+Si las opciones predefinidas y las expresiones no alcanzan `--min-distractors`, se completan con
+**confusiones frecuentes**, cada una con su retroalimentación: una vuelta de más o de menos en un
+lazo (`<` contra `<=`), la división entera que descarta decimales, el código ASCII en lugar del
+carácter (`%d` contra `%c`) y, para una secuencia, el recorrido al revés o una vuelta menos. Solo
+después se usan desplazamientos numéricos al azar.
+
+**Variantes con comportamiento indefinido.** Cada variante que se compila y ejecuta se verifica
+con UBSan en modo trampa (`-fsanitize=undefined -fsanitize-undefined-trap-on-error`, que no
+necesita libubsan): si tiene un desborde de enteros con signo, un índice fuera de rango u otro
+comportamiento indefinido, se descarta y queda registrada en el log, porque tendría más de una
+respuesta «correcta» según el compilador. `--sin-validar-ub` (o `"validar_ub": false` en la
+configuración JSON) lo desactiva.
+
+#### `/*correcta*/` (Opcional)
+
+Si este bloque está presente, su contenido se usará como la respuesta correcta
+**sin compilar ni ejecutar el código**. Es ideal para preguntas conceptuales
+donde la respuesta es un texto fijo.
+
+**Respuesta fija:**
+
+```c
+/*correcta
+Se produce un error de compilación.
+*/
+```
+
+**Respuesta evaluable con expresión Python:**
+
+Si la primera línea (sin comentarios `//#`) comienza con `#`, se interpreta como una expresión Python evaluable:
+
+```c
+/*var
+file_mode: ['"w"', '"a"']
+valor_run1: range(100, 200)
+valor_run2: range(300, 400)
+*/
+
+/*correcta
+# __valor_run2__ if __file_mode__ == '"w"' else __valor_run1__
+*/
+```
+
+En este ejemplo, la respuesta correcta depende del modo de apertura del archivo: si es `"w"` (write), la respuesta es `valor_run2`; si es `"a"` (append), es `valor_run1`.
+
+#### `/*STDIN*/` (Opcional)
+
+Define la entrada estándar (stdin) que se proporcionará al programa durante su ejecución. Este bloque es especialmente útil para programas que requieren interacción con el usuario a través de funciones como `scanf`, `fgets`, `getchar`, etc.
+
+**Cuando se utiliza STDIN:**
+- El contenido se pasa al programa durante su compilación y ejecución para obtener la respuesta correcta.
+- **Se muestra automáticamente en el enunciado de la pregunta** debajo del código, bajo un encabezado "#### Entrada (stdin):", para que el estudiante pueda ver qué entrada recibe el programa.
+
+El bloque soporta:
+- **Texto estático**: Líneas de texto fijo.
+- **Variables dinámicas**: Referencias a variables usando el formato `__nombre_variable__`.
+- **Expresiones f-string**: Uso de llaves `{variable}` para interpolar valores de variables.
+
+**Ejemplo con variables dinámicas:**
+
+```c
+/*var
+num_a: range(1, 10)
+num_b: range(1, 10)
 */
 
 /*STDIN
 __num_a__
 __num_b__
 */
+```
 
-/*distractors
-__num_a__ * __num_b__
-__num_a__ - __num_b__
-__num_a__
+**Ejemplo con f-string:**
+
+```c
+/*var
+count: range(2, 5)
+base: range(10, 20)
 */
-````
 
-Guardá el contenido como `plantillas/suma.c` y validá dos variantes sin escribir
-el XML:
+/*STDIN
+{count}
+{base}
+{base}
+{base}
+*/
+```
 
-````{code-block} bash
-idkfa --template plantillas/suma.c --num 2 --dry-run
-````
+**Ejemplo completo con scanf:**
 
-Esperá código de salida `0`, una plantilla exitosa, cero plantillas fallidas y
-dos preguntas generadas. Con `--dry-run`, IDKFA valida y compila, pero no crea
-el archivo XML.
-
-### Contraejemplo (Antipatrón o Caso Infractor)
-
-Evitá usar `scanf` sin declarar la entrada de `/*STDIN*/`. La validación
-semántica detecta que el motor no tiene datos para ejecutar la plantilla:
-
-````{code-block} c
-// Sumá dos valores y respondé qué imprime el programa.
+```c
+// El programa lee dos números y los suma:
 #include <stdio.h>
-int main(void) {
+int main() {
     int a, b;
-    if (scanf("%d", &a) != 1 || scanf("%d", &b) != 1) return 1;
+    scanf("%d", &a);
+    scanf("%d", &b);
     printf("%d\n", a + b);
     return 0;
 }
-// Respuesta: el resultado de sumar los dos valores.
-````
+// ¿Qué valor imprime?
 
-Al procesarla con `idkfa --template plantillas/suma_sin_stdin.c --dry-run`,
-IDKFA informa:
+/*var
+num_a: range(1, 10)
+num_b: range(1, 10)
+*/
 
-```{code-block} text
-No se pudo procesar 'plantillas/suma_sin_stdin.c'. Razón: Validación semántica fallida: el código C contiene llamadas a lectura por stdin (scanf/fgets/getchar) pero no define la sección /*STDIN*/ obligatoria.
+/*STDIN
+__num_a__
+__num_b__
+*/
 ```
 
-La plantilla queda fallida y el proceso termina con código `1`. Agregá el bloque
-`/*STDIN*/` con los datos que debe consumir cada variante antes de volver a
-validarla.
-
----
-
-(manual-idkfa-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`idkfa`** resolviendo los siguientes ejercicios:
-
-::::{exercise} Desafío 1: Cuestionario de Punteros y Arreglos
-:label: idkfa-desafio-1
-Sintetizar 30 variantes de seguimiento de aritmética de punteros.
-
-**Instrucción de ejecución:**
-``` bash
-idkfa generate templates/punteros.yaml -n 30 -o moodle_ptr.xml
+En Moodle, el enunciado de la pregunta se verá así:
 ```
-<!-- bash -->
+Analiza el siguiente código que lee dos números y los suma:
+[código C]
+¿Qué valor imprime?
 
-::::
-<!-- {exercise} Desafío 1: Cuestionario de Punteros y Arreglos -->
-
-::::{solution} idkfa-desafio-1
-
-``` bash
-idkfa generate templates/punteros.yaml -n 30 -o moodle_ptr.xml
-# Verificá que la operación concluya exitosamente con código de salida 0.
+#### Entrada (stdin):
 ```
-<!-- bash -->
-
-::::
-<!-- {solution} idkfa-desafio-1 -->
-
-::::{exercise} Desafío 2: Preguntas de Seguimiento de Lazos
-:label: idkfa-desafio-2
-Generar ejercicios de conteo de iteraciones en lazos anidados.
-
-**Instrucción de ejecución:**
-``` bash
-idkfa generate templates/lazos.yaml -n 25 -o moodle_lazos.xml
+15
+16
 ```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Preguntas de Seguimiento de Lazos -->
-
-::::{solution} idkfa-desafio-2
-
-``` bash
-idkfa generate templates/lazos.yaml -n 25 -o moodle_lazos.xml
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
 ```
-<!-- bash -->
 
-::::
-<!-- {solution} idkfa-desafio-2 -->
+Cada línea del bloque `/*STDIN*/` se pasará al programa como una línea de entrada estándar. Los comentarios de documentación interna (que empiezan con `//#`) dentro del bloque se ignoran automáticamente.
 
-::::{exercise} Desafío 3: Auditoría Lingüística del Banco
-:label: idkfa-desafio-3
-Comprobar ortografía en las explicaciones paso a paso de las respuestas.
+## 5. Ejemplo Completo de Plantilla
 
-**Instrucción de ejecución:**
-``` bash
-idkfa spellcheck templates/punteros.yaml
+```c
+//# -----------------------------------------------------------------------------
+//# PLANTILLA DE EJEMPLO
+//# -----------------------------------------------------------------------------
+
+// Dado el siguiente código, ¿cuál es el resultado final?
+#include <stdio.h>
+
+//# --- Macros para desarrollo y prueba ---
+#define __val_a__ 10
+#define __multiplier__ 3
+//# ------------------------------------
+
+int main() {
+    int a = __val_a__;
+    int resultado = a * __multiplier__;
+    printf("%d", resultado);
+    return 0;
+}
+// ¿Qué valor se imprime en la consola?
+
+/*name
+Ejemplo Completo
+*/
+
+/*var
+val_a: range(2, 11)
+multiplier: range(2, 5)
+*/
+
+/*opciones
+Error de compilación.
+0
+*/
+
+/*distractors
+# Error común: usar suma en lugar de multiplicación
+__val_a__ + __multiplier__
+*/
 ```
-<!-- bash -->
 
-::::
-<!-- {exercise} Desafío 3: Auditoría Lingüística del Banco -->
+## 6. Configuración y Depuración
 
-::::{solution} idkfa-desafio-3
+El script se puede configurar modificando el diccionario `CONFIG` al inicio del
+archivo.
 
-``` bash
-idkfa spellcheck templates/punteros.yaml
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
+- **`compilation_error_log`**: Nombre del archivo donde se guardan los errores
+  de compilación de GCC, incluyendo el código que falló.
+- **`parsing_error_log`**: Nombre del archivo donde se guardan los errores de
+  formato de las plantillas (ej: si falta un comentario `//`).
+- **`substitutions`**: Un diccionario para reemplazar automáticamente operadores
+  de C por sus equivalentes Unicode para una mejor visualización en Moodle (ej:
+  `"==": "⩵"`) y hacer más díficil que se obtenga la respuesta copiando y
+  pegando.
+
+### Flujo de Depuración
+
+1. Ejecuta `python3 generador.py`.
+2. Si una plantilla no se procesa, revisa `parsing_errors.log`. El error te
+   indicará qué parte del formato de la plantilla está mal.
+3. Si una plantilla se procesa pero no genera preguntas, revisa
+   `compile_errors.log`. El error de GCC te indicará qué está mal en el código C
+   de la plantilla.
+
+## 7. Previsualización del Cuestionario: `preview.html`
+
+El archivo `preview.html` es una herramienta de visualización que permite
+previsualizar el cuestionario XML generado antes de importarlo en Moodle. Esta
+herramienta es especialmente útil para revisar el formato, el contenido de las
+preguntas y verificar que todo se ve correctamente.
+
+### 7.1. Características
+
+- **Visualización local**: No requiere servidor web ni Moodle, se ejecuta
+  completamente en el navegador.
+- **Renderizado de Markdown**: Procesa formato Markdown en las preguntas y
+  respuestas, incluyendo bloques de código.
+- **Resaltado de sintaxis**: Utiliza highlight.js para aplicar colores a los
+  bloques de código C.
+- **Organización por categorías**: Muestra la categoría de cada pregunta tal
+  como aparecerá en Moodle.
+- **Modo mezclar**: Parámetro URL `?mix=true` para mostrar las preguntas en
+  orden aleatorio.
+- **Modo respuestas**: Parámetro URL `?answers=true` para resaltar visualmente
+  las respuestas correctas.
+
+### 7.2. Uso
+
+1. Abre el archivo `preview.html` en tu navegador web.
+2. Haz clic en "Seleccionar archivo XML" y elige el archivo XML generado por
+   `generador.py` (por defecto `cuestionario_moodle.xml`).
+3. El cuestionario se mostrará automáticamente con formato legible.
+
+### 7.3. Parámetros URL
+
+Puedes usar parámetros en la URL para modificar la visualización:
+
 ```
-<!-- bash -->
+preview.html?mix=true          # Mezcla el orden de las preguntas
+preview.html?answers=true      # Resalta las respuestas correctas
+preview.html?mix=true&answers=true  # Ambas opciones combinadas
+```
 
-::::
-<!-- {solution} idkfa-desafio-3 -->
+### 7.4. Casos de Uso
 
----
+- **Revisión de contenido**: Verificar que los enunciados, el código y las
+  respuestas se ven correctamente.
+- **Control de calidad**: Detectar errores tipográficos o problemas de formato
+  antes de importar a Moodle.
+- **Validación de distractores**: Con `?answers=true`, verificar que las
+  respuestas incorrectas son plausibles y que la correcta es única.
+- **Prueba de variantes**: Revisar rápidamente múltiples variantes de las
+  preguntas generadas.
 
-(manual-idkfa-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
+## Referencia rápida
 
-Para incorporar `idkfa` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
+### Requisitos
 
-````{code-block} makefile
-check-idkfa:
-	@echo "=== Ejecutando verificación con idkfa ==="
-	idkfa check src/ include/
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-.PHONY: check-idkfa
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
 
-````
-<!-- {code-block} makefile -->
+### Opciones de `idkfa`
 
-Ejecutá `make check-idkfa` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
+| Opción | Descripción |
+|:--|:--|
+| `--source`, `-s` | Directorio con las plantillas .c o archivo .c individual. [por defecto: templates] |
+| `--template`, `-t` | Procesar solo este archivo .c específico (ruta completa o relativa). |
+| `--output`, `-o` | Archivo XML de salida. [por defecto: cuestionario_moodle.xml] |
+| `--num`, `--num-variants`, `-n` | Número de preguntas/variantes a generar por plantilla. [por defecto: 5] |
+| `--category`, `-c` | Categoría base en Moodle. [por defecto: Cuestionario C] |
+| `--generate-only`, `-g` | Solo generar código C en el directorio 'generated' sin crear XML. |
+| `--dry-run`, `--check`, `-d` | Modo validación rápida: verifica sintaxis y compilación sin generar XML. |
+| `--jobs`, `-j` | Número de procesos concurrentes para compilación y generación. [por defecto: 1] |
+| `--penalty` | Penalización por defecto para respuestas incorrectas (ej: 0.25). |
+| `--defaultgrade` | Calificación por defecto de las preguntas (ej: 1.0). |
+| `--min-distractors` | Mínimo de distractores para preguntas de opción múltiple. [por defecto: 3] |
+| `--compiler` | Compilador C a utilizar (por defecto: gcc). |
+| `--cflags` | Flags de compilación C adicionales o globales. |
+| `--config` | Ruta a archivo de configuración JSON personalizada. |
+| `--log-file` | Ruta al archivo de log. |
+| `--json` | Emitir el resultado de la generación como JSON en stdout (el progreso y los avisos van a stderr). |
+| `--sin-validar-ub` | No descartar las variantes con comportamiento indefinido (por defecto se verifican con UBSan). |
 
----
+### Comandos
 
-(manual-idkfa-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
+| Comando | Descripción |
+|:--|:--|
+| `idkfa spellcheck` | Verifica ortografía y gramática en plantillas de C y cuestionarios generados usando LanguageTool. |
+| `idkfa synth-bst` | Sintetiza un árbol binario de búsqueda (BST) con recorrido C compilado y validado en GCC. |
+| `idkfa synth-matrix` | Sintetiza ejercicio de matrices bidimensionales y cálculo de índices con puntero plano. |
+| `idkfa synth-linked-list` | Sintetiza operaciones sobre listas enlazadas dinámicas en C validadas con GCC. |
+| `idkfa synth-tf` | Genera pregunta conceptual de Verdadero/Falso con justificación técnica. |
+| `idkfa export-standalone` | Exporta snippet a formato C ejecutable independiente con asserts de autoevaluación. |
+| `idkfa doctor` | Verifica el estado del entorno de IDKFA (Python, GCC, Valgrind). |
 
-La herramienta **`idkfa`** implementa un motor de alta precisión basado en:
+Ayuda de cada comando: `idkfa <comando> -h`.
 
-- **Tecnología Núcleo:** `Procedural C Template Engine + GCC Runner en Sandbox +
-  Moodle XML Serializer`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
+### Salida JSON
 
----
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `idkfa spellcheck`, `idkfa synth-bst`, `idkfa synth-matrix`, `idkfa synth-linked-list`, `idkfa synth-tf`, `idkfa doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-(manual-idkfa-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
+### Códigos de salida
 
-::::{note}
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
-Ninguna herramienta opera de forma aislada. **`idkfa`** forma parte del pipeline
-integral de evaluación, verificación y enseñanza de la cátedra.
+(manual-idkfa-comandos)=
+## Ayuda de los comandos
 
-::::
-<!-- {note} -->
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-### Diagrama de Flujo e Interoperabilidad
+:::{dropdown} `idkfa`
+:open:
 
-::::{mermaid}
+```text
+ Uso: idkfa [OPCIONES] COMANDO [ARGUMENTOS]...
 
-graph TD
-    TPL[Plantillas YAML con Variables] --> IDK[Idkfa: Síntesis Procedural]
-    IDK -->|Compilación y Ejecución| GCC[GCC: Cálculo de Respuestas]
-    IDK -->|Cuestionarios XML Anti-Copia| MDL[Moodle-Toolbox: Bancos Campus]
-    IDK -->|Variantes de Seguimiento| ALU[Alucard: Exámenes Impresos]
+ Generador de Cuestionarios Moodle XML desde plantillas C.
 
-::::
-<!-- {mermaid} -->
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --source              -s      <path>  Directorio con las plantillas .c o archivo .c individual.  │
+│                                       [por defecto: templates]                                   │
+│ --template            -t      <path>  Procesar solo este archivo .c específico (ruta completa o  │
+│                                       relativa).                                                 │
+│ --output              -o      <path>  Archivo XML de salida.                                     │
+│                                       [por defecto: cuestionario_moodle.xml]                     │
+│ --num,--num-variants  -n      <int>   Número de preguntas/variantes a generar por plantilla.     │
+│                                       [por defecto: 5]                                           │
+│ --category            -c      <str>   Categoría base en Moodle. [por defecto: Cuestionario C]    │
+│ --generate-only       -g              Solo generar código C en el directorio 'generated' sin     │
+│                                       crear XML.                                                 │
+│ --dry-run,--check     -d              Modo validación rápida: verifica sintaxis y compilación    │
+│                                       sin generar XML.                                           │
+│ --jobs                -j      <int>   Número de procesos concurrentes para compilación y         │
+│                                       generación.                                                │
+│                                       [por defecto: 1]                                           │
+│ --penalty                     <str>   Penalización por defecto para respuestas incorrectas (ej:  │
+│                                       0.25).                                                     │
+│ --defaultgrade                <str>   Calificación por defecto de las preguntas (ej: 1.0).       │
+│ --min-distractors             <int>   Mínimo de distractores para preguntas de opción múltiple.  │
+│                                       [por defecto: 3]                                           │
+│ --compiler                    <str>   Compilador C a utilizar (por defecto: gcc).                │
+│ --cflags                      <str>   Flags de compilación C adicionales o globales.             │
+│ --config                      <path>  Ruta a archivo de configuración JSON personalizada.        │
+│ --log-file                    <path>  Ruta al archivo de log.                                    │
+│ --json                                Emitir el resultado de la generación como JSON en stdout   │
+│                                       (el progreso y los avisos van a stderr).                   │
+│ --sin-validar-ub                      No descartar las variantes con comportamiento indefinido   │
+│                                       (por defecto se verifican con UBSan).                      │
+│ --version             -v              Muestra la versión de idkfa y sale.                        │
+│ --install-completion                  Instala el autocompletado para la terminal actual.         │
+│ --show-completion                     Muestra el autocompletado para la terminal actual, para    │
+│                                       copiarlo o adaptarlo.                                      │
+│ --help                -h              Muestra esta ayuda y sale.                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ spellcheck         Verifica ortografía y gramática en plantillas de C y cuestionarios generados  │
+│                    usando LanguageTool.                                                          │
+│ synth-bst          Sintetiza un árbol binario de búsqueda (BST) con recorrido C compilado y      │
+│                    validado en GCC.                                                              │
+│ synth-matrix       Sintetiza ejercicio de matrices bidimensionales y cálculo de índices con      │
+│                    puntero plano.                                                                │
+│ synth-linked-list  Sintetiza operaciones sobre listas enlazadas dinámicas en C validadas con     │
+│                    GCC.                                                                          │
+│ synth-tf           Genera pregunta conceptual de Verdadero/Falso con justificación técnica.      │
+│ export-standalone  Exporta snippet a formato C ejecutable independiente con asserts de           │
+│                    autoevaluación.                                                               │
+│ doctor             Verifica el estado del entorno de IDKFA (Python, GCC, Valgrind).              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-### Matriz de Intercambio de Datos
+:::{dropdown} `idkfa spellcheck`
 
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Plantillas YAML con variables aleatorias y código C` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `moodle-toolbox (bancos XML)`
-- `alucarD (preguntas de parcial)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `alucarD`, `moodle-toolbox`, `daedalus` | Validación cruzada, flags compartidos y autofix |
+```text
+ Uso: idkfa spellcheck [OPCIONES] [paths]...
 
-### Pipeline de Integración Recomendado
+ Verifica ortografía y gramática en plantillas de C y cuestionarios generados usando LanguageTool.
 
-Podés encadenar `idkfa` con otras herramientas del ecosistema en una única línea
-de comando:
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   paths      <path>  Plantillas .c, archivos .xml o directorios a revisar con LanguageTool.      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --server          -s      <str>   URL del servidor LanguageTool (por defecto                     │
+│                                   http://localhost:8081 y API pública).                          │
+│ --username        -u      <str>   Usuario / correo de LanguageTool Premium.                      │
+│ --api-key         -k      <str>   API Key / Token de LanguageTool Premium.                       │
+│ --premium                         Fuerza el uso de la API LanguageTool Premium.                  │
+│ --lang            -l      <str>   Código de idioma para LanguageTool (ej: 'es-AR', 'es',         │
+│                                   'en-US').                                                      │
+│                                   [por defecto: es-AR]                                           │
+│ --ignore-rules            <str>   Reglas a ignorar separadas por comas.                          │
+│ --ignore-words            <str>   Palabras personalizadas a ignorar separadas por comas.         │
+│ --json                            Emite salida estructurada en formato JSON.                     │
+│ --md,--output-md  -o      <path>  Genera reporte en formato Markdown.                            │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-````{code-block} bash
-# Pipeline de integración típico
-idkfa generate templates/punteros.yaml -n 50 -o banco_ptr.xml && questions validate banco_ptr.xml
+:::{dropdown} `idkfa synth-bst`
 
-````
-<!-- {code-block} bash -->
+```text
+ Uso: idkfa synth-bst [OPCIONES]
 
----
+ Sintetiza un árbol binario de búsqueda (BST) con recorrido C compilado y validado en GCC.
 
-(manual-idkfa-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --recorrido  -r      <str>  Tipo de recorrido: inorden, preorden, postorden.                     │
+│                             [por defecto: inorden]                                               │
+│ --seed       -s      <int>  Semilla pseudoaleatoria.                                             │
+│ --json                      Emite salida estructurada en formato JSON.                           │
+│ --help       -h             Muestra esta ayuda y sale.                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-Para crear tus propias reglas, conectores de evaluación o integrar `idkfa`
-programáticamente en pipelines de CI/CD:
+:::{dropdown} `idkfa synth-matrix`
 
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+```text
+ Uso: idkfa synth-matrix [OPCIONES]
+
+ Sintetiza ejercicio de matrices bidimensionales y cálculo de índices con puntero plano.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --filas  -f      <int>  Cantidad de filas. [por defecto: 3]                                      │
+│ --cols   -c      <int>  Cantidad de columnas. [por defecto: 3]                                   │
+│ --seed   -s      <int>  Semilla pseudoaleatoria.                                                 │
+│ --json                  Emite salida estructurada en formato JSON.                               │
+│ --help   -h             Muestra esta ayuda y sale.                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `idkfa synth-linked-list`
+
+```text
+ Uso: idkfa synth-linked-list [OPCIONES]
+
+ Sintetiza operaciones sobre listas enlazadas dinámicas en C validadas con GCC.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --seed  -s      <int>  Semilla pseudoaleatoria.                                                  │
+│ --json                 Emite salida estructurada en formato JSON.                                │
+│ --help  -h             Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `idkfa synth-tf`
+
+```text
+ Uso: idkfa synth-tf [OPCIONES]
+
+ Genera pregunta conceptual de Verdadero/Falso con justificación técnica.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --tema  -t      <str>  arrays_decay, sizeof_pointer, free_null, string_null_terminator.          │
+│                        [por defecto: arrays_decay]                                               │
+│ --json                 Emite salida estructurada en formato JSON.                                │
+│ --help  -h             Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `idkfa export-standalone`
+
+```text
+ Uso: idkfa export-standalone [OPCIONES] {archivo_c}
+
+ Exporta snippet a formato C ejecutable independiente con asserts de autoevaluación.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivo_c      <path>  Archivo C a empaquetar con autoevaluación assert(). [obligatorio]    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta del archivo de salida. [por defecto: standalone_autoeval.c]       │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `idkfa doctor`
+
+```text
+ Uso: idkfa doctor [OPCIONES]
+
+ Verifica el estado del entorno de IDKFA (Python, GCC, Valgrind).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+Generado desde [`idkfa@77a331f`](https://github.com/INGCOM-UNRN-P1/idkfa/tree/77a331f).

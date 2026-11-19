@@ -1,553 +1,280 @@
 ---
 title: "tyrell"
-subtitle: "Tyrell — Generador Sintético y Determinista de Datasets y Casos de Prueba con Semillas"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Generador Sintético de Datasets y Casos de Prueba (.in/.out)"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde tyrell@aab456c: no editar a mano. -->
 
 (manual-tyrell)=
-# Tyrell — Generador Sintético y Determinista de Datasets y Casos de Prueba con Semillas
+# tyrell — Generador Sintético de Datasets y Casos de Prueba (.in/.out)
 
-:::{note} Resumen Técnico del Satélite
+Repositorio: [github.com/INGCOM-UNRN-P1/tyrell](https://github.com/INGCOM-UNRN-P1/tyrell).
 
-**Rol en el ecosistema:** Generación determinista y reproducible de datasets
-masivos (números, matrices, cadenas, registros estructurados) mediante
-generadores pseudoaleatorios con semilla fija para pruebas de carga y
-benchmarking.
-
-:::
-<!-- {note} Resumen Técnico del Satélite -->
+**TYRELL** genera colecciones deterministas de casos de prueba (`.in` y `.out`) con restricciones configurables (enteros, flotantes, cadenas, arreglos y valores extremos) en el formato que lee `nostromo test <binario> <directorio>` (un `caso.in` y su `caso.out` por caso; hay un test de extremo a extremo que lo verifica). No hay integración automática con `deckard` ni con el resto de los orquestadores: los archivos se copian a mano al ejercicio o al banco que corresponda.
 
 ---
 
-(manual-tyrell-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`tyrell`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Generación sintética y procedimental de datasets de prueba y casos de test (`.in / .out`) para programas C.
+- Generación pseudoaleatoria determinista controlada por semillas para garantizar reproducibilidad en prácticas y exámenes.
+- Ejecución y contraste automático contra binarios canónicos de referencia para sintetizar los archivos de salida esperada (`.out`).
+- Inyección parametrizada de valores límite numéricos y secuencias estructuradas.
+- Casos guiados por cobertura de ramas (`tyrell cubrir`): suma a la suite los casos que ejercitan las ramas que `dietrich lines` reporta sin cubrir.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Generación de cuestionarios Moodle XML anti-copia (delegado a `idkfa`).
+- Inyección de fallos en llamadas al sistema (delegado a `holden` / `vasquez`).
+- Evaluación y corrección masiva de alumnos (delegado a `dredd`).
 
 ---
 
-(manual-tyrell-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `gcc` (para compilar soluciones de referencia canónicas si se requiere generar salidas esperadas).
+- `tyrell cubrir`: `dietrich` (con `lines --por-entrada`), `gcc` y `gcov`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `tyrell`. Plugin registrado en `ripley.plugins` (`dataset_generator`).
 
 ---
 
-### 2.2 Métodos de Instalación de `tyrell`
+## Uso Rápido
 
-Podés instalar `tyrell` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# Generar 20 casos de enteros deterministas
+tyrell generate -n 20 --min 1 --max 1000 -o tests/
 
-::::{tab-set}
+# Generar casos y contrastar contra binario de referencia para crear los .out
+tyrell generate -n 10 -o tests/ --reference ./solucion_canon
 
-:::{tab-item} uv tool (Recomendado)
+# Generar a partir de especificación YAML
+tyrell generate spec.yaml -o tests/
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# La misma suite más los casos que cubren las ramas que le faltan a la solución modelo
+tyrell cubrir spec.yaml solucion.c -o tests/ --reference ./solucion_canon
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Casos guiados por cobertura (`tyrell cubrir`)
 
-:::{tab-item} pip / venv
+`tyrell cubrir spec.yaml fuentes.c…` genera la suite de la especificación y le suma casos
+`NN_<nombre>_cobertura.in` (con su `.out` si hay `--reference`) para las ramas que no cubre:
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+1. mide la suite con `dietrich lines --por-entrada` (qué ramas y condiciones ejecuta cada caso);
+2. de las decisiones pendientes saca las constantes con que se comparan (`n > 100` → 99, 100 y
+   101) y los caracteres (`c == 'q'`), y arma candidatos poniéndolas en las reglas en que caben
+   (respetando `min_val`/`max_val`; en un arreglo, como elemento o como cantidad);
+3. mide los candidatos y se queda, de a uno, con los que más ramas y condiciones nuevas suman;
+   repite con lo que siga pendiente (`--rondas`, 2 por omisión).
 
-# Instalar en modo editable para desarrollo
-pip install -e .
+Informa la cobertura antes y después, los candidatos que hicieron caer o colgar al programa (no
+se agregan) y lo que sigue sin cubrir: si una rama necesita un valor que ninguna regla genera
+(por ejemplo, una entrada inválida), hace falta una regla nueva en el YAML o `--corruptos`.
+
+### Especificación YAML (`spec.yaml`)
+
+```yaml
+name: suite            # nombre descriptivo (opcional)
+count: 10              # cantidad de casos, >= 1
+seed: 42               # semilla: misma semilla, mismos casos
+format_template: "{a} {b}\n"   # DEBE usar {nombre} de cada regla
+rules:
+  - name: a
+    type: integer      # integer | float | string | array
+    min_val: 1
+    max_val: 100
+  - name: b
+    type: array
+    length: 5
+    min_val: 0
+    max_val: 9
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
+Los primeros casos son de **borde** y recorren, en orden, los de cada regla: los límites
+declarados, `0`, `-1`, `1` y sus vecinos (más `INT_MAX` e `INT_MIN` si la regla no declara
+límites); cadenas vacías, con espacios repetidos o al borde, tabulaciones y saltos de línea
+consecutivos; arreglos vacíos, de un elemento, con todos iguales, ordenados y en orden inverso.
+Después vienen los aleatorios.
 
-:::{tab-item} pipx
+Opciones de una regla `array`:
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
+- `orden: aleatorio | ordenado | inverso | casi_ordenado` (el peor caso de un quicksort ingenuo);
+- en la plantilla, `{v_n}` es la cantidad de elementos del arreglo `v`: `"{v_n}\n{v}\n"`.
+
+Casos extra al final (también con `--corruptos N` y `--estres LARGO`):
+
+```yaml
+corruptos: 5            # truncadas, con bytes no imprimibles, sin salto final, letras donde van números, vacías
+estres_longitud: 2000000 # un caso con arreglos y cadenas de ese largo (unos 10 MB)
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pipx -->
+Reglas de validación (se rechaza con código de salida 2 y un mensaje concreto):
 
-::::
-<!-- {tab-set} -->
+- `type` solo admite `integer`, `float`, `string` y `array`.
+- Las claves desconocidas (por ejemplo `max_value` en lugar de `max_val`) son un error.
+- `format_template` debe usar cada `{nombre}` de las reglas: sin placeholders todos
+  los casos saldrían idénticos, y un placeholder sin regla o una regla sin usar son error.
+- Un archivo de especificación inexistente es un error; ya no se genera un dataset por defecto.
 
----
+**Precedencia:** con un YAML, la especificación manda. `--count`, `--seed`, `--type`,
+`--min` y `--max` se ignoran (y se avisa cuáles). Sin YAML se usan esas opciones.
 
-### 2.3 Autocompletado en la Shell
+## Referencia rápida
 
-La interfaz CLI de `tyrell` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+### Requisitos
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-tyrell --install-completion
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### Comandos
 
-````
-<!-- {code-block} bash -->
+| Comando | Descripción |
+|:--|:--|
+| `tyrell generate` | Genera casos de prueba .in (y .out con binario de referencia) deterministas. |
+| `tyrell cubrir` | Genera la suite y le suma casos que ejercitan las ramas que dietrich reporta sin cubrir. |
+| `tyrell version` | Muestra la versión de TYRELL. |
+| `tyrell doctor` | Verifica el estado del entorno de TYRELL (Python, GCC opcional). |
 
----
+Ayuda de cada comando: `tyrell <comando> -h`.
 
-### 2.4 Verificación del Entorno con `doctor`
+### Salida JSON
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `tyrell generate`, `tyrell cubrir`, `tyrell doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
 
-````{code-block} bash
-tyrell doctor
+### Códigos de salida
 
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-tyrell-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `tyrell`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `tyrell generate --schema dataset.yaml -n 1000 -o datos.in` | Genera un dataset de 1000 registros estructurados. |
-| `tyrell matrix --rows 100 --cols 100 --seed 42 -o matriz.in` | Genera una matriz aleatoria determinista. |
-| `tyrell fuzz-strings -n 50 -o strings.in` | Genera cadenas de prueba con caracteres especiales y UTF-8. |
-| `tyrell doctor` | Verifica generadores de datos y esquemas. |
+:::{dropdown} `tyrell`
+:open:
 
-::::{tip}
+```text
+ Uso: tyrell [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Generador sintético y determinista de datasets y casos de prueba (.in/.out)
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-tyrell-ejemplos)=
-## Ejemplos y Contraejemplos
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Generá dos casos enteros reproducibles y guardalos en un directorio dedicado:
-
-```{code-block} bash
-tyrell generate --count 2 --seed 7 --type integer --min 1 --max 6 --output resultados
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de tyrell y sale.                             │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ generate  Genera casos de prueba .in (y .out con binario de referencia) deterministas.           │
+│ cubrir    Genera la suite y le suma casos que ejercitan las ramas que dietrich reporta sin       │
+│           cubrir.                                                                                │
+│ version   Muestra la versión de TYRELL.                                                          │
+│ doctor    Verifica el estado del entorno de TYRELL (Python, GCC opcional).                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-La CLI acepta `integer`, toma la cantidad, la semilla y el rango de las opciones,
-y crea archivos `.in` en el directorio de destino. Con esos parámetros, la
-salida observada es:
+:::{dropdown} `tyrell generate`
 
-```{code-block} text
-Casos de Prueba Generados (2 archivos)
-01_case.in  ·  borde  ·  '1\n'
-02_case.in  ·  borde  ·  '6\n'
-✓ 2 testcases guardados exitosamente en: resultados
+```text
+ Uso: tyrell generate [OPCIONES] [spec_file]
+
+ Genera casos de prueba .in (y .out con binario de referencia) deterministas.
+
+ Con un YAML, la especificación manda: `--count`, `--seed`, `--type`, `--min`
+ y `--max` se ignoran (se avisa cuáles). Sin YAML se usan esas opciones.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   spec_file      <path>  Archivo YAML de especificación de dataset                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --count      -n      <int>               Cantidad de casos de prueba a generar [por defecto: 10] │
+│ --seed       -s      <int>               Semilla para reproducibilidad [por defecto: 42]         │
+│ --type       -t      <str>               Tipo de dato si no se pasa YAML (integer, float,        │
+│                                          string, array)                                          │
+│                                          [por defecto: integer]                                  │
+│ --min                <int>               Valor mínimo [por defecto: 0]                           │
+│ --max                <int>               Valor máximo [por defecto: 100]                         │
+│ --output     -o      <path>              Directorio de destino de los archivos .in/.out          │
+│                                          [por defecto: tests]                                    │
+│ --reference  -r      <path>              Binario ejecutable de referencia para generar los .out  │
+│ --json                                   Emitir salida en formato JSON estructurado              │
+│ --corruptos          <int range> [x>=0]  Sumar N casos con entradas corruptas (truncadas, bytes  │
+│                                          no imprimibles, letras donde van números).              │
+│                                          [por defecto: 0]                                        │
+│ --estres             <int range> [x>=1]  Sumar un caso de estrés con arreglos y cadenas de esta  │
+│                                          longitud.                                               │
+│ --help       -h                          Muestra esta ayuda y sale.                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Usá una semilla fija cuando necesites repetir los mismos casos; sin un binario
-de referencia, Tyrell no genera archivos `.out`.
+:::{dropdown} `tyrell cubrir`
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+```text
+ Uso: tyrell cubrir [OPCIONES] {spec_file} {fuentes}...
 
-Pasar texto en una opción que requiere un entero hace que la CLI rechace la
-invocación:
+ Genera la suite y le suma casos que ejercitan las ramas que dietrich reporta sin cubrir.
 
-```{code-block} bash
-tyrell generate --count no-es-un-entero --output resultados
+ De las decisiones pendientes saca las constantes con que se comparan (`n > 100` → 99, 100, 101)
+ y los caracteres; arma candidatos con las reglas del YAML y se queda con los que suman ramas o
+ condiciones. Necesita dietrich instalado (mide con gcc y gcov).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    spec_file      <path>  Archivo YAML de especificación de dataset (el de tyrell generate)    │
+│                             [obligatorio]                                                        │
+│ *    fuentes        <file>  Fuentes C del programa cuya cobertura se mide (la solución modelo).  │
+│                             [obligatorio]                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output      -o      <path>              Directorio de destino de los archivos .in/.out         │
+│                                           [por defecto: tests]                                   │
+│ --reference   -r      <path>              Binario de referencia para generar los .out            │
+│ --candidatos          <int range> [x>=1]  Candidatos que se miden en cada ronda.                 │
+│                                           [por defecto: 40]                                      │
+│ --rondas              <int range> [x>=1]  Rondas de restricciones → candidatos → selección.      │
+│                                           [por defecto: 2]                                       │
+│ --cflags              <str>               Banderas extra para compilar las fuentes al medir.     │
+│ --json                                    Emitir salida en formato JSON estructurado             │
+│ --help        -h                          Muestra esta ayuda y sale.                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-El diagnóstico real es:
+:::{dropdown} `tyrell version`
 
-```{code-block} text
-Valor inválido para '--count' / '-n': 'no-es-un-entero' no es un número entero.
+```text
+ Uso: tyrell version [OPCIONES]
+
+ Muestra la versión de TYRELL.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-El comando termina con código `2` y no genera los casos. Pasale un entero
-positivo con `--count` para que Tyrell pueda construir la suite.
+:::{dropdown} `tyrell doctor`
 
----
+```text
+ Uso: tyrell doctor [OPCIONES]
 
-(manual-tyrell-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
+ Verifica el estado del entorno de TYRELL (Python, GCC opcional).
 
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Esquema YAML procesado por Tyrell:
-// schema:
-//   - name: id
-//     type: integer
-//     min: 1000
-//     max: 9999
-//   - name: promedio
-//     type: float
-//     min: 1.0
-//     max: 10.0
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-tyrell generate --schema dataset.yaml -n 1000 -o datos.in
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] Generados 1,000 registros en datos.in (Semilla: 0x1337BEEF)
-[✓] Tamaño del archivo: 42.5 KB | Integridad SHA-256: 8f4a3c2...
-[✓] Salida reproducible: la misma semilla generará exactamente los mismos datos.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-tyrell-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`tyrell`** resolviendo los siguientes ejercicios:
-
-::::{exercise} Desafío 1: Generación de Vector de 100,000 Elementos
-:label: tyrell-desafio-1
-Crear un archivo de entrada para pruebas de rendimiento de algoritmos de
-ordenamiento.
-
-**Instrucción de ejecución:**
-``` bash
-tyrell generate --type int --count 100000 --seed 12345 -o vector_grande.in
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Generación de Vector de 100,000 Elementos -->
-
-::::{solution} tyrell-desafio-1
-
-``` bash
-tyrell generate --type int --count 100000 --seed 12345 -o vector_grande.in
-# Verificá que la operación concluya exitosamente con código de salida 0.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} tyrell-desafio-1 -->
-
-::::{exercise} Desafío 2: Dataset de Estructuras para TDA
-:label: tyrell-desafio-2
-Generar archivo de texto con datos de paquetes postales para pruebas del TP.
-
-**Instrucción de ejecución:**
-``` bash
-tyrell generate --schema schemas/envios.yaml -n 500 -o envios.in
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Dataset de Estructuras para TDA -->
-
-::::{solution} tyrell-desafio-2
-
-``` bash
-tyrell generate --schema schemas/envios.yaml -n 500 -o envios.in
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} tyrell-desafio-2 -->
-
-::::{exercise} Desafío 3: Casos de Prueba con Caracteres Extremos
-:label: tyrell-desafio-3
-Generar cadenas con caracteres nulos, emojis y secuencias de escape.
-
-**Instrucción de ejecución:**
-``` bash
-tyrell fuzz-strings -n 100 -o strings_extremos.in
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Casos de Prueba con Caracteres Extremos -->
-
-::::{solution} tyrell-desafio-3
-
-``` bash
-tyrell fuzz-strings -n 100 -o strings_extremos.in
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} tyrell-desafio-3 -->
-
----
-
-(manual-tyrell-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `tyrell` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-tyrell:
-	@echo "=== Ejecutando verificación con tyrell ==="
-	tyrell check src/ include/
-
-.PHONY: check-tyrell
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-tyrell` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-tyrell-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`tyrell`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Mersenne Twister / PCG Deterministic RNG +
-  Schema-Driven Data Generator + SHA-256 Checksum Validator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-tyrell-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`tyrell`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SCH[Esquemas YAML: Tipos y Rangos] --> TYR[Tyrell: Generador Sintético]
-    TYR -->|Generación Determinista con Semilla| RNG[Mersenne Twister PRNG]
-    TYR -->|Datasets Masivos .in| NOS[Nostromo: Sandbox y Test Runner]
-    TYR -->|Cargas de Estrés| FRR[Ferro: Perfilador de Rendimiento]
-    TYR -->|Casos de Prueba| DRD[Dredd: Autograding Masivo]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Esquemas YAML de datos y semillas fijas` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `nostromo (testcases .in)`
-- `ferro (benchmarking)`
-- `dredd (evaluación masiva)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `nostromo`, `drake`, `ferro` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `tyrell` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-tyrell generate --schema schemas/envios.yaml -n 1000 --seed 42 -o testcases/envios.in
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-tyrell-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `tyrell`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`tyrell@aab456c`](https://github.com/INGCOM-UNRN-P1/tyrell/tree/aab456c).

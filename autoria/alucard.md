@@ -1,586 +1,2376 @@
 ---
 title: "alucarD"
-subtitle: "Alucard — Generador de Exámenes Impresos, Variantes Anti-Copia y Plantillas OMR"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Generador de Exámenes"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde alucarD@bd8efc0: no editar a mano. -->
 
 (manual-alucard)=
-# Alucard — Generador de Exámenes Impresos, Variantes Anti-Copia y Plantillas OMR
+# alucarD — Generador de Exámenes
 
-:::{note} Resumen Técnico del Satélite
+Repositorio: [github.com/INGCOM-UNRN/alucarD](https://github.com/INGCOM-UNRN/alucarD).
 
-**Rol en el ecosistema:** Generación y maquetación de exámenes presenciales con
-Typst, síntesis de variantes permutadas y lectura óptica OMR.
-
-:::
-<!-- {note} Resumen Técnico del Satélite -->
+**Sistema profesional de generación de exámenes** basado en plantillas YAML, con soporte para bancos Moodle/GIFT, múltiples layouts y optimización para impresión.
 
 ---
 
-(manual-alucard-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`alucarD`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Generación automatizada de exámenes y parciales institucionales en formatos Typst y PDF.
+- Síntesis de variantes numéricas y lógicas de enunciados mediante semillas reproducibles.
+- Diseño y renderizado de plantillas de examen con hojas de respuestas y descriptores OMR (Optical Mark Recognition).
+- Exámenes por estudiante con carátula OMR para la app Escáner OMR (`alucard omr`, según [OMR_SPEC.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/OMR_SPEC.md)).
+- Registro de los exámenes tomados (JSON por examen): evita repetir preguntas en el cuatrimestre y mide la calidad de cada pregunta (`alucard registro`).
+- Diagramas en SVG dentro de las preguntas: estructuras de datos, algoritmos y control de procesos (bloques, respuesta temporal, Bode, Nyquist, polos y ceros, lugar de las raíces, P&ID, escalera y GRAFCET).
+- Linting y validación de archivos de preguntas en formato GIFT.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-alucard-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Calificación masiva de entregas de código de software (delegado a `dredd`).
+- Repositorio, mantenimiento masivo y conversión bidireccional entre formatos de bancos Moodle (delegado a `voight`; alucarD incorpora parsers nativos directos exclusivamente para la ingesta y maquetación de exámenes a partir de archivos GIFT y Moodle XML).
+- Curaduría y balance de guías de trabajos prácticos (delegado a `deckard`).
 
 ---
 
-### 2.2 Métodos de Instalación de `alucarD`
+## Requisitos
 
-Podés instalar `alucarD` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Linux (x86_64 / arm64) o Windows (MSYS2 UCRT64 / WSL). Python >= 3.11.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `typst` (>= 0.11), `gcc` (para compilación de variantes de código C).
 
-:::{tab-item} uv tool (Recomendado)
+### Integración en el Ecosistema
+- CLI `alucard` (con alias de compatibilidad `generador-examenes` y `gift-linter`). Subcomando `doctor` (`alucard doctor`) para verificar gcc, Typst, pypdf y conectividad con LanguageTool.
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+---
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
+## Características Principales
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Core Features
+- ✅ **Asistente Interactivo (Wizard)**: Crea/edita configuraciones YAML con interfaz guiada
+- ✅ **Múltiples Layouts**: 4 layouts optimizados para diferentes tipos de contenido
+- ✅ **Variables Personalizadas**: Sistema de variables con f-strings y composición
+- ✅ **Validación con Pydantic**: Parseo seguro de definiciones YAML
+- ✅ **Templating con Jinja2**: Salidas HTML/PDF personalizables
+- ✅ **Arquitectura de Plugins**: Extensible vía clases base abstractas
+- ✅ **Sintetizador `daedalus`**: genera preguntas paramétricas de C cuya respuesta correcta se verifica compilando y ejecutando el snippet con GCC
+- ✅ **Registro de exámenes tomados** (nuevo): `alucard registro` guarda cada examen en JSON, deja afuera las preguntas ya usadas en el cuatrimestre y analiza dificultad, discriminación y distractores
+- ✅ **Carátula OMR** (nuevo): `alucard omr` arma un examen por estudiante con fiduciales ArUco, burbujas de la rúbrica y QR firmado, y verifica la geometría del PDF. Con `--modo planilla`, las burbujas van a una planilla docente en lugar de las hojas de los estudiantes
+- ✅ **Diagramas de control de procesos** (nuevo): nueve tipos cuyas cuentas (simulación, márgenes, raíces) hace alucarD, con variantes «en blanco» para completar
+- ✅ **Aviso de temas repetidos** (nuevo): `generar` avisa si dos temas quedan con las mismas preguntas
 
-:::{tab-item} pip / venv
+### Layouts de Secciones
+- **`default`**: Enunciado extenso (2/3) + opciones laterales (1/3)
+  - 3-5 preguntas/página | Ideal para análisis de código
+- **`compact-2col`**: Enunciado arriba + 2 columnas de opciones
+  - 6-10 preguntas/página | Ahorro: 30-40% papel
+- **`compact-3col`**: Enunciado arriba + 3 columnas de opciones
+  - 12-20 preguntas/página | Ahorro: 50-60% papel
+- **`compact-4col`**: Enunciado arriba + 4 columnas de opciones
+  - 20-30 preguntas/página | Ahorro: 60-70% papel | Ideal para V/F
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
+### Formato y Procesamiento
+- ✅ **Multiformato**: Lee XML/GIFT, genera HTML/PDF
+- ✅ **Categorías Anidadas**: Organización jerárquica con wildcards (`Math/**`)
+- ✅ **Filtrado Avanzado**: Por categoría, tipo, etiquetas
+- ✅ **Resaltado de Código**: Syntax highlighting con Pygments
+- ✅ **Markdown Support**: Formato `[markdown]` con código embebido
+- ✅ **Internacionalización**: ES/EN con sistema extensible
+
+### Optimización para Impresión
+- ✅ **CSS \@media print**: Estilos automáticos para papel
+- ✅ **Modo B/N**: Código en blanco y negro (ahorro de tinta)
+- ✅ **Page Breaks**: Inteligentes para mantener preguntas completas
+- ✅ **Márgenes Optimizados**: 1.5cm en impresión vs 2cm en pantalla
+- ✅ **Fuentes Legibles**: Tamaños y espaciado optimizados
+- ✅ **Nombre en cada hoja**: renglón «Apellido y Nombre» en cada página impar desde la 3 (`nombre_en_hojas` en `[estilo]`), por si las hojas se separan
+
+### Calidad y Testing
+- ✅ **1329 Tests**: Suite completa con pytest
+- ✅ **90% Coverage**: Cobertura de código
+- ✅ **6 Exámenes de Prueba**: Validación en escenarios reales
+- ✅ **CI Ready**: Configurado para integración continua
+
+---
+
+## Instalación
+
+### Opción 1: Setup Automático con UV ( Recomendado)
+
+**UV** es ~10-100x más rápido que pip/Poetry.
+
+#### Linux / macOS
+```bash
+./setup.sh
 source .venv/bin/activate
+```
 
-# Instalar en modo editable para desarrollo
+#### Windows PowerShell
+```powershell
+.\setup.ps1
+.\.venv\Scripts\Activate.ps1
+```
+
+### Opción 2: Instalación Global como Herramienta CLI con `uv tool`
+
+Puedes instalar **alucarD** globalmente usando `uv tool` directamente desde el repositorio o directorio local:
+
+```bash
+# Desde el directorio local del repositorio
+uv tool install .
+
+# O forzar actualización/reinstalación
+uv tool install . --force
+```
+
+Una vez instalado con `uv tool`, tendrás disponibles globalmente los ejecutables:
+```bash
+alucard --help
+generador-examenes --help
+gift-linter --help
+```
+
+O ejecutarlo directamente sin instalar usando `uvx` / `uv tool run`:
+```bash
+uv tool run --from . alucard -d definicion_ejemplo.yaml
+```
+
+### Opción 3: Poetry
+```bash
+git clone <repo-url>
+cd alucard
+poetry install
+poetry shell
+```
+
+### Opción 4: pip
+```bash
+git clone <repo-url>
+cd alucard
 pip install -e .
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
+### Verificar Instalación
+```bash
+generador-examenes --help
+# o también:
+alucard --help
 ```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Inicio Rápido
 
-La interfaz CLI de `alucard` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+### 1⃣ Inicializar Proyecto
+```bash
+alucard iniciar
+```
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-alucard --install-completion
+Esto crea:
+- `templates/` - Plantillas Jinja2
+- `i18n/` - Archivos de idioma
+- `bancos/` - Bancos de preguntas
+- `output/` - Exámenes generados
+- `definicion_ejemplo.yaml` - Configuración de ejemplo
+- `README_PROYECTO.md`
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### 2⃣ Explorar Categorías del Banco
+```bash
+# Genera un árbol HTML interactivo con todas las categorías
+alucard categorias bancos/mi_banco.gift
+# Abre output/category_tree.html en tu navegador
+```
 
-````
-<!-- {code-block} bash -->
+Esto te ayuda a:
+- Ver la estructura jerárquica de categorías
+- Conocer cuántas preguntas hay por categoría y tipo
+- Copiar nombres de categorías al portapapeles para el YAML
+
+### 2⃣b Sintetizar Preguntas de C con `daedalus`
+
+Genera bancos de preguntas de análisis de código cuya **respuesta correcta verifica
+gcc**, sin erratas en la clave:
+
+- las de traza (precedencia, aritmética de punteros, recursión, incrementos,
+  decaimiento de arreglos) se compilan y ejecutan;
+- las de comportamiento indefinido (punteros salvajes y colgantes) se verifican con
+  los avisos de `gcc -fanalyzer`, y mezclan variantes correctas para que «es
+  comportamiento indefinido» no sea siempre la respuesta;
+- las de fugas de memoria cuentan los bytes que quedan sin liberar, envolviendo
+  `malloc`/`calloc`/`realloc`/`free` (no hace falta valgrind ni ASan).
+
+```bash
+# Ver las plantillas disponibles
+alucard sintetizar
+
+# 8 preguntas de punteros colgantes con 5 opciones cada una (banco GIFT)
+alucard sintetizar punteros-colgantes -c 8 --opciones 5 -s 42 -o output/
+
+# También en formato Moodle XML
+alucard sintetizar fugas-malloc -c 4 -f xml
+
+# El banco generado se usa directo en un examen:
+alucard -d examen.yaml -i output/sintetizados_punteros-colgantes.gift -n 3
+```
+
+Cada pregunta incluye el snippet C en un bloque de código, la respuesta verificada y
+distractores verosímiles basados en errores típicos. El banco GIFT declara
+`[markdown]`, así que el código en línea se ve como código. Las plantillas están en
+`generador_examenes/synthesizer/plantillas.py`.
+
+### 3⃣ Crear Configuración con Wizard
+```bash
+alucard asistente mi_examen.yaml
+```
+
+El asistente interactivo te guía:
+- Información básica del examen
+- Configuración de secciones y layouts
+- Pools de preguntas con filtros
+- Variables personalizadas
+- Vista previa antes de guardar
+
+### 4⃣ Usar Ejemplos de Configuración
+
+El proyecto incluye 5 configuraciones de ejemplo listas para usar:
+
+```bash
+# Ejemplo 1: Básico - Configuración mínima
+generador-examenes -d examenes_prueba/ejemplo_1_basico.yaml
+
+# Ejemplo 2: Mixto - Múltiples layouts y tipos
+generador-examenes -d examenes_prueba/ejemplo_2_mixto.yaml
+
+# Ejemplo 3: Análisis de código - Layout para código extenso
+generador-examenes -d examenes_prueba/ejemplo_3_analisis_codigo.yaml
+
+# Ejemplo 4: Por categorías - Filtrado avanzado
+generador-examenes -d examenes_prueba/ejemplo_4_categorias.yaml
+
+# Ejemplo 5: Completo - Todas las características
+generador-examenes -d examenes_prueba/ejemplo_5_completo.yaml
+```
+
+### 5⃣ Validar Configuración
+
+**Opción A: Todo en YAML (más simple)**
+```bash
+# Si el YAML incluye input_banco, solo necesitas:
+alucard validar -d mi_examen.yaml
+```
+
+**Opción B: Especificar bancos por CLI**
+```bash
+alucard validar -d mi_examen.yaml \
+  -i bancos/banco1.txt bancos/banco2.xml
+```
+
+### Configuración del curso (`alucard.toml`)
+
+Las definiciones de los exámenes, los bancos, la carpeta de salida, la cantidad de temas, la
+semilla, el formato y las opciones de ortografía del curso pueden ir en un `alucard.toml` (lo crea
+`alucard iniciar`). Con `definicion` y `output_dir` ahí, `alucard generar` alcanza; con varias
+definiciones, cada examen sale en su subcarpeta, o en la que diga su `subdirectorio`. La línea de comandos manda sobre la definición, y
+la definición sobre `alucard.toml`. Ver el MANUAL.
+
+### 4⃣ Explorar Categorías de Bancos
+
+Antes de crear tu configuración, puedes explorar las categorías disponibles en tus bancos:
+
+```bash
+# Generar árbol interactivo de categorías
+alucard categorias bancos/*.xml bancos/*.gift
+
+# Especificar directorio de salida
+alucard categorias bancos/*.xml -o output
+```
+
+Esto genera un HTML interactivo con:
+- 🌳 Árbol jerárquico de categorías
+- 📊 Contador de preguntas por categoría
+- 📋 Botones para copiar nombres de categorías
+- 🔍 Búsqueda en tiempo real
+- 🎨 Interfaz moderna y responsive
+
+### 5⃣ Generar Exámenes
+
+**Opción A: Configuración completa en YAML**
+```bash
+# Si tu YAML incluye input_banco, numero_temas, formato, etc:
+generador-examenes -d mi_examen_completo.yaml
+
+# Override específico (ej: generar 5 temas en vez de lo configurado)
+generador-examenes -d mi_examen_completo.yaml -n 5
+
+# Cambiar formato a PDF
+generador-examenes -d mi_examen_completo.yaml -f pdf
+```
+
+**Opción B: CLI tradicional**
+```bash
+# Especificar todo por línea de comandos
+generador-examenes -d mi_examen.yaml \
+  -i bancos/banco1.txt bancos/banco2.xml \
+  -o output \
+  -n 3 \
+  -f html
+
+# Generar en PDF
+generador-examenes -d mi_examen.yaml \
+  -i bancos/*.txt \
+  -n 5 \
+  -f pdf
+```
+
+> **💡 Tip**: Las opciones de CLI siempre tienen prioridad sobre las del YAML, permitiendo overrides rápidos.
 
 ---
 
-### 2.4 Verificación del Entorno con `doctor`
+### 6⃣ Exámenes impresos desde idkfa (`alucard build`) y balance de claves
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+`alucard build -i banco.xml` genera los temas en PDF (y su clave) sin YAML: una sección con todas
+las preguntas del banco, por ejemplo el Moodle XML que genera idkfa. `-d` usa una definición,
+`-n` los temas, `--titulo`, `--materia` e `--institucion` el encabezado.
 
-````{code-block} bash
-alucard doctor
+```bash
+idkfa -s plantillas -n 4 -o idkfa_output.xml
+alucard build -i idkfa_output.xml -n 4 --titulo "Parcial 1" --materia "Programación I"
+alucard balance-check -i idkfa_output.xml -n 4
+```
 
-````
-<!-- {code-block} bash -->
+En cada tema la opción correcta va a la letra menos usada hasta ese momento (también contando los
+temas anteriores) y sin rachas de la misma letra. `build` muestra al terminar en qué letra quedó la
+correcta en cada tema, y `alucard balance-check` lo audita sin renderizar: sale con 1 si alguna
+letra es la correcta en más del 30 % de los casos (`--umbral`). Con preguntas de 2 o 3 opciones el
+mínimo alcanzable es mayor (un tercio): el umbral efectivo sube a ese mínimo más 5 puntos y se
+informa. `--json` emite las frecuencias por tema y en total.
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+## Explorador de Categorías
 
-#### Matriz de Resolución de Problemas:
+Antes de crear tu configuración YAML, puedes explorar visualmente las categorías de tus bancos de preguntas.
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+### Características
+
+🌳 **Árbol Jerárquico**: Visualiza la estructura completa de categorías
+📊 **Contadores**: Ve cuántas preguntas hay en cada categoría
+📋 **Copiar Rápido**: Botones para copiar nombres al portapapeles
+🔍 **Búsqueda**: Filtra categorías en tiempo real
+🎨 **Interfaz Moderna**: Diseño responsive y atractivo
+⌨️ **Atajos de Teclado**: Presiona `/` para buscar
+
+### Uso
+
+```bash
+# Un solo banco
+alucard categorias bancos/teorico.gift
+
+# Múltiples bancos
+alucard categorias bancos/*.xml bancos/*.txt
+
+# Especificar directorio de salida
+alucard categorias bancos/*.xml -o mis_reportes
+```
+
+El comando genera un archivo `category_tree.html` que puedes abrir en tu navegador. Usa los botones "Copiar" para obtener el nombre exacto de cada categoría y pegarlo en tu configuración YAML.
+
+---
+
+## Asistente Interactivo (Wizard)
+
+El wizard facilita la creación y edición de configuraciones YAML.
+
+### Características
+
+✨ **Interfaz Interactiva**: Prompts guiados paso a paso
+📝 **Creación/Edición**: Crea nuevos o modifica existentes
+🎨 **Interfaz Rica**: Experiencia visual mejorada con Rich
+✅ **Validación**: Verifica datos en tiempo real
+📊 **Vista Previa**: Resumen antes de guardar
+
+### Uso
+
+#### Crear Nueva Configuración
+```bash
+alucard asistente mi_examen.yaml
+```
+
+#### Editar Configuración Existente
+```bash
+alucard asistente examenes_prueba/parcial1_basico.yaml
+```
+
+### Flujo del Wizard
+
+1. **Información Básica**
+   - Nombre del examen
+   - Institución
+   - Materia
+   - Fecha y duración
+
+2. **Configuración de Examen**
+   - Mezclar preguntas
+   - Mezclar opciones
+   - Generar clave
+
+3. **Secciones**
+   - Nombre y descripción
+   - Layout (default, compact-2col, 3col, 4col)
+   - Instrucciones
+
+4. **Pools de Preguntas**
+   - Filtros por categoría
+   - Tipos de preguntas
+   - Etiquetas (tags)
+   - Cantidad y puntaje
+
+5. **Variables Personalizadas** (opcional)
+   - Profesor, aula, comisión
+   - Variables con f-strings
+   - Composición de variables
+
+---
+
+## Configuración de Exámenes
+
+### Estructura del YAML
+
+```yaml
+nombre_examen: "Parcial I - Programación"
+institucion: "Universidad Nacional"
+materia: "Programación 1"
+fecha: "2025-11-20"
+duracion_minutos: 90
+instrucciones_generales: |
+  Lee cuidadosamente cada pregunta.
+  Marca una sola respuesta por pregunta.
+idioma: "es"
+
+configuracion_examen:
+  mezclar_preguntas_dentro_seccion: true
+  mezclar_opciones_dentro_pregunta: true
+  generar_clave_profesor: true
+
+# Variables personalizadas (opcional)
+variables_personalizadas:
+  profesor: "Dr. Juan Pérez"
+  aula: "Aula 301"
+  comision: "Comisión A"
+  titulo_completo: "{nombre_examen} | {materia}"
+  periodo: "Segundo Cuatrimestre {anio_actual}"
+
+# Configuración de generación (opcional, puede overridearse por CLI)
+input_banco:
+  - "bancos/codigo.xml"
+  - "bancos/teorico.gift"
+output_dir: "./output"
+path_images: null  # Opcional
+numero_temas: 3    # Número de versiones a generar
+semilla: 42        # Para reproducibilidad
+formato:
+  - "html"
+  - "pdf"
+
+secciones_examen:
+  - nombre: "Parte 1: Conceptos Básicos"
+    instrucciones: "Selecciona la respuesta correcta"
+    layout: "compact-2col"  # default, compact-2col, compact-3col, compact-4col
+    pools:
+      - tipos: ["seleccion_multiple"]
+        cantidad: 15
+        accion_si_insuficiente: usar_todas
+  
+  - nombre: "Parte 2: Análisis de Código"
+    instrucciones: "Analiza el código y responde"
+    layout: "default"
+    pools:
+      - categoria: "Programacion/Codigo/**"
+        tipos: ["seleccion_multiple"]
+        cantidad: 10
+        puntaje_fijo_por_pregunta: 5.0
+```
+
+**Clave de respuestas.** Antes de generar se verifica que cada pregunta de opciones tenga al menos
+una opción correcta: si alguna no la tiene, no se imprime nada (código de salida 1) y el log dice
+cuál. Con `mezclar_opciones_dentro_pregunta`, además, se evitan las rachas de la misma letra
+correcta (más de 3 seguidas, como A-A-A-A): la pregunta que la extendería se vuelve a mezclar con
+el mismo generador, así que cada tema sigue siendo reproducible por su semilla.
+
+### Configuración de Generación en YAML (Nuevo en v5.7.0)
+
+Ahora puedes incluir opciones de generación directamente en el YAML:
+
+```yaml
+# Configuración de generación (todas opcionales)
+input_banco:                    # Bancos de preguntas: archivos o carpetas (.gift y .xml, con sus subcarpetas)
+  - "bancos/teoria.gift"
+  - "bancos/practica"
+  
+output_dir: "./examenes"        # Directorio de salida (default: "./output")
+subdirectorio: "parcial1/teoria" # Carpeta de este examen dentro de la salida (opcional)
+
+path_images: "./imagenes"       # Directorio de imágenes (opcional)
+
+numero_temas: 5                 # Número de versiones (default: 1)
+
+semilla: 123                    # Semilla aleatoria (default: 42)
+
+formato:                        # Formatos de salida (default: ["html"])
+  - "html"
+  - "pdf"
+```
+
+**Ventajas:**
+- ✅ Menos argumentos en CLI
+- ✅ Configuración reproducible
+- ✅ Fácil de versionar en Git
+- ✅ CLI override para casos especiales
+
+**Ejemplo de uso:**
+```bash
+# Con configuración completa en YAML
+generador-examenes -d examen.yaml
+
+# Override de opciones específicas
+generador-examenes -d examen.yaml -n 10      # Genera 10 temas
+generador-examenes -d examen.yaml -f pdf     # Solo PDF
+generador-examenes -d examen.yaml -o ./test  # Directorio diferente
+```
+
+### Configuración de Pools
+
+Los pools definen cómo seleccionar preguntas del banco:
+
+```yaml
+pools:
+  # Pool 1: Por tipo
+  - tipos: ["seleccion_multiple", "verdadero_falso"]
+    cantidad: 10
+    
+  # Pool 2: Por categoría
+  - categoria: "Matematicas/Algebra/**"
+    cantidad: 5
+    puntaje_fijo_por_pregunta: 2.0
+    
+  # Pool 3: Por etiquetas
+  - etiquetas: ["dificil", "importante"]
+    cantidad: 8
+    accion_si_insuficiente: advertir
+    
+  # Pool 4: Preguntas fijas
+  - preguntas_fijadas:
+      - "Pregunta sobre Python"
+      - "Pregunta sobre Listas"
+    
+  # Pool 5: De banco específico
+  - banco: "banco_avanzado.xml"
+    categoria: "Avanzado/**"
+    tipos: ["seleccion_multiple"]
+    cantidad: 10
+```
+
+### Opciones de Pool
+
+- **`banco`**: Filtrar solo de este archivo de banco
+- **`categoria`**: Categoría Moodle (soporta wildcards `*` y `**`)
+- **`tipos`**: Lista de tipos de pregunta
+- **`etiquetas`**: Tags de las preguntas
+- **`cantidad`**: Número de preguntas a seleccionar
+- **`preguntas_fijadas`**: IDs específicos de preguntas
+- **`puntaje_fijo_por_pregunta`**: Sobrescribe puntaje del banco
+- **`accion_si_insuficiente`**: `error`, `advertir`, `usar_todas`
+
+---
+
+## Layouts y Optimización de Impresión
+
+### Layouts Disponibles
+
+#### `default` - Layout para Análisis de Código
+```
+┌─────────────────────────────────────────┐
+│ Pregunta 1 (5 pts)           │ a) Op1  │
+│                              │ b) Op2  │
+│ def funcion():               │ c) Op3  │
+│     # código extenso...      │ d) Op4  │
+│     return resultado         │         │
+└─────────────────────────────────────────┘
+```
+- **Uso**: Código extenso, análisis, diagramas
+- **Densidad**: 3-5 preguntas/página
+- **Ahorro**: Baseline (0%)
+
+#### `compact-2col` - Dos Columnas
+```
+┌─────────────────────────────┐
+│ Pregunta 1 (2 pts)          │
+│ ¿Qué es Python?             │
+│ a) Lenguaje │ c) Snake      │
+│ b) Framework│ d) Librería   │
+└─────────────────────────────┘
+```
+- **Uso**: Preguntas teóricas, opciones cortas
+- **Densidad**: 6-10 preguntas/página
+- **Ahorro**: 30-40% papel
+
+#### `compact-3col` - Tres Columnas
+```
+┌───────────────────────────┐
+│ Pregunta 1 (1 pt)         │
+│ Capital de Francia?       │
+│ a) París  │b) Londres │c) Roma │
+│ d) Madrid │e) Berlín  │f) Oslo │
+└───────────────────────────┘
+```
+- **Uso**: Opciones muy cortas, vocabulario
+- **Densidad**: 12-20 preguntas/página
+- **Ahorro**: 50-60% papel
+
+#### `compact-4col` - Cuatro Columnas
+```
+┌─────────────────────────┐
+│ Pregunta 1 (1 pt)       │
+│ 2 + 2 = ?               │
+│ a) 3 │b) 4 │c) 5 │d) 6  │
+└─────────────────────────┘
+```
+- **Uso**: Verdadero/Falso, respuestas muy breves
+- **Densidad**: 20-30 preguntas/página
+- **Ahorro**: 60-70% papel
+
+### Mejores Prácticas por Contenido
+
+| Tipo de Contenido | Layout Recomendado | Preguntas/Página |
+|-------------------|-------------------|------------------|
+| Código Python/Java | `default` | 3-5 |
+| Análisis de algoritmos | `default` | 3-5 |
+| Conceptos teóricos | `compact-2col` | 6-10 |
+| Definiciones cortas | `compact-3col` | 12-20 |
+| Verdadero/Falso | `compact-4col` | 20-30 |
+| Vocabulario | `compact-3col` | 12-20 |
+| Fórmulas matemáticas | `compact-2col` | 6-10 |
+
+### Ejemplo de Mezcla de Layouts
+
+```yaml
+secciones_examen:
+  - nombre: "Análisis de Código"
+    layout: "default"  # Código extenso
+    pools:
+      - tipos: ["seleccion_multiple"]
+        cantidad: 5
+  
+  - nombre: "Conceptos Teóricos"
+    layout: "compact-2col"  # Preguntas medianas
+    pools:
+      - tipos: ["seleccion_multiple"]
+        cantidad: 15
+  
+  - nombre: "Verificación Rápida"
+    layout: "compact-4col"  # V/F compacto
+    pools:
+      - tipos: ["verdadero_falso"]
+        cantidad: 20
+```
+
+### Optimización de Impresión
+
+El sistema aplica automáticamente estilos CSS específicos para impresión:
+
+**En Pantalla:**
+- Márgenes: 2cm
+- Padding generoso
+- Bordes y colores
+
+**Al Imprimir:**
+- Márgenes: 1.5cm
+- Padding reducido (0.3-0.5em)
+- Bordes delgados (0.5px)
+- Código en B/N
+- Font-size optimizado
+- Line-height compacto
+
+---
+
+## Variables Personalizadas
+
+Las variables personalizadas permiten agregar contenido flexible a las plantillas sin modificar el código.
+
+### Características
+
+✨ **Flexibles**: Define cualquier variable
+🔄 **F-Strings**: Interpolación con formato Python
+📚 **Contextuales**: Accede a campos de la definición
+🔗 **Referenciables**: Variables pueden referenciar otras
+📅 **Fecha/Hora**: Variables automáticas disponibles
+
+### Variables Disponibles Automáticamente
+
+```python
+{
+    'nombre_examen': ...,
+    'institucion': ...,
+    'materia': ...,
+    'fecha': ...,
+    'duracion_minutos': ...,
+    'idioma': ...,
+    'fecha_actual': '2025-11-04',
+    'anio_actual': 2025,
+    'mes_actual': 11,
+    'dia_actual': 4
+}
+```
+
+### Ejemplos de Variables
+
+```yaml
+variables_personalizadas:
+  # Simples
+  profesor: "Dr. Juan Pérez"
+  email_contacto: "juan.perez@unrn.edu.ar"
+  aula: "Aula 301"
+  departamento: "Informática"
+  
+  # Con f-strings
+  titulo_completo: "{nombre_examen} de {materia}"
+  ubicacion: "{institucion} - {aula}"
+  periodo_academico: "Segundo Cuatrimestre {anio_actual}"
+  
+  # Compuestas (referencian otras)
+  encabezado_principal: "{institucion} | {materia}"
+  informacion_contacto: "Profesor: {profesor} | Email: {email_contacto}"
+  
+  # Con fecha actual
+  fecha_generacion: "Generado el {fecha_actual}"
+  copyright: "© {anio_actual} {institucion}"
+  
+  # Para pie de página
+  pie_pagina: "{materia} - {profesor} - {periodo_academico}"
+  
+  # Notas
+  nota_importante: "Duración: {duracion_minutos} minutos | Fecha: {fecha}"
+  firma_profesor: "_______________\n{profesor}\n{departamento}"
+```
+
+### Uso en Plantillas
+
+En tus plantillas Jinja2 (`templates/base_examen.html.j2`):
+
+```jinja
+{% if variables and variables.get('profesor') %}
+<div class="info"><strong>Profesor:</strong> {{ variables.profesor }}</div>
+{% endif %}
+
+{% if variables and variables.get('aula') %}
+<div class="info"><strong>Aula:</strong> {{ variables.aula }}</div>
+{% endif %}
+
+<footer>{{ variables.pie_pagina }}</footer>
+```
+
+---
+
+## Categorías y Filtros
+
+### Sistema de Categorías
+
+Las categorías organizan preguntas jerárquicamente:
+
+```
+$course$/
+├── Programacion/
+│   ├── Teoria/
+│   │   ├── Conceptos
+│   │   └── Historia
+│   └── Codigo/
+│       ├── Python
+│       └── Java
+└── Matematicas/
+    ├── Algebra
+    └── Calculo
+```
+
+### Wildcards
+
+- **`*`**: Un nivel de subcategorías
+- **`**`**: Cualquier nivel de subcategorías
+
+```yaml
+# Ejemplos
+categoria: "Programacion/Teoria"          # Solo Teoria
+categoria: "Programacion/Teoria/*"        # Conceptos, Historia
+categoria: "Programacion/**"              # Todo Programacion
+categoria: "**"                          # Todo el banco
+```
+
+### Filtrado por Etiquetas (Tags)
+
+```yaml
+pools:
+  - etiquetas: ["dificil"]              # Preguntas difíciles
+  - etiquetas: ["importante", "final"]   # Con al menos un tag
+```
+
+### Filtrado por Tipo
+
+Tipos soportados:
+- `seleccion_multiple` - Pregunta con múltiples opciones
+- `verdadero_falso` - Pregunta de V/F
+- `respuesta_corta` - Respuesta breve
+- `desarrollo` - Pregunta de respuesta extensa (ver sección Preguntas de Desarrollo)
+- `emparejamiento` - Relacionar conceptos
+- `numerica` - Respuesta numérica
+
+```yaml
+pools:
+  - tipos: ["seleccion_multiple"]
+  - tipos: ["verdadero_falso", "seleccion_multiple"]
+  - tipos: ["desarrollo"]
+```
+
+### Filtros Combinados
+
+```yaml
+pools:
+  - banco: "banco_avanzado.xml"
+    categoria: "Programacion/Python/**"
+    tipos: ["seleccion_multiple"]
+    etiquetas: ["dificil", "examen"]
+    cantidad: 10
+```
+
+---
+
+## Formatos de Banco de Preguntas
+
+### Formato GIFT
+
+Formato de texto plano de Moodle:
+
+```gift
+// Comentario
+
+// [tag, geografia, facil]
+::Pregunta 1::¿Cuál es la capital de Francia? {
+=París
+~Londres
+~Berlín
+~Madrid
+}
+
+// [tag, programacion]
+::Pregunta 2::Python es un lenguaje de programación. {T}
+
+// [tag, web, html]
+::Pregunta 3::¿Qué significa HTML? {
+=HyperText Markup Language
+~High Tech Modern Language
+~Home Tool Markup Language
+}
+```
+
+Las etiquetas van en un comentario pegado a la pregunta, sin renglones en blanco en el medio. No se usan `:` en las preguntas; ver [Compatibilidad con Moodle](https://github.com/INGCOM-UNRN/alucarD/blob/master/MANUAL.md#compatibilidad-con-moodle).
+
+### Formato Moodle XML
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="multichoice">
+    <name><text>Pregunta sobre Python</text></name>
+    <questiontext format="html">
+      <text><![CDATA[<p>¿Qué es Python?</p>]]></text>
+    </questiontext>
+    <answer fraction="100" format="html">
+      <text><![CDATA[<p>Lenguaje de programación</p>]]></text>
+    </answer>
+    <answer fraction="0" format="html">
+      <text><![CDATA[<p>Un framework</p>]]></text>
+    </answer>
+    <tags>
+      <tag><text>programacion</text></tag>
+      <tag><text>python</text></tag>
+    </tags>
+  </question>
+</quiz>
+```
+
+### Markdown en Preguntas
+
+Formato `[markdown]` para preguntas con código:
+
+```gift
+// [tag, python, codigo]
+::Análisis de Código::[markdown]¿Qué imprime este código?
+
+\`\`\`python
+def suma(a, b):
+    return a + b
+
+print(suma(2, 3))
+\`\`\`
+
+{
+=5
+~6
+~23
+~Error
+}
+```
+
+### Preguntas de Desarrollo
+
+Las preguntas de desarrollo permiten al alumno escribir respuestas extensas. Se renderizan como rectángulos en blanco donde el estudiante puede escribir.
+
+#### Formato GIFT
+
+```gift
+// [tag, conceptos]
+::Concepto de Recursión::Define qué es la recursión y da un ejemplo. {}
+
+// [tag, desarrollo-grande, algoritmos]
+::Análisis de Algoritmo::Analiza el siguiente algoritmo... {}
+
+// [tag, desarrollo-chico, basico]
+::Diferencia Simple::¿Cuál es la diferencia entre X e Y? {}
+```
+
+`{}` es la pregunta de ensayo de Moodle; el tamaño del espacio va en una etiqueta.
+
+**Tamaños disponibles:**
+- `[tag, desarrollo-cero]` - Sin recuadro
+- `[tag, desarrollo-chico]` - Espacio chico (`desarrollo-pequeno` se sigue leyendo)
+- `[tag, desarrollo-mediano]` - Espacio mediano [default]
+- `[tag, desarrollo-grande]` - Espacio grande
+- `[tag, desarrollo-pagina]` - La pregunta en su propia hoja
+
+Sin etiqueta, vale `configuracion_examen.espacio_desarrollo`.
+
+#### Formato Moodle XML
+
+En Moodle XML, las preguntas tipo `essay` se mapean automáticamente a `desarrollo`:
+
+```xml
+<question type="essay">
+  <name><text>Análisis de Código</text></name>
+  <questiontext format="html">
+    <text><![CDATA[<p>Explica cómo funciona...</p>]]></text>
+  </questiontext>
+  <tags><tag><text>desarrollo-grande</text></tag></tags>
+</question>
+```
+
+El tamaño va en las mismas etiquetas que en GIFT; sin etiqueta, vale `espacio_desarrollo`.
+
+#### Uso en Configuración YAML
+
+```yaml
+secciones_examen:
+  - nombre: "Parte 3: Desarrollo"
+    layout: "default"
+    instrucciones: "Responde con claridad y fundamenta tus respuestas"
+    pools:
+      - tipos: ["desarrollo"]
+        etiquetas: ["conceptos"]
+        cantidad: 3
+```
+
+#### Comportamiento en Layouts
+
+Las preguntas de desarrollo se adaptan al layout de la sección:
+- **default**: Espacio completo, tamaño según configuración
+- **compact-2col/3col/4col**: Espacio ajustado pero legible
+
+En impresión, los tamaños se optimizan automáticamente para ahorrar papel manteniendo legibilidad.
+
+---
+
+## Ejemplos Prácticos
+
+### Ejemplo 1: Examen Básico
+
+```yaml
+nombre_examen: "Quiz Semanal"
+institucion: "Mi Universidad"
+materia: "Programación 1"
+duracion_minutos: 30
+idioma: "es"
+
+configuracion_examen:
+  mezclar_preguntas_dentro_seccion: true
+  mezclar_opciones_dentro_pregunta: true
+  generar_clave_profesor: true
+
+secciones_examen:
+  - nombre: "Conceptos Básicos"
+    layout: "compact-3col"
+    pools:
+      - tipos: ["seleccion_multiple"]
+        cantidad: 10
+```
+
+### Ejemplo 2: Examen con Múltiples Secciones
+
+```yaml
+nombre_examen: "Parcial Integrador"
+institucion: "Universidad Nacional"
+materia: "Estructuras de Datos"
+fecha: "2025-11-20"
+duracion_minutos: 120
+idioma: "es"
+
+configuracion_examen:
+  mezclar_preguntas_dentro_seccion: true
+  mezclar_opciones_dentro_pregunta: true
+  generar_clave_profesor: true
+
+variables_personalizadas:
+  profesor: "Dr. García"
+  aula: "Lab 3"
+
+secciones_examen:
+  - nombre: "Parte 1: Teoría"
+    layout: "compact-2col"
+    instrucciones: "40 puntos - 40 minutos"
+    pools:
+      - categoria: "Teoria/**"
+        tipos: ["seleccion_multiple"]
+        cantidad: 20
+        puntaje_fijo_por_pregunta: 2.0
+  
+  - nombre: "Parte 2: Código"
+    layout: "default"
+    instrucciones: "60 puntos - 80 minutos"
+    pools:
+      - categoria: "Practica/Codigo/**"
+        tipos: ["seleccion_multiple"]
+        cantidad: 10
+        puntaje_fijo_por_pregunta: 6.0
+```
+
+### Ejemplo 3: Examen Final Completo
+
+Ver: `examenes_prueba/final_completo.yaml`
+
+### Ejemplo 4: Quiz Rápido
+
+Ver: `examenes_prueba/quiz_rapido.yaml`
+
+### Ejemplo 5: Recuperatorio
+
+Ver: `examenes_prueba/recuperatorio_mixto.yaml`
+
+---
+
+## Registro, OMR y Diagramas
+
+### Registro de exámenes tomados
+
+Cada examen tomado se guarda como un JSON en `registro/<cuatrimestre>/<id>.json`, con la definición
+y las preguntas de cada tema. Guardar es explícito, porque el examen se arma de a poco:
+
+```bash
+alucard validar -d parcial1.yaml                 # se itera sobre la definición
+alucard registro guardar -d parcial1.yaml        # la versión que se toma (o: generar --registrar)
+alucard registro resultados parcial1 notas.csv   # después del examen
+alucard registro analizar -o calidad.md          # dificultad, discriminación, distractores, α
+alucard registro usadas --cuatrimestre 2026-2C
+```
+
+Las preguntas que ya salieron en otro examen registrado del cuatrimestre se dejan afuera
+(`repetidas = "evitar"` en `[registro]` de `alucard.toml`; también `"avisar"` o `"permitir"`).
+Ver [Registro de exámenes tomados](https://github.com/INGCOM-UNRN/alucarD/blob/master/MANUAL.md#registro-de-exámenes-tomados-alucard-registro).
+
+### Exámenes con carátula OMR
+
+`alucard omr` implementa [OMR_SPEC.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/OMR_SPEC.md): un examen por estudiante cuya primera página
+lleva la franja que corrige la app Escáner OMR.
+
+```bash
+alucard omr validate --config exam.yaml --roster inscriptos.csv
+alucard omr build --config exam.yaml --roster inscriptos.csv --out dist/P1/
+alucard omr verify-geometry --pdf dist/P1/examenes_P1.pdf --manifest dist/P1/layout_OMR5E_v7.json
+```
+
+Con `--modo planilla`, las burbujas no ocupan lugar en las hojas de los estudiantes: los exámenes
+salen sin franja y `planilla_<exam_id>.pdf` reúne el marco OMR de cada estudiante, con su nombre y su
+QR, varios por hoja. El docente carga ahí las notas y las digitaliza con la misma app.
+
+Ver [Exámenes con carátula OMR](https://github.com/INGCOM-UNRN/alucarD/blob/master/MANUAL.md#exámenes-con-carátula-omr-alucard-omr).
+
+### Diagramas de control de procesos
+
+En un bloque ```` ```estructura ```` de la pregunta:
+
+```yaml
+type: bode
+system: {k: 1, poles: [0, -1, -2]}
+margins: true
+blankMargins: true     # los márgenes quedan para completar
+```
+
+Tipos: `block_diagram`, `time_response`, `bode`, `nyquist`, `pole_zero`, `root_locus`,
+`instrumentation` (P&ID, ISA-5.1), `ladder` y `grafcet`. Ver
+[Control de procesos](https://github.com/INGCOM-UNRN/alucarD/blob/master/MANUAL.md#control-de-procesos).
+
+---
+
+## Testing y Calidad
+
+### Ejecutar Tests
+
+```bash
+# Todos los tests
+pytest
+
+# Con cobertura
+pytest --cov=generador_examenes --cov-report=html
+
+# Tests específicos
+pytest tests/test_parsers.py
+pytest tests/test_logic.py -v
+```
+
+### Estructura de Tests
+
+```
+tests/
+├── test_parsers.py          # Tests de parsers GIFT/XML
+├── test_logic.py            # Tests de lógica de negocio
+├── test_models.py           # Tests de modelos Pydantic
+├── test_generators.py       # Tests de renderizado
+├── test_markdown_utils.py   # Tests de Markdown
+├── test_registro.py         # Registro de exámenes y análisis de ítems
+├── test_omr.py              # Carátula OMR, QR, nómina y geometría
+├── test_diagramas_control.py # Cuentas y SVG de control de procesos
+└── bancos_ejemplo/          # Datos de prueba
+    ├── banco_test.txt
+    └── banco_test.xml
+```
+
+### Validación de Exámenes de Prueba
+
+```bash
+# Validar todas las configuraciones de prueba
+for config in examenes_prueba/*.yaml; do
+    echo "Validando $config"
+    alucard validar -d "$config" \
+        -i bancos/*.xml bancos/*.txt bancos/*.gift
+done
+```
+
+### Métricas de Calidad
+
+- **1329 tests** pasando
+- **90% cobertura** de código
+- **0 errores** de linting
+- **Type hints** completos
+- **Docstrings** en todas las funciones públicas
+
+---
+
+## Arquitectura
+
+### Estructura del Proyecto
+
+```
+generador_examenes/
+├── __main__.py              # CLI principal
+├── core/
+│   ├── logic.py            # Orquestación y filtrado
+│   ├── models.py           # Modelos Pydantic
+│   ├── registro.py         # Registro de exámenes tomados y análisis de ítems
+│   ├── esquemas/           # JSON Schema del registro (alucard-examen/1)
+│   └── markdown_utils.py   # Procesamiento Markdown
+├── diagramas.py            # Bloques ```estructura → SVG
+├── diagramas_control.py    # Diagramas de control de procesos
+├── control.py              # Cuentas de control (raíces, simulación, márgenes)
+├── omr/                    # Carátula OMR (OMR_SPEC.md): layout, QR, nómina, lote, geometría
+├── parsers/                # Plugins de entrada
+│   ├── base.py            # BaseParser ABC
+│   ├── gift_parser.py     # Parser GIFT
+│   └── moodle_parser.py   # Parser XML Moodle
+├── generators/             # Plugins de salida
+│   ├── base.py            # BaseRenderer ABC
+│   ├── html_renderer.py   # Generador HTML
+│   └── pdf_renderer.py    # Generador PDF
+└── config/
+    ├── logging_config.py   # Configuración de logs
+    └── exam_wizard.py      # Asistente interactivo
+
+templates/                   # Plantillas Jinja2 (HTML) y Typst (PDF)
+├── base_examen.html.j2
+├── base_examen.typ.j2
+├── clave_profesor.html.j2
+├── clave_profesor.typ.j2
+└── omr/caratula.typ
+
+i18n/                       # Internacionalización
+├── es.json
+└── en.json
+```
+
+### Flujo de Ejecución
+
+```
+1. CLI (__main__.py)
+   ↓
+2. Validar YAML (Pydantic models)
+   ↓
+3. Cargar Bancos (Parsers)
+   ↓
+4. Construir Pool (Logic)
+   ↓
+5. Mezclar Preguntas (Logic)
+   ↓
+6. Renderizar (Generators)
+   ↓
+7. Guardar HTML/PDF
+```
+
+### Extensibilidad
+
+#### Agregar Nuevo Parser
+
+```python
+# parsers/mi_parser.py
+from generador_examenes.parsers.base import BaseParser
+
+class MiParser(BaseParser):
+    @staticmethod
+    def get_supported_extensions() -> list[str]:
+        return ['.miformat']
+    
+    def parse(self, filepath: Path) -> Dict[str, Pregunta]:
+        # Tu lógica aquí
+        return preguntas_dict
+```
+
+#### Agregar Nuevo Renderer
+
+```python
+# generators/mi_renderer.py
+from generador_examenes.generators.base import BaseRenderer
+
+class MiRenderer(BaseRenderer):
+    @staticmethod
+    def get_supported_formats() -> list[str]:
+        return ['miformat']
+    
+    def renderizar_examen(self, examen_data, definicion, output_dir, tema):
+        # Tu lógica aquí
+        pass
+```
+
+---
+
+## Documentación Adicional
+
+Este proyecto incluye documentación completa y detallada:
+
+### Documentos Principales
+
+1. **[README.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/README.md)** - Este archivo: Guía completa de uso
+2. **[CHANGELOG.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/CHANGELOG.md)** - Historial de cambios y versiones
+3. **[COMPLIANCE_REPORT.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/.docs_backup/COMPLIANCE_REPORT.md)** - Verificación de cumplimiento con especificaciones
+4. **[descripcion.md](https://github.com/INGCOM-UNRN/alucarD/blob/master/.docs_backup/descripcion.md)** - Especificaciones técnicas originales del proyecto
+
+### Documentación en el Código
+
+- **Docstrings**: Todas las clases y funciones públicas documentadas (Google Style)
+- **Type Hints**: Tipado completo en todas las funciones
+- **Comentarios**: Explicaciones en lógica compleja
+
+### Tests como Documentación
+
+Los tests sirven como documentación viva del comportamiento esperado:
+- `tests/test_parsers.py` - Ejemplos de uso de parsers
+- `tests/test_logic.py` - Flujos de filtrado y construcción
+- `tests/test_integration.py` - Escenarios end-to-end
+- `tests/test_layouts.py` - Comportamiento de layouts
+
+### Exámenes de Ejemplo
+
+El directorio `examenes_prueba/` contiene 6 configuraciones completas que sirven como ejemplos prácticos:
+1. `examen_01_basico.yaml` - Configuración mínima
+2. `examen_02_algoritmos.yaml` - Filtrado por categoría
+3. `examen_03_completo.yaml` - Uso avanzado
+4. `examen_04_mixto.yaml` - Múltiples layouts
+5. `examen_05_personalizado.yaml` - Variables personalizadas
+6. `examen_06_layouts.yaml` - Demostración de layouts
+
+Cada uno incluye comentarios explicativos en YAML.
+
+### Reportes de Verificación
+
+- **COMPLIANCE_REPORT.md**: Verificación punto por punto del cumplimiento con `descripcion.md`
+  - ✅ 100% cumplimiento confirmado
+  - ✅ 11 mejoras adicionales documentadas
+  - ✅ 231 tests, 76% cobertura
+  - ✅ Estado: PRODUCCIÓN READY
+
+---
+
+## Especificación Técnica
+
+### Arquitectura de Plugins
+
+El proyecto utiliza **Clases Base Abstractas (ABC)** para extensibilidad:
+
+#### Parsers (Entrada)
+```python
+class BaseParser(ABC):
+    @abstractmethod
+    def parse(self, filepath: Path) -> Dict[str, Pregunta]:
+        """Parsea archivo y retorna diccionario de preguntas"""
+        pass
+```
+
+**Implementaciones**:
+- `GiftParser`: Formato GIFT de Moodle (.txt, .gift)
+- `MoodleParser`: Formato XML de Moodle (.xml)
+
+**Agregar nuevo parser**:
+1. Heredar de `BaseParser`
+2. Implementar método `parse()`
+3. Registrar en `parsers/__init__.py`
+
+#### Renderers (Salida)
+```python
+class BaseRenderer(ABC):
+    @abstractmethod
+    def renderizar_examen(self, datos_examen: Dict, 
+                         definicion: DefinicionExamen, 
+                         output_dir: Path, tema: int):
+        """Genera archivo de examen"""
+        pass
+```
+
+**Implementaciones**:
+- `HtmlRenderer`: Genera HTML con Jinja2
+- `PdfRenderer`: Genera PDF con Typst (plantillas `.typ.j2`)
+
+**Agregar nuevo renderer**:
+1. Heredar de `BaseRenderer`
+2. Implementar métodos de renderizado
+3. Registrar en `generators/__init__.py`
+
+### Flujo de Ejecución
+
+```
+1. CLI Args Parse (argparse)
+   ↓
+2. Load YAML (pyyaml + pydantic)
+   ↓
+3. Validar Definición (Pydantic models)
+   ↓
+4. Cargar Bancos (BaseParser plugins)
+   ↓
+5. Procesar Imágenes (base64 embedding)
+   ↓
+6. Filtrar Preguntas (categorías/tags/tipos)
+   ↓
+7. Construir Pool (selección + puntajes)
+   ↓
+8. Mezclar (random con semilla)
+   ↓
+9. Renderizar (BaseRenderer plugins)
+   ↓
+10. Guardar Archivos (HTML/PDF)
+```
+
+### Modelos Pydantic
+
+```python
+# Modelo de entrada (YAML)
+DefinicionExamen
+  ├── ConfiguracionExamen
+  ├── List[SeccionExamen]
+  │   └── List[PoolConfig]
+  └── Dict[str, str] variables_personalizadas
+
+# Modelo de datos interno
+Pregunta
+  ├── id: str
+  ├── tipo: Literal[tipos]
+  ├── categoria: str
+  ├── enunciado_html: str
+  ├── puntaje: float
+  ├── List[Opcion]
+  ├── List[etiquetas]
+  └── fuente_banco: str
+```
+
+### Dependencias Core
+
+| Librería | Versión | Propósito |
+|----------|---------|-----------|
+| **pydantic** | ≥2.10 | Validación de YAML |
+| **pyyaml** | ≥6.0 | Parseo YAML |
+| **jinja2** | ≥3.1 | Templating HTML |
+| **typst** | ≥0.11 | Generación PDF (obligatorio) |
+| **pygments** | ≥2.18 | Syntax highlighting |
+| **rich** | ≥13.9 | CLI interactiva |
+| **typer** | ≥0.12 | Subcomandos de la CLI |
+| **pypdf** | ≥6.16 | Unión y control de PDFs |
+| **segno** | ≥1.6 | QR de la carátula OMR |
+| **jsonschema** | ≥4.20 | Validación del manifiesto OMR y del registro |
+
+### Testing
+
+```bash
+# Ejecutar todos los tests
+pytest
+
+# Con cobertura
+pytest --cov=generador_examenes --cov-report=html
+
+# Tests específicos
+pytest tests/test_parsers.py -v
+pytest tests/test_logic.py -k filtrado
+```
+
+**Coverage Target**: > 70% para features críticas
+
+---
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `typst`.
+
+| Sistema | `typst` |
+|:--|:--|
+| Debian / Ubuntu | binario de https://github.com/typst/typst/releases |
+| Fedora | binario de https://github.com/typst/typst/releases |
+| Windows | `winget install --id Typst.Typst` |
+| macOS | `brew install typst` |
+
+### Opciones de `alucard`
+
+| Opción | Descripción |
+|:--|:--|
+| `--definicion`, `-d` | Definición YAML del examen; repetila para varios exámenes, cada uno en su subcarpeta (sin -d: la clave definicion de alucard.toml) |
+| `--input-banco`, `-i` | Ruta(s) a los bancos de preguntas: archivos o carpetas, con sus subcarpetas (tiene prioridad sobre el YAML) |
+| `--output-dir`, `-o` | Directorio de salida para los exámenes generados (tiene prioridad sobre el YAML y alucard.toml; si no está en ninguno: ./output) |
+| `--path-images`, `-p` | Ruta al directorio de imágenes referenciadas en las preguntas (tiene prioridad sobre el YAML) |
+| `--numero-temas`, `-n` | Número de temas/versiones a generar (tiene prioridad sobre el YAML; si no está en ninguno: 1) |
+| `--semilla`, `-s` | Semilla pseudo-aleatoria para generación (tiene prioridad sobre el YAML; si no está en ninguno: 42) |
+| `--formato`, `-f` | Formato(s) de salida: html y/o pdf (tiene prioridad sobre el YAML; si no está en ninguno: html) |
+| `--template`, `--typst-template`, `-t` | Ruta a una plantilla Typst personalizada (.typ / .typ.j2) para generación de PDF |
+| `--lt-server` | URL del servidor LanguageTool (por defecto http://localhost:8081 y API pública) |
+| `--lt-username` | Usuario / email de LanguageTool Premium |
+| `--lt-api-key` | API Key / Token de LanguageTool Premium |
+| `--lt-premium` | Forzar uso de la API LanguageTool Premium |
+| `--lt-lang` | Código de idioma para LanguageTool. [por defecto: es-AR] |
+| `--lt-ignore-rules` | Reglas de LanguageTool a ignorar separadas por comas |
+| `--lt-ignore-words` | Palabras personalizadas a ignorar separadas por comas |
+| `--lt-fix` | Aplica correcciones ortográficas automáticas |
+| `--md`, `--output-md` | Genera reporte de auditoría en formato Markdown |
+| `--json` | Emite salida estructurada en formato JSON |
+| `--debug` | Activar modo debug con logging detallado |
+| `--omr` | Generar hoja de respuestas OMR de lectura óptica y descriptor JSON |
+| `--accessible`, `--large-text` | Generar versión con letra grande y contraste adaptado para accesibilidad |
+| `--bundle-print`, `--empaquetar-imprenta` | Empaquetar y concatenar los PDFs de todos los temas en un único archivo para imprenta |
+| `--audit-typography` | Auditar calidad tipográfica y líneas huérfanas en bloques de código de preguntas |
+| `--registrar` | Anotar el examen generado en el registro de exámenes tomados (como `alucard registro guardar`) |
+| `--cuatrimestre` | o la fecha del examen) |
+| `--registro-id` | Id del examen en el registro (por omisión, el nombre del archivo de la definición) |
+| `--forzar` | Reemplazar un registro con resultados aunque cambien las preguntas (los descarta) |
+| `--watch`, `-w` | Volver a generar cada vez que cambia la definición, un banco, una consigna o una imagen (Ctrl+C termina) |
+
+### Comandos de `alucard`
+
+| Comando | Descripción |
+|:--|:--|
+| `alucard generar` | Genera los temas de una o más definiciones YAML (HTML y/o PDF, claves, OMR). Sin -d, las de alucard.toml. |
+| `alucard validar` | Valida una o más definiciones y sus pools sin generar archivos. Sin -d, las de alucard.toml. |
+| `alucard ortografia` | Revisa ortografía y gramática de las preguntas con LanguageTool. |
+| `alucard iniciar` | Crea un proyecto de ejemplo en la carpeta actual (definición, banco y plantillas). |
+| `alucard asistente` | Asistente interactivo para crear o editar la definición de un examen. |
+| `alucard categorias` | Árbol HTML de las categorías de uno o más bancos; con --resumen, el inventario en la terminal. |
+| `alucard ver` | Vista previa de una pregunta (o de un banco) como sale en el examen, con sus diagramas. |
+| `alucard build` | Genera los temas en PDF desde un banco (sin YAML basta -i, --consignas o --repositorio) y audita el balance de claves. |
+| `alucard balance-check` | Audita que ninguna letra sea la correcta en más del 30 % de los casos en las variantes generadas. |
+| `alucard lint-gift` | Revisa (y con --fix corrige) bancos GIFT: formato, compatibilidad con Moodle, bloques estructura y, con --compilar, el código C. |
+| `alucard sintetizar` | Genera un banco de preguntas de C con daedalus: cada respuesta se verifica con gcc. |
+| `alucard repartir` | Reparte los temas en PDF entre los estudiantes, para entregarlos cifrados con uatu. |
+| `alucard diagramas-md` | Dibuja los bloques ```estructura de los Markdown como SVG versionados, para publicarlos sin alucarD. |
+| `alucard diagrama` | Dibuja estructuras de datos y diagramas de algoritmos como SVG, con el formato de bloques de statics. |
+| `alucard doctor` | Diagnostica gcc, Typst, pypdf y conectividad LanguageTool. |
+| `alucard registro` | Registro de exámenes tomados: preguntas usadas en el cuatrimestre y calidad de cada pregunta. |
+| `alucard omr` | Exámenes con carátula OMR para la app Escáner OMR (OMR_SPEC.md). |
+
+Ayuda de cada comando: `alucard <comando> -h`.
+
+### Salida JSON de `alucard`
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `alucard generar`, `alucard validar`, `alucard ortografia`, `alucard balance-check`, `alucard sintetizar`, `alucard doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-alucard-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `alucard`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `alucard render <examen.yaml>` | Compila el examen a PDF listo para impresión usando Typst. |
-| `alucard randomize <examen.yaml> -n 4` | Genera 4 variantes/temas con opciones y ejercicios permutados. |
-| `alucard omr-grid <examen.yaml>` | Genera la grilla de lectura óptica OMR para corrección rápida. |
-| `alucard gift-lint <preguntas.gift>` | Audita la sintaxis y completitud de bancos de preguntas en formato GIFT. |
-| `alucard spellcheck <examen.yaml>` | Verifica ortografía y gramática de enunciados con LanguageTool. |
+:::{dropdown} `alucard`
+:open:
 
-::::{tip}
+```text
+ Uso: alucard [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Generador de exámenes basado en plantillas YAML y bancos Moodle/GIFT.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-alucard-ejemplos)=
-## Ejemplos y Contraejemplos
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Marcá la respuesta correcta con `=` y los distractores con `~`. Auditá el
-banco sin modificarlo:
-
-````{code-block} bash
-cat <<'EOF' | alucard lint-gift /dev/stdin
-::Capital::¿Cuál es la capital de Río Negro? {=Viedma ~Bariloche}
-EOF
-
-````
-<!-- {code-block} bash -->
-
-La pregunta respeta la sintaxis GIFT que valida `lint-gift`. La herramienta
-informa una pregunta válida, sin errores ni advertencias:
-
-````{code-block} text
-============================================================
-LINTER GIFT - Analizador de Bancos de Preguntas
-============================================================
-
-============================================================
-Analizando: stdin
-============================================================
-
-✅ Archivo válido, sin errores
-
-Resumen:
-  Total preguntas: 1
-  Válidas: 1
-  Errores: 0
-  Advertencias: 0
-
-============================================================
-Total archivos: 1
-Estado: ✅ Todos sin errores
-============================================================
-
-````
-<!-- {code-block} text -->
-
-### Contraejemplo (Antipatrón o Caso Infractor)
-
-Si omitís `=` delante de la respuesta correcta, `lint-gift` informa que no hay
-respuesta correcta y que falta una segunda opción válida:
-
-````{code-block} bash
-cat <<'EOF' | alucard lint-gift /dev/stdin
-::Capital::¿Cuál es la capital de Río Negro? {Viedma ~Bariloche}
-EOF
-
-````
-<!-- {code-block} bash -->
-
-La salida concreta incluye estos errores:
-
-````{code-block} text
-Problemas encontrados:
-  Línea 1 (Capital): Opción múltiple sin respuesta correcta (=)
-  Línea 1 (Capital): Menos de 2 opciones
-
-Resumen:
-  Total preguntas: 1
-  Válidas: 0
-  Errores: 2
-  Advertencias: 0
-
-============================================================
-Total archivos: 1
-Estado: ⚠️  Algunos con errores
-============================================================
-
-````
-<!-- {code-block} text -->
-
----
-
-(manual-alucard-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Pregunta de seguimiento de código para examen
-int vec[] = {10, 20, 30, 40};
-int *p = vec + 1;
-*p += 5;
-*(p + 2) -= 10;
-printf("%d, %d\n", vec[1], vec[3]); // ¿Qué valor imprime?
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-alucard render <examen.yaml>
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] Compilando parcial_tema_1.typ -> parcial_tema_1.pdf (Typst 0.11)
-[✓] Generada variante Tema 2 (semilla: 0xDEADBEEF) -> parcial_tema_2.pdf
-[✓] Generada hoja de lectura óptica OMR de 20 preguntas -> omr_respuestas.pdf
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-alucard-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`alucarD`** resolviendo los siguientes ejercicios:
-
-::::{exercise} Desafío 1: Generación de Parcial con 3 Temas
-:label: alucard-desafio-1
-Definir un archivo `parcial.yaml` y compilar 3 temas con opciones permutadas.
-
-**Instrucción de ejecución:**
-``` bash
-alucard randomize parcial.yaml -n 3 -o ./pdf_temas
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version                             -v              Muestra la versión de alucard y sale.      │
+│ --definicion                          -d      <path>  Definición YAML del examen; repetila para  │
+│                                                       varios exámenes, cada uno en su subcarpeta │
+│                                                       (sin -d: la clave definicion de            │
+│                                                       alucard.toml)                              │
+│ --input-banco                         -i      <path>  Ruta(s) a los bancos de preguntas:         │
+│                                                       archivos o carpetas, con sus subcarpetas   │
+│                                                       (tiene prioridad sobre el YAML)            │
+│ --output-dir                          -o      <path>  Directorio de salida para los exámenes     │
+│                                                       generados (tiene prioridad sobre el YAML y │
+│                                                       alucard.toml; si no está en ninguno:       │
+│                                                       ./output)                                  │
+│ --path-images                         -p      <path>  Ruta al directorio de imágenes             │
+│                                                       referenciadas en las preguntas (tiene      │
+│                                                       prioridad sobre el YAML)                   │
+│ --numero-temas                        -n      <int>   Número de temas/versiones a generar (tiene │
+│                                                       prioridad sobre el YAML; si no está en     │
+│                                                       ninguno: 1)                                │
+│ --semilla                             -s      <int>   Semilla pseudo-aleatoria para generación   │
+│                                                       (tiene prioridad sobre el YAML; si no está │
+│                                                       en ninguno: 42)                            │
+│ --formato                             -f      <str>   Formato(s) de salida: html y/o pdf (tiene  │
+│                                                       prioridad sobre el YAML; si no está en     │
+│                                                       ninguno: html)                             │
+│ --template,--typst-template           -t      <path>  Ruta a una plantilla Typst personalizada   │
+│                                                       (.typ / .typ.j2) para generación de PDF    │
+│ --lt-server                                   <str>   URL del servidor LanguageTool (por defecto │
+│                                                       http://localhost:8081 y API pública)       │
+│ --lt-username                                 <str>   Usuario / email de LanguageTool Premium    │
+│ --lt-api-key                                  <str>   API Key / Token de LanguageTool Premium    │
+│ --lt-premium                                          Forzar uso de la API LanguageTool Premium  │
+│ --lt-lang                                     <str>   Código de idioma para LanguageTool.        │
+│                                                       [por defecto: es-AR]                       │
+│ --lt-ignore-rules                             <str>   Reglas de LanguageTool a ignorar separadas │
+│                                                       por comas                                  │
+│ --lt-ignore-words                             <str>   Palabras personalizadas a ignorar          │
+│                                                       separadas por comas                        │
+│ --lt-fix                                              Aplica correcciones ortográficas           │
+│                                                       automáticas                                │
+│ --md,--output-md                              <path>  Genera reporte de auditoría en formato     │
+│                                                       Markdown                                   │
+│ --json                                                Emite salida estructurada en formato JSON  │
+│ --debug                                               Activar modo debug con logging detallado   │
+│ --omr                                                 Generar hoja de respuestas OMR de lectura  │
+│                                                       óptica y descriptor JSON                   │
+│ --accessible,--large-text                             Generar versión con letra grande y         │
+│                                                       contraste adaptado para accesibilidad      │
+│ --bundle-print,--empaquetar-imprenta                  Empaquetar y concatenar los PDFs de todos  │
+│                                                       los temas en un único archivo para         │
+│                                                       imprenta                                   │
+│ --audit-typography                                    Auditar calidad tipográfica y líneas       │
+│                                                       huérfanas en bloques de código de          │
+│                                                       preguntas                                  │
+│ --registrar                                           Anotar el examen generado en el registro   │
+│                                                       de exámenes tomados (como `alucard         │
+│                                                       registro guardar`)                         │
+│ --cuatrimestre                                <str>   Cuatrimestre del registro, como 2026-2C    │
+│                                                       (por omisión, el de registro:,  o la fecha │
+│                                                       del examen)                                │
+│ --registro-id                                 <str>   Id del examen en el registro (por omisión, │
+│                                                       el nombre del archivo de la definición)    │
+│ --forzar                                              Reemplazar un registro con resultados      │
+│                                                       aunque cambien las preguntas (los          │
+│                                                       descarta)                                  │
+│ --watch                               -w              Volver a generar cada vez que cambia la    │
+│                                                       definición, un banco, una consigna o una   │
+│                                                       imagen (Ctrl+C termina)                    │
+│ --show-completion                                     Muestra el autocompletado para la terminal │
+│                                                       actual, para copiarlo o adaptarlo.         │
+│ --install-completion                                  Instala el autocompletado para la terminal │
+│                                                       actual.                                    │
+│ --help                                -h              Muestra esta ayuda y sale.                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ generar         Genera los temas de una o más definiciones YAML (HTML y/o PDF, claves, OMR). Sin │
+│                 -d, las de alucard.toml.                                                         │
+│ validar         Valida una o más definiciones y sus pools sin generar archivos. Sin -d, las de   │
+│                 alucard.toml.                                                                    │
+│ ortografia      Revisa ortografía y gramática de las preguntas con LanguageTool.                 │
+│ iniciar         Crea un proyecto de ejemplo en la carpeta actual (definición, banco y            │
+│                 plantillas).                                                                     │
+│ asistente       Asistente interactivo para crear o editar la definición de un examen.            │
+│ categorias      Árbol HTML de las categorías de uno o más bancos; con --resumen, el inventario   │
+│                 en la terminal.                                                                  │
+│ ver             Vista previa de una pregunta (o de un banco) como sale en el examen, con sus     │
+│                 diagramas.                                                                       │
+│ build           Genera los temas en PDF desde un banco (sin YAML basta -i, --consignas o         │
+│                 --repositorio) y audita el balance de claves.                                    │
+│ balance-check   Audita que ninguna letra sea la correcta en más del 30 % de los casos en las     │
+│                 variantes generadas.                                                             │
+│ lint-gift       Revisa (y con --fix corrige) bancos GIFT: formato, compatibilidad con Moodle,    │
+│                 bloques estructura                                                               │
+│                 y, con --compilar, el código C.                                                  │
+│ sintetizar      Genera un banco de preguntas de C con daedalus: cada respuesta se verifica con   │
+│                 gcc.                                                                             │
+│ repartir        Reparte los temas en PDF entre los estudiantes, para entregarlos cifrados con    │
+│                 uatu.                                                                            │
+│ diagramas-md    Dibuja los bloques ```estructura de los Markdown como SVG versionados, para      │
+│                 publicarlos sin alucarD.                                                         │
+│ diagrama        Dibuja estructuras de datos y diagramas de algoritmos como SVG, con el formato   │
+│                 de bloques de statics.                                                           │
+│ doctor          Diagnostica gcc, Typst, pypdf y conectividad LanguageTool.                       │
+│ registro        Registro de exámenes tomados: preguntas usadas en el cuatrimestre y calidad de   │
+│                 cada pregunta.                                                                   │
+│ omr             Exámenes con carátula OMR para la app Escáner OMR (OMR_SPEC.md).                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Generación de Parcial con 3 Temas -->
+:::{dropdown} `alucard generar`
 
-::::{solution} alucard-desafio-1
+```text
+ Uso: alucard generar [OPCIONES]
 
-``` bash
-alucard randomize parcial.yaml -n 3 -o ./pdf_temas
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Genera los temas de una o más definiciones YAML (HTML y/o PDF, claves, OMR). Sin -d, las de
+ alucard.toml.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --definicion                          -d      <path>  Definición YAML del examen; repetila para  │
+│                                                       varios exámenes, cada uno en su subcarpeta │
+│                                                       (sin -d: la clave definicion de            │
+│                                                       alucard.toml)                              │
+│ --input-banco                         -i      <path>  Ruta(s) a los bancos de preguntas:         │
+│                                                       archivos o carpetas, con sus subcarpetas   │
+│                                                       (tiene prioridad sobre el YAML)            │
+│ --output-dir                          -o      <path>  Directorio de salida para los exámenes     │
+│                                                       generados (tiene prioridad sobre el YAML y │
+│                                                       alucard.toml; si no está en ninguno:       │
+│                                                       ./output)                                  │
+│ --path-images                         -p      <path>  Ruta al directorio de imágenes             │
+│                                                       referenciadas en las preguntas (tiene      │
+│                                                       prioridad sobre el YAML)                   │
+│ --numero-temas                        -n      <int>   Número de temas/versiones a generar (tiene │
+│                                                       prioridad sobre el YAML; si no está en     │
+│                                                       ninguno: 1)                                │
+│ --semilla                             -s      <int>   Semilla pseudo-aleatoria para generación   │
+│                                                       (tiene prioridad sobre el YAML; si no está │
+│                                                       en ninguno: 42)                            │
+│ --formato                             -f      <str>   Formato(s) de salida: html y/o pdf (tiene  │
+│                                                       prioridad sobre el YAML; si no está en     │
+│                                                       ninguno: html)                             │
+│ --template,--typst-template           -t      <path>  Ruta a una plantilla Typst personalizada   │
+│                                                       (.typ / .typ.j2) para generación de PDF    │
+│ --json                                                Emite salida estructurada en formato JSON  │
+│ --debug                                               Activar modo debug con logging detallado   │
+│ --omr                                                 Generar hoja de respuestas OMR de lectura  │
+│                                                       óptica y descriptor JSON                   │
+│ --accessible,--large-text                             Generar versión con letra grande y         │
+│                                                       contraste adaptado para accesibilidad      │
+│ --bundle-print,--empaquetar-imprenta                  Empaquetar y concatenar los PDFs de todos  │
+│                                                       los temas en un único archivo para         │
+│                                                       imprenta                                   │
+│ --audit-typography                                    Auditar calidad tipográfica y líneas       │
+│                                                       huérfanas en bloques de código de          │
+│                                                       preguntas                                  │
+│ --registrar                                           Anotar el examen generado en el registro   │
+│                                                       de exámenes tomados (como `alucard         │
+│                                                       registro guardar`)                         │
+│ --cuatrimestre                                <str>   Cuatrimestre del registro, como 2026-2C    │
+│                                                       (por omisión, el de registro:,  o la fecha │
+│                                                       del examen)                                │
+│ --registro-id                                 <str>   Id del examen en el registro (por omisión, │
+│                                                       el nombre del archivo de la definición)    │
+│ --forzar                                              Reemplazar un registro con resultados      │
+│                                                       aunque cambien las preguntas (los          │
+│                                                       descarta)                                  │
+│ --watch                               -w              Volver a generar cada vez que cambia la    │
+│                                                       definición, un banco, una consigna o una   │
+│                                                       imagen (Ctrl+C termina)                    │
+│ --help                                -h              Muestra esta ayuda y sale.                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} alucard-desafio-1 -->
+:::{dropdown} `alucard validar`
 
-::::{exercise} Desafío 2: Auditoría de Banco GIFT
-:label: alucard-desafio-2
-Validar que `preguntas.gift` no tenga opciones correctas faltantes.
+```text
+ Uso: alucard validar [OPCIONES]
 
-**Instrucción de ejecución:**
-``` bash
-alucard gift-lint preguntas.gift --fix
+ Valida una o más definiciones y sus pools sin generar archivos. Sin -d, las de alucard.toml.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --definicion   -d      <path>  Definición YAML del examen; repetila para varios exámenes, cada   │
+│                                uno en su subcarpeta (sin -d: la clave definicion de              │
+│                                alucard.toml)                                                     │
+│ --input-banco  -i      <path>  Ruta(s) a los bancos de preguntas: archivos o carpetas, con sus   │
+│                                subcarpetas (tiene prioridad sobre el YAML)                       │
+│ --json                         Emite salida estructurada en formato JSON                         │
+│ --debug                        Activar modo debug con logging detallado                          │
+│ --help         -h              Muestra esta ayuda y sale.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Auditoría de Banco GIFT -->
+:::{dropdown} `alucard ortografia`
 
-::::{solution} alucard-desafio-2
+```text
+ Uso: alucard ortografia [OPCIONES]
 
-``` bash
-alucard gift-lint preguntas.gift --fix
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
+ Revisa ortografía y gramática de las preguntas con LanguageTool.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --definicion       -d      <path>  Definición YAML del examen; repetila para varios exámenes,    │
+│                                    cada uno en su subcarpeta (sin -d: la clave definicion de     │
+│                                    alucard.toml)                                                 │
+│ --input-banco      -i      <path>  Ruta(s) a los bancos de preguntas: archivos o carpetas, con   │
+│                                    sus subcarpetas (tiene prioridad sobre el YAML)               │
+│ --lt-server                <str>   URL del servidor LanguageTool (por defecto                    │
+│                                    http://localhost:8081 y API pública)                          │
+│ --lt-username              <str>   Usuario / email de LanguageTool Premium                       │
+│ --lt-api-key               <str>   API Key / Token de LanguageTool Premium                       │
+│ --lt-premium                       Forzar uso de la API LanguageTool Premium                     │
+│ --lt-lang                  <str>   Código de idioma para LanguageTool. [por defecto: es-AR]      │
+│ --lt-ignore-rules          <str>   Reglas de LanguageTool a ignorar separadas por comas          │
+│ --lt-ignore-words          <str>   Palabras personalizadas a ignorar separadas por comas         │
+│ --lt-fix                           Aplica correcciones ortográficas automáticas                  │
+│ --md,--output-md           <path>  Genera reporte de auditoría en formato Markdown               │
+│ --json                             Emite salida estructurada en formato JSON                     │
+│ --debug                            Activar modo debug con logging detallado                      │
+│ --help             -h              Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} alucard-desafio-2 -->
+:::{dropdown} `alucard iniciar`
 
-::::{exercise} Desafío 3: Corrección Ortográfica con LanguageTool
-:label: alucard-desafio-3
-Verificar enunciados docentes antes de imprimir el examen.
+```text
+ Uso: alucard iniciar [OPCIONES]
 
-**Instrucción de ejecución:**
-``` bash
-alucard spellcheck parcial.yaml --lang es-AR
+ Crea un proyecto de ejemplo en la carpeta actual (definición, banco y plantillas).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 3: Corrección Ortográfica con LanguageTool -->
+:::{dropdown} `alucard asistente`
 
-::::{solution} alucard-desafio-3
+```text
+ Uso: alucard asistente [OPCIONES] {yaml}
 
-``` bash
-alucard spellcheck parcial.yaml --lang es-AR
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
+ Asistente interactivo para crear o editar la definición de un examen.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    yaml      <path>  Definición YAML a crear o editar. [obligatorio]                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} alucard-desafio-3 -->
+:::{dropdown} `alucard categorias`
 
----
+```text
+ Uso: alucard categorias [OPCIONES] [bancos]...
 
-(manual-alucard-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
+ Árbol HTML de las categorías de uno o más bancos; con --resumen, el inventario en la terminal.
 
-Para incorporar `alucarD` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   bancos      <path>  Bancos (archivos, o carpetas de preguntas o consignas deckard); sin ellos, │
+│                       los de la definición.                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --definicion  -d      <path>  Suma las fuentes de la definición (y con --resumen, revisa sus     │
+│                               pools).                                                            │
+│ --resumen                     Tabla en la terminal: preguntas por categoría y tipo, y si cada    │
+│                               pool tiene las que pide.                                           │
+│ --help        -h              Muestra esta ayuda y sale.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-````{code-block} makefile
-check-alucard:
-	@echo "=== Ejecutando verificación con alucarD ==="
-	alucard check src/ include/
+:::{dropdown} `alucard ver`
 
-.PHONY: check-alucard
+```text
+ Uso: alucard ver [OPCIONES] {banco}
 
-````
-<!-- {code-block} makefile -->
+ Vista previa de una pregunta (o de un banco) como sale en el examen, con sus diagramas.
 
-Ejecutá `make check-alucard` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    banco      <file>  Banco GIFT o Moodle XML. [obligatorio]                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --pregunta     -q                <str>               Título (o parte) o id de la pregunta; sin   │
+│                                                      esto, todo el banco.                        │
+│ --linea        -l                <int range> [x>=1]  GIFT: la pregunta que contiene esa línea    │
+│                                                      del archivo.                                │
+│ --formato      -f                <str>               html o pdf. [por defecto: html]             │
+│ --output-dir   -o                <path>              Dónde dejarla.                              │
+│                                                      [por defecto: output/vista_previa]          │
+│ --path-images  -p                <path>              Imágenes de las preguntas.                  │
+│ --clave                                              También la versión con las respuestas       │
+│                                                      correctas.                                  │
+│ --abrir            --no-abrir                        Abrirla con el visor del sistema.           │
+│                                                      [por defecto: abrir]                        │
+│ --watch        -w                                    Volver a armarla cada vez que se guarda el  │
+│                                                      banco (Ctrl+C termina).                     │
+│ --help         -h                                    Muestra esta ayuda y sale.                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
----
+:::{dropdown} `alucard build`
 
-(manual-alucard-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
+```text
+ Uso: alucard build [OPCIONES]
 
-La herramienta **`alucarD`** implementa un motor de alta precisión basado en:
+ Genera los temas en PDF desde un banco (sin YAML basta -i, --consignas o --repositorio) y audita
+ el balance de claves.
 
-- **Tecnología Núcleo:** `Typst 0.11 + PyYAML + PyMuPDF + OpenCV (OMR) +
-  LanguageTool API`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
+ Cada tema reparte la opción correcta entre las letras (la menos usada, sin rachas); al terminar se
+ muestra en qué letra quedó la correcta en cada tema. Sale con 1 si la generación falla o si alguna
+ letra supera el umbral.
 
----
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --input-banco   -i      <path>                       Banco(s) de preguntas: Moodle XML (el de    │
+│                                                      idkfa), GIFT… o carpetas, con sus           │
+│                                                      subcarpetas. Reemplaza al input_banco de la │
+│                                                      definición.                                 │
+│ --consignas             <directory>                  Carpeta de consignas prácticas deckard (se  │
+│                                                      suma a input_consignas). Repetible.         │
+│ --repositorio           <path>                       Repositorio externo de la computadora:      │
+│                                                      carpeta de bancos GIFT/XML o de consignas   │
+│                                                      deckard (se suma a repositorios_externos,   │
+│                                                      tipo auto). Repetible.                      │
+│ --definicion    -d      <file>                       Definición YAML; sin ella, una sección con  │
+│                                                      todas las preguntas.                        │
+│ --numero-temas  -n      <int range> [x>=1]           Temas (variantes) a generar.                │
+│                                                      [por defecto: 1]                            │
+│ --semilla       -s      <int>                        Semilla del primer tema (los siguientes,    │
+│                                                      +1, +2…).                                   │
+│                                                      [por defecto: 42]                           │
+│ --formato       -f      <str>                        pdf y/o html. [por defecto: pdf]            │
+│ --output-dir    -o      <path>                       Directorio de salida. [por defecto: output] │
+│ --titulo                <str>                        Sin YAML: título del examen (por omisión,   │
+│                                                      el nombre del banco).                       │
+│ --materia               <str>                        Sin YAML: materia.                          │
+│ --institucion           <str>                        Sin YAML: institución.                      │
+│ --umbral                <float range> [0.0<=x<=1.0]  Frecuencia máxima de una letra correcta.    │
+│                                                      [por defecto: 0.3]                          │
+│ --help          -h                                   Muestra esta ayuda y sale.                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-(manual-alucard-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
+:::{dropdown} `alucard balance-check`
 
-::::{note}
+```text
+ Uso: alucard balance-check [OPCIONES]
 
-Ninguna herramienta opera de forma aislada. **`alucarD`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
+ Audita que ninguna letra sea la correcta en más del 30 % de los casos en las variantes generadas.
 
-::::
-<!-- {note} -->
+ Arma los temas con las mismas semillas que `alucard` (sin renderizarlos) y cuenta en qué letra
+ quedó la
+ opción correcta de cada pregunta de selección múltiple. Sale con 1 si alguna supera el umbral (con
+ preguntas de 2 o 3 opciones el umbral efectivo sube a lo que el banco permite, y se informa).
 
-### Diagrama de Flujo e Interoperabilidad
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --input-banco   -i      <path>                       Banco(s) o carpetas de bancos; reemplaza al │
+│                                                      input_banco de la definición.               │
+│ --consignas             <directory>                  Carpeta de consignas prácticas deckard (se  │
+│                                                      suma a input_consignas). Repetible.         │
+│ --repositorio           <path>                       Repositorio externo de la computadora:      │
+│                                                      carpeta de bancos GIFT/XML o de consignas   │
+│                                                      deckard (se suma a repositorios_externos,   │
+│                                                      tipo auto). Repetible.                      │
+│ --definicion    -d      <file>                       Definición YAML; sin ella, todas las        │
+│                                                      preguntas.                                  │
+│ --numero-temas  -n      <int range> [x>=1]           Temas a auditar. [por defecto: 4]           │
+│ --semilla       -s      <int>                        Semilla del primer tema (la misma que en la │
+│                                                      generación).                                │
+│                                                      [por defecto: 42]                           │
+│ --umbral                <float range> [0.0<=x<=1.0]  Frecuencia máxima de una letra correcta.    │
+│                                                      [por defecto: 0.3]                          │
+│ --json                                               Emitir el informe como JSON.                │
+│ --help          -h                                   Muestra esta ayuda y sale.                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-::::{mermaid}
+:::{dropdown} `alucard lint-gift`
 
-graph TD
-    DK[Deckard: Banco de Ejercicios] -->|Enunciados YAML| ALU[Alucard: Motor de
-    Exámenes]
-    MT[Moodle-Toolbox: Bancos GIFT] -->|Preguntas Teóricas| ALU
-    DAE[Daedalus: Compilador C] -->|Verificación GCC| ALU
-    ALU -->|PDFs Maquetados en Typst| IMP[Impresión / Campus Virtual]
-    ALU -->|Grillas de Respuestas| OMR[Lectura Óptica OMR]
-    ALU -->|Claves de Evaluación| DR[Dredd: Autograder Masivo]
+```text
+ Uso: alucard lint-gift [OPCIONES] {archivos}...
 
-::::
-<!-- {mermaid} -->
+ Revisa (y con --fix corrige) bancos GIFT: formato, compatibilidad con Moodle, bloques estructura
+ y, con --compilar, el código C.
 
-### Matriz de Intercambio de Datos
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivos      <path>  Bancos de preguntas GIFT a revisar, o carpetas que los contengan.     │
+│                            [obligatorio]                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --fix                 Corrige problemas comunes en el lugar.                                     │
+│ --compilar            Compila con gcc -fsyntax-only los bloques de C que son programas           │
+│                       completos.                                                                 │
+│ --help      -h        Muestra esta ayuda y sale.                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `deckard (enunciados y starter codes)`
-- `daedalus (código C verificado)`
-- `moodle-toolbox (bancos GIFT/XML)` | Código fuente, AST, binarios, testcases,
-  contratos |
-| **Salidas (Outputs)** | - `dredd (pautas de corrección)`
-- `Estudiantes / Imprenta (PDFs maquetados y hojas OMR)` | Informes Markdown,
-  diagnósticos Rich, JSON, actas |
-| **Sincronización** | `idkfa`, `deckard`, `moodle-toolbox` | Validación cruzada, flags compartidos y autofix |
+:::{dropdown} `alucard sintetizar`
 
-### Pipeline de Integración Recomendado
+```text
+ Uso: alucard sintetizar [OPCIONES] [plantilla]
 
-Podés encadenar `alucarD` con otras herramientas del ecosistema en una única
-línea de comando:
+ Genera un banco de preguntas de C con daedalus: cada respuesta se verifica con gcc.
 
-````{code-block} bash
-# Pipeline de integración típico
-deckard compose guia.yaml | alucard render parcial.yaml -o parcial.pdf
+ Las de traza se compilan y ejecutan; las de comportamiento indefinido (punteros salvajes y
+ colgantes) se verifican con los avisos de gcc -fanalyzer; las de fugas cuentan la memoria que
+ queda
+ sin liberar. Sin PLANTILLA, lista las disponibles.
 
-````
-<!-- {code-block} bash -->
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   plantilla      <str>  Plantilla a usar; sin ella, lista las disponibles.                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cantidad    -c                  <int range> [x>=1]     Cantidad de preguntas a sintetizar.     │
+│                                                          [por defecto: 5]                        │
+│ --opciones                        <int range> [2<=x<=8]  Opciones de cada pregunta, la correcta  │
+│                                                          incluida (2 a 8).                       │
+│                                                          [por defecto: 4]                        │
+│ --formato     -f                  <str>                  Formato del banco: gift o xml.          │
+│                                                          [por defecto: gift]                     │
+│ --output-dir  -o                  <path>                 Directorio de salida.                   │
+│                                                          [por defecto: output]                   │
+│ --semilla     -s                  <int>                  Semilla de los parámetros al azar.      │
+│                                                          [por defecto: 42]                       │
+│ --json                                                   Emitir el resultado como JSON.          │
+│ --debug                                                  Activar modo debug con logging          │
+│                                                          detallado.                              │
+│ --muestra                                                Mostrar una pregunta de ejemplo (con la │
+│                                                          correcta marcada) sin escribir el       │
+│                                                          banco.                                  │
+│ --voight          --sin-voight                           Formatear el banco con voight: fix      │
+│                                                          code-indent, code-chars --to-fullwidth  │
+│                                                          y format.                               │
+│                                                          [por defecto: voight]                   │
+│ --help        -h                                         Muestra esta ayuda y sale.              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
----
+:::{dropdown} `alucard repartir`
 
-(manual-alucard-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
+```text
+ Uso: alucard repartir [OPCIONES] {temas}
 
-Para crear tus propias reglas, conectores de evaluación o integrar `alucarD`
-programáticamente en pipelines de CI/CD:
+ Reparte los temas en PDF entre los estudiantes, para entregarlos cifrados con uatu.
 
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+ Deja `<salida>/<usuario>/examen.pdf`, lo que espera `uatu-admin paquetes sellar`, y al lado
+ `<salida>.asignacion.csv` con el tema de cada uno. Los temas quedan en partes iguales y las
+ claves de corrección no se copian. Sale con 1 si el padrón o la salida no sirven.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    temas      <directory>  Carpeta con los examen_tema_*.pdf de `alucard build`. [obligatorio] │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --padron           <file>  Usuarios de GitHub, uno por línea. [obligatorio]                   │
+│    --salida   -o      <path>  Carpeta con una subcarpeta por usuario. [por defecto: repartidos]  │
+│    --semilla  -s      <int>   Semilla del sorteo: la misma da el mismo reparto.                  │
+│                               [por defecto: 42]                                                  │
+│    --help     -h              Muestra esta ayuda y sale.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard diagramas-md`
+
+```text
+ Uso: alucard diagramas-md [OPCIONES] {archivos}...
+
+ Dibuja los bloques ```estructura de los Markdown como SVG versionados, para publicarlos sin
+ alucarD.
+
+ Cada bloque de `<dir>/*.md` queda en `<dir>/diagramas/estructura-<hash>.svg` (el hash es del
+ contenido del bloque) y se borran los SVG que ya no usa ningún bloque. Pensado como hook de
+ pre-commit (`alucard-diagramas`): si escribe o borra algo, termina con código 1 para que se
+ agreguen al commit. Así `deckard export myst` publica el enunciado con su imagen.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivos      <path>  Archivos Markdown (o directorios) con bloques ```estructura.          │
+│                            [obligatorio]                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --verificar            No escribe: falla si algún SVG falta, cambió o sobra.                     │
+│ --color                Paleta de color de statics (por omisión, ahorro de tinta).                │
+│ --help       -h        Muestra esta ayuda y sale.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard diagrama`
+
+```text
+ Uso: alucard diagrama [OPCIONES] {archivo}
+
+ Dibuja estructuras de datos y diagramas de algoritmos como SVG, con el formato de bloques de
+ statics.
+
+ Escribe un SVG por bloque (`<id>.svg` o `<archivo>_<n>.svg`). Los bloques de statics que no son
+ diagramas (texto, recortables) se saltean con un aviso. En las preguntas, el
+ mismo bloque va en un bloque de código ```estructura.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivo      <file>  Bloque, lista de bloques o documento de statics, en YAML o JSON.       │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output-dir  -o      <path>  Directorio de los SVG. [por defecto: output]                       │
+│ --color                       Paleta de color de statics (por omisión, ahorro de tinta).         │
+│ --help        -h              Muestra esta ayuda y sale.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard doctor`
+
+```text
+ Uso: alucard doctor [OPCIONES]
+
+ Diagnostica gcc, Typst, pypdf y conectividad LanguageTool.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir el diagnóstico como JSON (schema_version 1.0.0).                        │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro`
+
+```text
+ Uso: alucard registro [OPCIONES] COMANDO [ARGUMENTOS]...
+
+ Registro de exámenes tomados: preguntas usadas en el cuatrimestre y calidad de cada pregunta.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ guardar      Guarda en el registro el examen tal como lo arma `generar` con las mismas opciones  │
+│              (preguntas, orden y opciones de cada tema), sin generar archivos. Volver a          │
+│              guardarlo lo reemplaza.                                                             │
+│ listar       Los exámenes registrados: cuatrimestre, fecha, temas, preguntas y si tienen         │
+│              resultados.                                                                         │
+│ usadas       Cada pregunta registrada con los exámenes en que salió (una pregunta es la misma    │
+│              por su contenido).                                                                  │
+│ resultados   Importa los resultados de un examen registrado: la letra marcada o el puntaje de    │
+│              cada pregunta.                                                                      │
+│ analizar     La calidad de cada pregunta con resultados: dificultad, discriminación, omisiones y │
+│              distractores,                                                                       │
+│              sumando todos los exámenes en que salió, y la confiabilidad (alfa) de cada tema.    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro guardar`
+
+```text
+ Uso: alucard registro guardar [OPCIONES]
+
+ Guarda en el registro el examen tal como lo arma `generar` con las mismas opciones (preguntas,
+ orden y opciones de cada tema), sin generar archivos. Volver a guardarlo lo reemplaza.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --definicion    -d      <path>  Definición YAML del examen; repetila para varios exámenes, cada  │
+│                                 uno en su subcarpeta (sin -d: la clave definicion de             │
+│                                 alucard.toml)                                                    │
+│ --input-banco   -i      <path>  Ruta(s) a los bancos de preguntas: archivos o carpetas, con sus  │
+│                                 subcarpetas (tiene prioridad sobre el YAML)                      │
+│ --numero-temas  -n      <int>   Número de temas/versiones a generar (tiene prioridad sobre el    │
+│                                 YAML; si no está en ninguno: 1)                                  │
+│ --semilla       -s      <int>   Semilla pseudo-aleatoria para generación (tiene prioridad sobre  │
+│                                 el YAML; si no está en ninguno: 42)                              │
+│ --cuatrimestre          <str>   Cuatrimestre del registro, como 2026-2C (por omisión, el de      │
+│                                 registro:,  o la fecha del examen)                               │
+│ --registro-id           <str>   Id del examen en el registro (por omisión, el nombre del archivo │
+│                                 de la definición)                                                │
+│ --forzar                        Reemplazar un registro con resultados aunque cambien las         │
+│                                 preguntas (los descarta)                                         │
+│ --json                          Emite salida estructurada en formato JSON                        │
+│ --debug                         Activar modo debug con logging detallado                         │
+│ --help          -h              Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro listar`
+
+```text
+ Uso: alucard registro listar [OPCIONES]
+
+ Los exámenes registrados: cuatrimestre, fecha, temas, preguntas y si tienen resultados.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cuatrimestre          <str>   Sólo los de este cuatrimestre (como 2026-2C).                    │
+│ --carpeta               <path>  Carpeta del registro (por omisión, la de  de alucard.toml o      │
+│                                 ./registro).                                                     │
+│ --json                          La lista como JSON.                                              │
+│ --help          -h              Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro usadas`
+
+```text
+ Uso: alucard registro usadas [OPCIONES]
+
+ Cada pregunta registrada con los exámenes en que salió (una pregunta es la misma por su
+ contenido).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cuatrimestre          <str>   Sólo las de este cuatrimestre.                                   │
+│ --carpeta               <path>  Carpeta del registro (por omisión, la de  de alucard.toml o      │
+│                                 ./registro).                                                     │
+│ --json                          La lista como JSON.                                              │
+│ --help          -h              Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro resultados`
+
+```text
+ Uso: alucard registro resultados [OPCIONES] {examen} {archivo}
+
+ Importa los resultados de un examen registrado: la letra marcada o el puntaje de cada pregunta.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    examen       <str>   Id del examen registrado. [obligatorio]                                │
+│ *    archivo      <file>  CSV con una fila por estudiante: estudiante, tema,  y una columna por  │
+│                           pregunta (su número en el tema o su id).                               │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cuatrimestre          <str>   Si hay exámenes con ese id en varios cuatrimestres.              │
+│ --carpeta               <path>  Carpeta del registro (por omisión, la de  de alucard.toml o      │
+│                                 ./registro).                                                     │
+│ --forzar                        Reemplazar resultados ya importados.                             │
+│ --help          -h              Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard registro analizar`
+
+```text
+ Uso: alucard registro analizar [OPCIONES]
+
+ La calidad de cada pregunta con resultados: dificultad, discriminación, omisiones y distractores,
+ sumando todos los exámenes en que salió, y la confiabilidad (alfa) de cada tema.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --cuatrimestre          <str>   Sólo los exámenes de este cuatrimestre.                          │
+│ --examen                <str>   Sólo estos exámenes (por id; repetible).                         │
+│ --carpeta               <path>  Carpeta del registro (por omisión, la de  de alucard.toml o      │
+│                                 ./registro).                                                     │
+│ --output        -o      <path>  Escribir el informe en Markdown.                                 │
+│ --json                          El análisis como JSON.                                           │
+│ --help          -h              Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr`
+
+```text
+ Uso: alucard omr [OPCIONES] COMANDO [ARGUMENTOS]...
+
+ Exámenes con carátula OMR para la app Escáner OMR (OMR_SPEC.md).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ validate            Valida la configuración (§3.3), el manifiesto que sale de ella               │
+│                     (omr-layout/2) y, si se pasa, la nómina.                                     │
+│ preview-curve       Imprime la tabla porcentaje → nota → condición de la curva, la misma cuenta  │
+│                     que hace la app.                                                             │
+│ build               Genera el lote: un examen con carátula OMR por estudiante, la nómina, el     │
+│                     manifiesto, la hoja docente                                                  │
+│                     con el QR de configuración y la hoja de calibración.                         │
+│ calibration-sheet   Genera la hoja de calibración de un manifiesto: la cabecera con burbujas     │
+│                     rellenas al 0, 25, 50 y 100 %.                                               │
+│ verify-geometry     Rasteriza la carátula a 300 DPI, detecta los cuatro ArUco, rectifica el      │
+│                     marco y verifica que el centro de                                            │
+│                     cada burbuja dibujada coincida con el manifiesto (error < 0,3 mm). Sale con  │
+│                     1 si alguna no coincide.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr validate`
+
+```text
+ Uso: alucard omr validate [OPCIONES]
+
+ Valida la configuración (§3.3), el manifiesto que sale de ella (omr-layout/2) y, si se pasa, la
+ nómina.
+
+ Sale con 1 si algo no cumple, con cada problema en su renglón.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --config          <file>  exam.yaml o exam.json: identidad del examen, variantes, escala,     │
+│                              curva y rúbrica.                                                    │
+│                              [obligatorio]                                                       │
+│    --roster          <file>  inscriptos.csv (legajo,apellido,nombre[,student_id,variante]).      │
+│    --json                    El resultado como JSON.                                             │
+│    --help    -h              Muestra esta ayuda y sale.                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr preview-curve`
+
+```text
+ Uso: alucard omr preview-curve [OPCIONES]
+
+ Imprime la tabla porcentaje → nota → condición de la curva, la misma cuenta que hace la app.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --config          <file>  exam.yaml o exam.json: identidad del examen, variantes, escala,     │
+│                              curva y rúbrica.                                                    │
+│                              [obligatorio]                                                       │
+│    --help    -h              Muestra esta ayuda y sale.                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr build`
+
+```text
+ Uso: alucard omr build [OPCIONES]
+
+ Genera el lote: un examen con carátula OMR por estudiante, la nómina, el manifiesto, la hoja
+ docente con el QR de configuración y la hoja de calibración.
+
+ Con --modo planilla, las burbujas no ocupan lugar en las hojas de los estudiantes: van en
+ planilla_<exam_id>.pdf, un marco por estudiante (con su nombre y su QR), que se escanea igual.
+
+ Antes de compilar los PDF imprime la tabla de verificación de la curva de notas.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --config                  <file>              exam.yaml o exam.json: identidad del examen,    │
+│                                                  variantes, escala, curva y rúbrica.             │
+│                                                  [obligatorio]                                   │
+│ *  --roster                  <file>              inscriptos.csv                                  │
+│                                                  (legajo,apellido,nombre[,student_id,variante]). │
+│                                                  [obligatorio]                                   │
+│    --questions               <path>              Bancos o carpetas de bancos; reemplaza al       │
+│                                                  input_banco de la definición.                   │
+│    --out                     <path>              Carpeta del lote (por omisión,                  │
+│                                                  dist/<exam_id>/).                               │
+│    --qr-config-mode          <str>               compressed (OMRCFG2:, por omisión) o compact    │
+│                                                  (OMRCFG/2, sólo para el layout estándar).       │
+│                                                  [por defecto: compressed]                       │
+│    --nueva-clave                                 Otra hmac_key: invalida las carátulas ya        │
+│                                                  impresas con la anterior.                       │
+│    --modo                    <str>               caratula (las burbujas en la página 1 de cada   │
+│                                                  examen, por omisión) o planilla (los exámenes   │
+│                                                  sin franja y una planilla docente con el marco  │
+│                                                  de cada estudiante).                            │
+│                                                  [por defecto: caratula]                         │
+│    --por-hoja                <int range> [x>=1]  Modo planilla: como mucho tantos marcos por     │
+│                                                  hoja (por omisión, los que entran).             │
+│    --json                                        El resumen del lote como JSON.                  │
+│    --help            -h                          Muestra esta ayuda y sale.                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr calibration-sheet`
+
+```text
+ Uso: alucard omr calibration-sheet [OPCIONES]
+
+ Genera la hoja de calibración de un manifiesto: la cabecera con burbujas rellenas al 0, 25, 50 y
+ 100 %.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --manifest          <file>  layout_<id>_v<n>.json. [obligatorio]                              │
+│    --out               <path>  PDF de la hoja de calibración. [por defecto: layout_test.pdf]     │
+│    --help      -h              Muestra esta ayuda y sale.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `alucard omr verify-geometry`
+
+```text
+ Uso: alucard omr verify-geometry [OPCIONES]
+
+ Rasteriza la carátula a 300 DPI, detecta los cuatro ArUco, rectifica el marco y verifica que el
+ centro de cada burbuja dibujada coincida con el manifiesto (error < 0,3 mm). Sale con 1 si alguna
+ no coincide.
+
+ En la planilla docente, cada página tiene varios marcos: se verifica cada uno.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --pdf                 <file>                   examenes_<exam_id>.pdf, planilla_<exam_id>.pdf │
+│                                                   u otro PDF con marcos OMR.                     │
+│                                                   [obligatorio]                                  │
+│ *  --manifest            <file>                   layout_<id>_v<n>.json. [obligatorio]           │
+│    --pagina              <int range> [x>=1]       Página a verificar (repetible; por omisión, la │
+│                                                   1).                                            │
+│    --todas                                        Todas las páginas con carátula (las que tienen │
+│                                                   los cuatro marcadores).                        │
+│    --tolerancia          <float range> [x>=0.01]  Error máximo, en mm. [por defecto: 0.3]        │
+│    --json                                         El resultado como JSON.                        │
+│    --help        -h                               Muestra esta ayuda y sale.                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `gift-linter`
+:open:
+
+```text
+Uso: gift-linter [OPCIONES] ARCHIVOS_O_CARPETAS...
+
+Linter y formateador para archivos GIFT (alias de `alucard lint-gift`).
+
+Opciones:
+  --fix                 Corrige los problemas comunes en el mismo archivo y lo deja compatible con Moodle.
+  --show-completion     Muestra el autocompletado para bash, para copiarlo o adaptarlo.
+  --install-completion  Instala el autocompletado para bash.
+  -v, --version         Muestra la versión de gift-linter y sale.
+  -h, --help            Muestra esta ayuda y sale.
+
+Comandos:
+  doctor [--json]       Diagnostica el entorno (el mismo diagnóstico que `alucard doctor`).
+
+Ejemplos:
+  gift-linter bancos/teorico.gift
+  gift-linter bancos/*.gift --fix
+```
+:::
+
+Generado desde [`alucarD@bd8efc0`](https://github.com/INGCOM-UNRN/alucarD/tree/bd8efc0).

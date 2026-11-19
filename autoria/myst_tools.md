@@ -1,568 +1,790 @@
 ---
 title: "myst-tools"
-subtitle: "Myst-Tools — Suite de Normalización, Formateo a 80 Columnas, Anclas e Índices MyST"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde myst-tools@5462d70: no editar a mano. -->
 
 (manual-myst_tools)=
-# Myst-Tools — Suite de Normalización, Formateo a 80 Columnas, Anclas e Índices MyST
+# myst-tools
 
-:::{note} Resumen Técnico del Satélite
+Repositorio: [github.com/martinvilu/mystmd-tools](https://github.com/martinvilu/mystmd-tools).
 
-**Rol en el ecosistema:** Automatización y estandarización de material didáctico
-en formato MyST Markdown: formateo a 80 columnas respetando directivas, anclas
-semánticas, generación de índices y corrector LanguageTool.
+Herramientas unificadas para automatizar y gestionar el material didáctico escrito en formato MyST Markdown para la cátedra de Programación II.
 
+Este proyecto está gestionado con [uv](https://github.com/astral-sh/uv).
+
+:::{important}
+**Requisito de ejecución:** Las herramientas del CLI deben ser ejecutadas desde un directorio que contenga el archivo de configuración `myst.yml` (es decir, la raíz del proyecto de documentación MyST). Si el archivo no está presente, puede ignorarse la restricción usando la opción global `-f/--force`.
 :::
-<!-- {note} Resumen Técnico del Satélite -->
 
 ---
 
-(manual-myst_tools-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`myst-tools`** forma parte del ecosistema oficial de software
-de la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Herramientas de soporte, auditoría y mantenimiento para apuntes y material didáctico en formato MyST Markdown.
+- Verificación ortográfica y gramatical contextualizada mediante LanguageTool, con diccionario técnico de programación.
+- Detección y resolución de colisiones en anclas y etiquetas cruzadas.
+- Generación automatizada de índices temáticos y verificación de consistencia de enlaces.
+- Accesibilidad del material (`check-a11y`): texto alternativo de imágenes y figuras, orden de los encabezados, enlaces genéricos («acá»), contraste de colores en línea, iframes sin título y tablas sin encabezado (criterios de WCAG 2.1 que se ven en el fuente).
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Formateo de código fuente en C (delegado a `gaff`).
+- Ejecución de suites de prueba de ejercicios (delegado a `nostromo`).
+- Generación de exámenes institucionales Typst/OMR (delegado a `alucard`).
 
 ---
 
-(manual-myst_tools-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- Java Runtime Environment (JRE) opcional (para ejecución de servidor local LanguageTool).
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `myst-tools`.
 
 ---
 
-### 2.2 Métodos de Instalación de `myst-tools`
+## Instalación
 
-Podés instalar `myst-tools` mediante cualquiera de los siguientes métodos
-estándar:
+Podés instalar estas herramientas como una herramienta global en tu sistema usando `uv tool`:
 
-::::{tab-set}
-
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+```bash
+# Desde el directorio raíz del proyecto
+uv tool install .
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+Una vez instalada, vas a tener disponible el comando `myst-tools` globalmente en tu terminal.
 
-:::{tab-item} pip / venv
+Si preferís ejecutarlo sin instalarlo globalmente:
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
+```bash
+uv run myst-tools [comando] [argumentos]
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
+## Uso General
 
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
+```bash
+myst-tools [OPCIONES_GLOBALES] [COMANDO] [ARGUMENTOS]
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pipx -->
+### Opciones Globales:
+* **`-f, --force`**: Fuerza la ejecución del comando seleccionado ignorando la verificación de la existencia de `myst.yml` en el directorio actual.
 
-::::
-<!-- {tab-set} -->
+## Comandos Disponibles
 
----
+El comando unificado `myst-tools` provee los siguientes subcomandos:
 
-### 2.3 Autocompletado en la Shell
+### 1. `add-anchors`
+Agrega etiquetas/anclas de MyST (`(slug)=`) de manera automática antes de cada encabezado (`#`, `##`, `###`) en los archivos Markdown del apunte. Esto facilita las referencias cruzadas estables.
 
-La interfaz CLI de `myst_tools` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+myst-tools add-anchors [APUNTE_DIR]
+```
+* **`APUNTE_DIR`** (opcional): Directorio que contiene los archivos Markdown del apunte. Por defecto es `./apunte`.
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-myst_tools --install-completion
+### 2. `gen-apunte`
+Genera un índice detallado (`indice.md`) agrupado por archivo y con enlaces internos a encabezados de nivel 1, 2 y 3.
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+```bash
+myst-tools gen-apunte [APUNTE_DIR]
+```
+* **`APUNTE_DIR`** (opcional): Directorio del apunte. Por defecto es `./apunte`.
 
-````
-<!-- {code-block} bash -->
+### 3. `gen-guides`
+Genera el índice de guías de trabajos prácticos (`indice.md`) leyendo el título del frontmatter o el primer encabezado `#` de cada guía.
 
----
+```bash
+myst-tools gen-guides [GUIAS_DIR]
+```
+* **`GUIAS_DIR`** (opcional): Directorio que contiene las guías. Por defecto es `./guias`.
 
-### 2.4 Verificación del Entorno con `doctor`
+### 4. `gen-rules`
+Genera el índice de reglas de estilo de programación (`indice.md`) recopilando todas las referencias de tipo `(regla-xxx)=` y sus respectivos títulos.
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+```bash
+myst-tools gen-rules [REGLAS_DIR]
+```
+* **`REGLAS_DIR`** (opcional): Directorio que contiene las reglas de estilo. Por defecto es `./reglas`.
 
-````{code-block} bash
-myst_tools doctor
+### 5. `fix-anchors`
+Detecta y corrige anclas MyST duplicadas en los archivos Markdown del proyecto. Renombra las definiciones duplicadas anteponiendo el nombre del archivo y actualiza todas las referencias correspondientes.
 
-````
-<!-- {code-block} bash -->
+```bash
+myst-tools fix-anchors [DIR] [OPCIONES]
+```
+* **`DIR`** (opcional): Directorio raíz a escanear. Por defecto es el directorio actual `.`.
+* **Opciones**:
+  * `--dry-run`: Muestra los cambios planificados sin modificar ningún archivo.
+  * `--report`: Solo lista las anclas duplicadas detectadas y finaliza.
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### 6. `fmt`
+Formatea archivos MyST Markdown aplicando un límite de 80 caracteres de ancho de línea para la prosa (sin modificar bloques de código) y normalizando el anidamiento y cierre de directivas (guardas).
 
-#### Matriz de Resolución de Problemas:
+```bash
+myst-tools fmt [ARCHIVOS/DIR...] [OPCIONES]
+```
+* **`ARCHIVOS/DIR`** (opcional): Archivos o directorios a formatear (acepta múltiples). Si no se especifica y la entrada es interactiva, formatea todos los archivos `.md` del proyecto de forma recursiva. Si la entrada no es interactiva, lee desde la entrada estándar (stdin). Usar `-` para forzar la lectura desde stdin.
+* **Opciones**:
+  * `--check`: Verifica si los archivos necesitan formato (retorna código 1 si requieren cambios).
+  * `--stdout`: Imprime el resultado en la salida estándar en vez de modificar los archivos in-place.
+  * `--width N`: Especifica un ancho de línea personalizado (por defecto 80).
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+### 7. `spellcheck` (alias: `grammar`, `languagetool`)
+Audita y corrige ortografía y gramática en documentos MyST Markdown usando LanguageTool, enmascarando inteligentemente directivas MyST, bloques de código C, matemáticas LaTeX y anclas para evitar falsos positivos.
+
+```bash
+myst-tools spellcheck [ARCHIVOS/DIR...] [OPCIONES]
+```
+* **`ARCHIVOS/DIR`** (opcional): Archivos o directorios a analizar.
+* **Opciones**:
+  * `-f, --fix`: Aplica automáticamente las correcciones sugeridas in-place sobre los archivos.
+  * `-l, --lang`: Código de idioma (por defecto `es-AR`; soporta `es`, `en-US`, etc.).
+  * `-s, --server`: URL de servidor LanguageTool personalizado (por defecto intenta servidor local `http://localhost:8081` y API pública).
+  * `--ignore-words`: Lista de palabras adicionales a ignorar separadas por coma.
+  * `--ignore-rules`: Reglas específicas a deshabilitar separadas por coma.
+  * `--json`: Salida estructurada JSON.
+  * `-o, --md`: Genera reporte en formato Markdown para fusión en Dredd o documentación.
+
+### 8. `report`
+Genera un informe integral del estado del proyecto MyST Markdown (anclas huérfanas, tablas, enlaces y directivas).
+
+```bash
+myst-tools report [DIRECTORIO] [--md]
+```
+
+### 9. `check-tables` y `fmt-tables`
+Audita y formatea tablas Markdown para asegurar alineación visual homogénea y sintaxis válida.
+
+```bash
+myst-tools check-tables [ARCHIVOS/DIR...]
+myst-tools fmt-tables [ARCHIVOS/DIR...]
+```
+
+### 10. `check-style`
+Verifica directivas MyST, bloques de admonición y normas de estilo pedagógico.
+
+```bash
+myst-tools check-style [ARCHIVOS/DIR...]
+```
+
+### 10b. `check-a11y`
+Audita la accesibilidad del material: texto alternativo, orden de encabezados, enlaces genéricos,
+contraste, iframes y tablas (ver el [manual](https://github.com/martinvilu/mystmd-tools/blob/main/MANUAL.md) para las reglas).
+
+```bash
+myst-tools check-a11y [ARCHIVOS/DIR...] [--strict] [--json]
+```
+
+### 11. `extract-c-tests`
+Extrae bloques de código C incluidos en el material didáctico para verificación de compilación.
+
+```bash
+myst-tools extract-c-tests [ARCHIVOS/DIR...] -o ./pruebas_c
+```
+
+### 12. `extract-dict-terms`
+Extrae términos técnicos del apunte para alimentar diccionarios ortográficos especializados.
+
+```bash
+myst-tools extract-dict-terms [ARCHIVOS/DIR...]
+```
+
+### 13. `check-links`
+Audita los enlaces a GitHub (que apunten a un commit o tag, no a una rama que cambia). Con
+`--externos` además consulta cada enlace http(s) (una vez por URL, en paralelo) y marca los que
+responden 404, 500 o no responden.
+
+```bash
+myst-tools check-links [ARCHIVOS/DIR...] [--externos]
+```
+
+### 14. `check-code-lang`
+Marca los bloques de código abiertos con ``` sin lenguaje (```c, ```bash, ```text): quedan sin
+resaltado y el lector de pantalla no sabe anunciarlos. Los bloques de directiva (```{note}) no
+cuentan.
+
+```bash
+myst-tools check-code-lang [ARCHIVOS/DIR...]
+```
+
+## Desarrollo
+
+Si querés modificar las herramientas o agregar nuevas funcionalidades, podés ejecutar el CLI en modo desarrollo:
+
+```bash
+uv run myst-tools --help
+```
+
+El backend de construcción utilizado es `hatchling`.
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
+
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
+
+### Opciones de `myst-tools`
+
+| Opción | Descripción |
+|:--|:--|
+| `--force`, `-f` | Fuerza la ejecución saliéndose de la verificación de la existencia de 'myst.yml'. |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `myst-tools add-anchors` | Agrega etiquetas/anclas de MyST a los encabezados de archivos Markdown. |
+| `myst-tools gen-apunte` | Genera el índice detallado para el apunte de cátedra. |
+| `myst-tools gen-guides` | Genera el índice para las guías de trabajos prácticos. |
+| `myst-tools gen-rules` | Genera el índice de las reglas de estilo de programación. |
+| `myst-tools fix-anchors` | Detecta y corrige anclas MyST duplicadas. |
+| `myst-tools fmt` | Formatea archivos MyST Markdown (longitud de línea, fences y comentarios). |
+| `myst-tools spellcheck` | Verifica y corrige ortografía y gramática en documentos MyST Markdown usando LanguageTool. |
+| `myst-tools report` | Genera directamente la sección de reporte Markdown de LanguageTool para Dredd o documentación. |
+| `myst-tools check-tables` | Audita tablas Markdown en busca de columnas desalineadas o separadores inválidos. |
+| `myst-tools fmt-tables` | Formatea y alinea visualmente las columnas de tablas Markdown. |
+| `myst-tools check-style` | Audita estilo rioplatense (voseo vs tuteo, spanglish). |
+| `myst-tools check-a11y` | Audita accesibilidad: texto alternativo, orden de encabezados, enlaces genéricos y contraste. |
+| `myst-tools check-catalog-links` | Valida que toda referencia, enlace o ancla a reglas 0xXXXXh y satélites coincida con el catálogo oficial. |
+| `myst-tools extract-c-tests` | Extrae bloques C hacia un proyecto C compilable con Makefile. |
+| `myst-tools extract-dict-terms` | Extrae identificadores técnicos C y directivas para el diccionario personalizado de LanguageTool. |
+| `myst-tools check-links` | Audita inmutabilidad y sintaxis de enlaces a GitHub (y, con --externos, enlaces caídos). |
+| `myst-tools check-code-lang` | Bloques de código sin lenguaje (``` en lugar de ```c): sin resaltado ni anuncio accesible. |
+| `myst-tools doctor` | Verifica el estado del entorno de MYST-TOOLS (Python, Node/myst, LanguageTool, Typst). |
+| `myst-tools check-c-snippets` | Verifica con `gcc -fsyntax-only` que los bloques C compilen, también como fragmentos (requiere gcc). |
+| `myst-tools to-typst` | Convierte encabezados de un MyST Markdown a una plantilla Typst. |
+| `myst-tools extract-exercises` | Extrae las directivas {exercise} como candidatos a ejercicios del banco (deckard). |
+| `myst-tools glossary` | Detecta definiciones tipo **Término**: definición y arma un glosario. |
+| `myst-tools callout` | Imprime un callout MyST (admonition) con el formato estándar. |
+
+Ayuda de cada comando: `myst-tools <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `myst-tools spellcheck`, `myst-tools check-tables`, `myst-tools check-style`, `myst-tools check-a11y`, `myst-tools check-catalog-links`, `myst-tools check-links`, `myst-tools check-code-lang`, `myst-tools doctor`, `myst-tools check-c-snippets`, `myst-tools to-typst`, `myst-tools extract-exercises`, `myst-tools glossary`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-myst_tools-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en
-`myst-tools`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `myst-tools fmt apunte/ [-w 80]` | Formatea la prosa a 80 columnas preservando directivas y código. |
-| `myst-tools fix-anchors .` | Detecta y renombra anclas duplicadas `(slug)=` entre capítulos. |
-| `myst-tools add-anchors docs/` | Inserta anclas automáticas en todos los encabezados Markdown. |
-| `myst-tools gen-apunte apunte/` | Genera el índice temático general `indice.md`. |
-| `myst-tools spellcheck apunte/ --premium` | Audita ortografía y estilo con LanguageTool (local o cloud). |
+:::{dropdown} `myst-tools`
+:open:
 
-::::{tip}
+```text
+ Uso: myst-tools [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Herramientas unificadas para automatizar, formatear e indexar material didáctico MyST Markdown.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-myst_tools-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Directiva MyST Markdown formateada por myst-tools
-(seccion-punteros)=
-# Punteros y Gestión de Memoria
-
-:::{note}
-
-Un puntero en C almacena la dirección de memoria de otra variable.
-
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de myst-tools y sale.                         │
+│ --force               -f        Fuerza la ejecución saliéndose de la verificación de la          │
+│                                 existencia de 'myst.yml'.                                        │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ add-anchors          Agrega etiquetas/anclas de MyST a los encabezados de archivos Markdown.     │
+│ gen-apunte           Genera el índice detallado para el apunte de cátedra.                       │
+│ gen-guides           Genera el índice para las guías de trabajos prácticos.                      │
+│ gen-rules            Genera el índice de las reglas de estilo de programación.                   │
+│ fix-anchors          Detecta y corrige anclas MyST duplicadas.                                   │
+│ fmt                  Formatea archivos MyST Markdown (longitud de línea, fences y comentarios).  │
+│ spellcheck           Verifica y corrige ortografía y gramática en documentos MyST Markdown       │
+│                      usando LanguageTool.                                                        │
+│ report               Genera directamente la sección de reporte Markdown de LanguageTool para     │
+│                      Dredd o documentación.                                                      │
+│ check-tables         Audita tablas Markdown en busca de columnas desalineadas o separadores      │
+│                      inválidos.                                                                  │
+│ fmt-tables           Formatea y alinea visualmente las columnas de tablas Markdown.              │
+│ check-style          Audita estilo rioplatense (voseo vs tuteo, spanglish).                      │
+│ check-a11y           Audita accesibilidad: texto alternativo, orden de encabezados, enlaces      │
+│                      genéricos y contraste.                                                      │
+│ check-catalog-links  Valida que toda referencia, enlace o ancla a reglas 0xXXXXh y satélites     │
+│                      coincida con el catálogo oficial.                                           │
+│ extract-c-tests      Extrae bloques C hacia un proyecto C compilable con Makefile.               │
+│ extract-dict-terms   Extrae identificadores técnicos C y directivas para el diccionario          │
+│                      personalizado de LanguageTool.                                              │
+│ check-links          Audita inmutabilidad y sintaxis de enlaces a GitHub (y, con --externos,     │
+│                      enlaces caídos).                                                            │
+│ check-code-lang      Bloques de código sin lenguaje (``` en lugar de ```c): sin resaltado ni     │
+│                      anuncio accesible.                                                          │
+│ doctor               Verifica el estado del entorno de MYST-TOOLS (Python, Node/myst,            │
+│                      LanguageTool, Typst).                                                       │
+│ check-c-snippets     Verifica con `gcc -fsyntax-only` que los bloques C compilen, también como   │
+│                      fragmentos (requiere gcc).                                                  │
+│ to-typst             Convierte encabezados de un MyST Markdown a una plantilla Typst.            │
+│ extract-exercises    Extrae las directivas {exercise} como candidatos a ejercicios del banco     │
+│                      (deckard).                                                                  │
+│ glossary             Detecta definiciones tipo **Término**: definición y arma un glosario.       │
+│ callout              Imprime un callout MyST (admonition) con el formato estándar.               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
 :::
-<!-- {note} -->
 
-`````{code-block} c
-:linenos:
-int x = 10;
-int *p = &x;
+:::{dropdown} `myst-tools add-anchors`
 
-`````
-<!-- {code-block} c -->
+```text
+ Uso: myst-tools add-anchors [OPCIONES] [dir_path]
 
-````
-<!-- {code-block} c -->
+ Agrega etiquetas/anclas de MyST a los encabezados de archivos Markdown.
 
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-myst-tools fmt apunte/ [-w 80]
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] 18 archivos formateados a 80 columnas respetando bloques MyST.
-[✓] 0 colisiones de anclas duplicadas detectadas.
-[✓] Índice general generado en apunte/indice.md.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-myst_tools-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`myst-tools`** resolviendo los siguientes
-ejercicios:
-
-::::{exercise} Desafío 1: Formateo Estándar de Apuntes
-:label: myst_tools-desafio-1
-Normalizar el ancho de línea de un capítulo a 80 columnas.
-
-**Instrucción de ejecución:**
-``` bash
-myst-tools fmt apunte/capitulo1.md
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   dir_path      <path>  Directorio que contiene los archivos Markdown del apunte.                │
+│                         [por defecto: apunte]                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando la verificación de 'myst.yml'.                  │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Formateo Estándar de Apuntes -->
+:::{dropdown} `myst-tools gen-apunte`
 
-::::{solution} myst_tools-desafio-1
+```text
+ Uso: myst-tools gen-apunte [OPCIONES] [dir_path]
 
-``` bash
-myst-tools fmt apunte/capitulo1.md
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Genera el índice detallado para el apunte de cátedra.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   dir_path      <path>  Directorio del apunte (apunte). [por defecto: apunte]                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando la verificación de 'myst.yml'.                  │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} myst_tools-desafio-1 -->
+:::{dropdown} `myst-tools gen-guides`
 
-::::{exercise} Desafío 2: Resolución de Colisión de Anclas
-:label: myst_tools-desafio-2
-Detectar y corregir encabezados con anclas repetidas.
+```text
+ Uso: myst-tools gen-guides [OPCIONES] [dir_path]
 
-**Instrucción de ejecución:**
-``` bash
-myst-tools fix-anchors apunte/
+ Genera el índice para las guías de trabajos prácticos.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   dir_path      <path>  Directorio que contiene las guías. [por defecto: guias]                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando la verificación de 'myst.yml'.                  │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Resolución de Colisión de Anclas -->
+:::{dropdown} `myst-tools gen-rules`
 
-::::{solution} myst_tools-desafio-2
+```text
+ Uso: myst-tools gen-rules [OPCIONES] [dir_path]
 
-``` bash
-myst-tools fix-anchors apunte/
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
+ Genera el índice de las reglas de estilo de programación.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   dir_path      <path>  Directorio que contiene las reglas de estilo. [por defecto: reglas]      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando la verificación de 'myst.yml'.                  │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} myst_tools-desafio-2 -->
+:::{dropdown} `myst-tools fix-anchors`
 
-::::{exercise} Desafío 3: Corrección Ortográfica con LanguageTool
-:label: myst_tools-desafio-3
-Auditar la ortografía de la guía de trabajos prácticos.
+```text
+ Uso: myst-tools fix-anchors [OPCIONES] [dir_path]
 
-**Instrucción de ejecución:**
-``` bash
-myst-tools spellcheck guias/ --lang es-AR
+ Detecta y corrige anclas MyST duplicadas.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   dir_path      <path>  Directorio raíz a escanear. [por defecto: .]                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --dry-run            Muestra los cambios sin escribir ningún archivo.                            │
+│ --report             Solo lista los duplicados y termina sin modificar nada.                     │
+│ --force    -f        Fuerza la ejecución ignorando la verificación de 'myst.yml'.                │
+│ --help     -h        Muestra esta ayuda y sale.                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 3: Corrección Ortográfica con LanguageTool -->
+:::{dropdown} `myst-tools fmt`
 
-::::{solution} myst_tools-desafio-3
+```text
+ Uso: myst-tools fmt [OPCIONES] [files]...
 
-``` bash
-myst-tools spellcheck guias/ --lang es-AR
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
+ Formatea archivos MyST Markdown (longitud de línea, fences y comentarios).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <str>  Archivos o directorios a formatear (por defecto, todos los archivos .md si   │
+│                     la entrada es interactiva).                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --check                  Solo verifica si los archivos necesitan formato.                        │
+│ --stdout                 Imprime el resultado a la salida estándar en vez de modificar in-place. │
+│ --width   -w      <int>  Ancho máximo de línea (default: 80). [por defecto: 80]                  │
+│ --force   -f             Fuerza la ejecución ignorando la verificación de 'myst.yml'.            │
+│ --help    -h             Muestra esta ayuda y sale.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} myst_tools-desafio-3 -->
+:::{dropdown} `myst-tools spellcheck`
 
----
+```text
+ Uso: myst-tools spellcheck [OPCIONES] [paths]...
 
-(manual-myst_tools-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
+ Verifica y corrige ortografía y gramática en documentos MyST Markdown usando LanguageTool.
 
-Para incorporar `myst-tools` de forma automática a tu flujo de desarrollo,
-agregá la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-myst_tools:
-	@echo "=== Ejecutando verificación con myst-tools ==="
-	myst-tools check src/ include/
-
-.PHONY: check-myst_tools
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-myst_tools` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-myst_tools-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`myst-tools`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `MyST Markdown AST Parser + 80-Col Prosa Formatter +
-  LanguageTool Spellchecker + Slug Index Generator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-myst_tools-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`myst-tools`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    DKD[Deckard: Guías de Ejercicios] --> MYST[Myst-Tools: Suite MyST]
-    CRB[Corbel: Documentación TDAs] --> MYST
-    GAF[Gaff / Ripley: Reglas de Estilo] --> MYST
-    MYST -->|Formateo a 80 Columnas| FMT[Prosa Normalizada]
-    MYST -->|Auditoría Lingüística| LT[LanguageTool API]
-    MYST -->|Sitio Web de Cátedra| HTML[Jupyter Book / MyST HTML]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Apuntes, guías de Deckard, documentación de Corbel, reglas de Gaff` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `Jupyter Book / MyST HTML (sitios web de cátedra)` | Informes Markdown, diagnósticos Rich, JSON, actas |
-| **Sincronización** | `deckard`, `corbel`, `gaff`, `moodle-toolbox` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `myst-tools` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-myst-tools fmt apunte/ && myst-tools fix-anchors apunte/ && myst-tools spellcheck apunte/
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-myst_tools-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `myst-tools`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
-
----
-
-(manual-myst_tools-ejemplos)=
-## Ejemplos y Contraejemplos
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Escribí las instrucciones de tus apuntes con voseo y auditá el archivo antes de
-publicarlo:
-
-````{code-block} markdown
-# Entrega del apunte
-
-Revisá las anclas y corregí el texto antes de compilar el sitio.
-
-````
-<!-- {code-block} markdown -->
-
-```{code-block} bash
-myst-tools check-style apunte/entrega.md
-
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   paths      <path>  Archivos .md o directorios a revisar con LanguageTool (por defecto todo el  │
+│                      apunte/guías).                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --fix             -f              Aplica automáticamente las sugerencias de corrección           │
+│                                   ortográfica y gramatical.                                      │
+│ --lang            -l      <str>   Código de idioma para LanguageTool (ej: 'es-AR', 'es',         │
+│                                   'en-US').                                                      │
+│                                   [por defecto: es-AR]                                           │
+│ --server          -s      <str>   URL del servidor LanguageTool (por defecto                     │
+│                                   http://localhost:8081 y API pública).                          │
+│ --username        -u      <str>   Usuario / correo de LanguageTool Premium.                      │
+│ --api-key         -k      <str>   API Key / Token de LanguageTool Premium.                       │
+│ --premium                         Fuerza el uso de la API LanguageTool Premium                   │
+│                                   (https://api.languagetoolplus.com/v2/check).                   │
+│ --ignore-rules            <str>   Reglas a ignorar separadas por comas (ej:                      │
+│                                   'MORFOLOGIK_RULE_ES,UPPERCASE_SENTENCE_START').                │
+│ --ignore-words            <str>   Palabras personalizadas a ignorar separadas por comas.         │
+│ --json                            Emite salida estructurada en formato JSON.                     │
+│ --md,--output-md  -o      <path>  Genera reporte en formato Markdown para fusión en Dredd o      │
+│                                   documentación.                                                 │
+│ --force                           Fuerza la ejecución ignorando la verificación de 'myst.yml'.   │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- {code-block} bash -->
+:::
 
-El patrón conserva el estilo rioplatense del manual y usa el subcomando
-`check-style`, disponible en `myst-tools`. Si no hay infracciones, la salida es:
+:::{dropdown} `myst-tools report`
 
-```{code-block} text
-✓ Estilo rioplatense consistente.
+```text
+ Uso: myst-tools report [OPCIONES] [paths]...
 
+ Genera directamente la sección de reporte Markdown de LanguageTool para Dredd o documentación.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   paths      <path>  Archivos .md o directorios a auditar.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --lang    -l      <str>   Código de idioma para LanguageTool. [por defecto: es-AR]               │
+│ --server  -s      <str>   URL del servidor LanguageTool.                                         │
+│ --force                   Fuerza la ejecución ignorando 'myst.yml'.                              │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- {code-block} text -->
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `myst-tools check-tables`
 
-No mezcles tuteo con voseo en la prosa del apunte. Esta frase infringe el
-estilo:
+```text
+ Uso: myst-tools check-tables [OPCIONES] [files]...
 
-> Tú puedes revisar las anclas y corregir el texto antes de compilar el sitio.
+ Audita tablas Markdown en busca de columnas desalineadas o separadores inválidos.
 
-Al ejecutar `myst-tools check-style apunte/entrega.md`, el diagnóstico
-identifica
-el tuteo y señala la línea para que la reemplaces por una forma de voseo. Los
-mensajes emitidos para esta infracción son:
-
-```{code-block} text
-Forma de tuteo detectada ('Tú'). En estilo rioplatense se prefiere 'vos'.
-Forma de tuteo detectada ('puedes'). En estilo rioplatense se prefiere 'podés'.
-
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a auditar.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite los hallazgos como JSON versionado.                                     │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- {code-block} text -->
+:::
+
+:::{dropdown} `myst-tools fmt-tables`
+
+```text
+ Uso: myst-tools fmt-tables [OPCIONES] [files]...
+
+ Formatea y alinea visualmente las columnas de tablas Markdown.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a formatear.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-style`
+
+```text
+ Uso: myst-tools check-style [OPCIONES] [files]...
+
+ Audita estilo rioplatense (voseo vs tuteo, spanglish).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a auditar en estilo rioplatense.                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite los hallazgos como JSON versionado.                                     │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-a11y`
+
+```text
+ Uso: myst-tools check-a11y [OPCIONES] [files]...
+
+ Audita accesibilidad: texto alternativo, orden de encabezados, enlaces genéricos y contraste.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos o directorios Markdown a auditar.                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force   -f        Fuerza la ejecución ignorando myst.yml.                                      │
+│ --strict            Sale con 1 también por los avisos, no solo por los errores.                  │
+│ --json              Emite los hallazgos como JSON versionado.                                    │
+│ --help    -h        Muestra esta ayuda y sale.                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-catalog-links`
+
+```text
+ Uso: myst-tools check-catalog-links [OPCIONES] [files]...
+
+ Valida que toda referencia, enlace o ancla a reglas 0xXXXXh y satélites coincida con el catálogo
+ oficial.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos o directorios Markdown a auditar.                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite los hallazgos como JSON versionado.                                     │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools extract-c-tests`
+
+```text
+ Uso: myst-tools extract-c-tests [OPCIONES] {file_path}
+
+ Extrae bloques C hacia un proyecto C compilable con Makefile.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    file_path      <path>  Archivo Markdown del cual extraer ejemplos C. [obligatorio]          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output-dir  -o      <path>  Directorio destino del proyecto C. [por defecto: test_c_project]   │
+│ --force       -f              Fuerza la ejecución ignorando myst.yml.                            │
+│ --help        -h              Muestra esta ayuda y sale.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools extract-dict-terms`
+
+```text
+ Uso: myst-tools extract-dict-terms [OPCIONES] [files]...
+
+ Extrae identificadores técnicos C y directivas para el diccionario personalizado de LanguageTool.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a procesar.                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Archivo destino para términos LanguageTool.                            │
+│                           [por defecto: spelling.txt]                                            │
+│ --force   -f              Fuerza la ejecución ignorando myst.yml.                                │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-links`
+
+```text
+ Uso: myst-tools check-links [OPCIONES] [files]...
+
+ Audita inmutabilidad y sintaxis de enlaces a GitHub (y, con --externos, enlaces caídos).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a auditar.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force     -f        Fuerza la ejecución ignorando myst.yml.                                    │
+│ --json                Emite los hallazgos como JSON versionado.                                  │
+│ --externos            Además, consultar cada enlace externo y marcar los que responden 404/500 o │
+│                       no responden.                                                              │
+│ --help      -h        Muestra esta ayuda y sale.                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-code-lang`
+
+```text
+ Uso: myst-tools check-code-lang [OPCIONES] [files]...
+
+ Bloques de código sin lenguaje (``` en lugar de ```c): sin resaltado ni anuncio accesible.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a auditar.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite los hallazgos como JSON versionado.                                     │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools doctor`
+
+```text
+ Uso: myst-tools doctor [OPCIONES]
+
+ Verifica el estado del entorno de MYST-TOOLS (Python, Node/myst, LanguageTool, Typst).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools check-c-snippets`
+
+```text
+ Uso: myst-tools check-c-snippets [OPCIONES] [files]...
+
+ Verifica con `gcc -fsyntax-only` que los bloques C compilen, también como fragmentos (requiere
+ gcc).
+
+ Revisa los bloques ```c y ```{code-block} c. Cada uno se compila con los headers estándar y, si
+ no compila así, dentro de una función; los nombres que el texto declara en otro bloque no cuentan
+ como error. Un bloque `{code-block} c` con `:class: fragmento` no se compila.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a auditar.                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite el resultado como JSON versionado.                                      │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools to-typst`
+
+```text
+ Uso: myst-tools to-typst [OPCIONES] {file_path}
+
+ Convierte encabezados de un MyST Markdown a una plantilla Typst.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    file_path      <path>  Archivo Markdown MyST a convertir. [obligatorio]                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --titulo  -t      <str>   Título del documento Typst. [por defecto: Apunte de Cátedra]           │
+│ --output  -o      <path>  Archivo .typ de salida (por defecto stdout).                           │
+│ --force   -f              Fuerza la ejecución ignorando myst.yml.                                │
+│ --json                    Emite el resultado como JSON versionado.                               │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools extract-exercises`
+
+```text
+ Uso: myst-tools extract-exercises [OPCIONES] [files]...
+
+ Extrae las directivas {exercise} como candidatos a ejercicios del banco (deckard).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown con directivas ```{exercise}.                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite el resultado como JSON versionado.                                      │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools glossary`
+
+```text
+ Uso: myst-tools glossary [OPCIONES] [files]...
+
+ Detecta definiciones tipo **Término**: definición y arma un glosario.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   files      <path>  Archivos Markdown a procesar.                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --force  -f        Fuerza la ejecución ignorando myst.yml.                                       │
+│ --json             Emite el resultado como JSON versionado.                                      │
+│ --help   -h        Muestra esta ayuda y sale.                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+:::{dropdown} `myst-tools callout`
+
+```text
+ Uso: myst-tools callout [OPCIONES] {tipo} {cuerpo}
+
+ Imprime un callout MyST (admonition) con el formato estándar.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    tipo        <str>  `note`, `tip`, `warning`, `important` o `danger` (otro valor cae en      │
+│                         `note`).                                                                 │
+│                         [obligatorio]                                                            │
+│ *    cuerpo      <str>  Texto del callout. [obligatorio]                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --titulo  -t      <str>  Título del callout.                                                     │
+│ --help    -h             Muestra esta ayuda y sale.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
+
+Generado desde [`myst-tools@5462d70`](https://github.com/martinvilu/mystmd-tools/tree/5462d70).

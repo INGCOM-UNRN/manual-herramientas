@@ -1,573 +1,408 @@
 ---
 title: "corbel"
-subtitle: "Corbel — Generador de Documentación de APIs, TDAs y Verificación de Snippets C"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Generador Liviano de Documentación y man pages (man 3) en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde corbel@69a3c81: no editar a mano. -->
 
 (manual-corbel)=
-# Corbel — Generador de Documentación de APIs, TDAs y Verificación de Snippets C
+# corbel — Generador Liviano de Documentación y man pages (man 3) en C
 
-:::{note} Resumen Técnico del Satélite
+Repositorio: [github.com/INGCOM-UNRN-P1/corbel](https://github.com/INGCOM-UNRN-P1/corbel).
 
-**Rol en el ecosistema:** Generación de documentación técnica a partir de
-encabezados C y validación de que todos los ejemplos de código compilen y
-ejecuten sin errores.
-
-:::
-<!-- {note} Resumen Técnico del Satélite -->
+**CORBEL** extrae comentarios estructurados Doxygen (`@brief`, `@param`, `@return`, `@pre`, `@post`) desde cabeceras C (`.h`) y genera páginas estáticas en Markdown o páginas de manual para terminal (`man 3 <modulo>`).
 
 ---
 
-(manual-corbel-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`corbel`** forma parte del ecosistema oficial de software de la
-cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Extracción estática de comentarios de documentación estructurada (tipo Doxygen/Javadoc, incluidos los tags `@pre`/`@post`) en archivos de cabecera C (`.h`). No interpreta anotaciones ACSL (`/*@ requires … */`): esas las verifica `callahan`.
+- Generación de documentación técnica en Markdown, JSON y páginas de manual Unix (`man 3`). No genera HTML.
+- Validación de completitud documental: advertencias sobre funciones públicas sin documentar o discrepancias con los prototipos.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Demostración matemática formal de los contratos (delegado a `callahan`).
+- Verificación de encapsulamiento y opacidad de TDAs (delegado a `motoko`).
+- Verificación de reglas de estilo de código (delegado a `gaff`).
 
 ---
 
-(manual-corbel-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Multiplataforma. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `groff` o `man` (opcional, para visualización de páginas `man 3`).
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `corbel`. Plugin registrado en `ripley.plugins` (`documentation`).
 
 ---
 
-### 2.2 Métodos de Instalación de `corbel`
+## Uso Rápido
 
-Podés instalar `corbel` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# Visualizar documentación en terminal
+corbel doc tda_lista.h
 
-::::{tab-set}
+# Exportar a Markdown
+corbel doc tda_lista.h --format markdown -o LISTA_API.md
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# Generar página man 3 para UNIX
+corbel doc tda_lista.h --format man -o /usr/local/man/man3/tda_lista.3
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+```bash
+# Qué falta documentar (y, con --completitud, qué tags le faltan a cada docblock)
+corbel check tda_lista.h --completitud
 
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
+# Porcentaje de la API documentada; con --min sale 1 por debajo (para el CI de la plantilla)
+corbel coverage include/ --min 80
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
+Un docblock que todavía tiene el texto de relleno de `corbel scaffold` o de `gaff fix`
+(`[Descripción breve…]`, `[completar: …]`, y el de versiones anteriores de gaff sin corchetes:
+`@brief Descripción de la función`) cuenta como **documentación ausente**: el esqueleto
+no es documentación. Con `--completitud` también se marcan los docblocks desactualizados: un
+`@param` que ya no está en la firma (se renombró o se sacó) o un `@return` en una función `void`.
 
-:::{tab-item} pipx
+### README de una librería
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
+`corbel readme` escribe el README de una librería hecha con `plantilla-libreria`: la versión y el
+repositorio (de `library.json`), los objetivos del Makefile, cómo agregarla a un TP
+(`./tp.sh add-lib`) y la API de sus cabeceras públicas, con parámetros, retorno, `@pre` y `@post`.
+Lo generado va entre las marcas `<!-- corbel:readme:inicio … -->` y `<!-- corbel:readme:fin -->`;
+lo que está fuera de ellas no se toca. Una función sin docblock, o con el esqueleto sin completar,
+aparece como pendiente. `--check` no escribe y sale con 1 si el README no está al día (para la CI);
+la plantilla lo trae como `make readme`.
+
+```bash
+corbel readme .            # crea o actualiza README.md
+corbel readme . --check    # ¿está al día con el código?
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pipx -->
+## Referencia rápida
 
-::::
-<!-- {tab-set} -->
+### Requisitos
 
----
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-### 2.3 Autocompletado en la Shell
+### Comandos
 
-La interfaz CLI de `corbel` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+| Comando | Descripción |
+|:--|:--|
+| `corbel doc` | Genera documentación a partir de comentarios estructurados o inyecta placeholders en cabeceras C. |
+| `corbel stub`, `corbel scaffold` | Agrega placeholders estructurados de documentación (\@brief, \@param, \@return, \@pre, \@post) a todas las funciones, estructuras, uniones, enumeraciones y tipos indocumentados. |
+| `corbel lint`, `corbel check` | Audita e informa todos los elementos C que carecen de comentarios Doxygen. |
+| `corbel coverage` | Porcentaje de la API pública documentada por completo (docblock, sin relleno y con todos sus tags). |
+| `corbel report` | Genera directamente la sección de reporte Markdown de CORBEL para Dredd. |
+| `corbel doctor` | Verifica el estado del entorno de documentación CORBEL (Python, man). |
+| `corbel acsl` | Exporta cláusulas Doxygen \@pre y \@post hacia contratos formales ACSL legibles por Frama-C WP y Callahan. |
+| `corbel manpage` | Genera e instala páginas de manual UNIX (man 3) en formato troff estándar para librerías y TDAs de la cátedra. |
+| `corbel readme` | Genera o actualiza el README de una librería (plantilla-libreria) desde su código. |
+| `corbel version` | Muestra la versión de CORBEL. |
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-corbel --install-completion
+Ayuda de cada comando: `corbel <comando> -h`.
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+### Salida JSON
 
-````
-<!-- {code-block} bash -->
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `corbel lint`, `corbel check`, `corbel coverage`, `corbel doctor`, `corbel acsl`, `corbel manpage`. El de `doctor --json` lleva `schema_version` y `ok`.
 
----
+### Códigos de salida
 
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
-corbel doctor
-
-````
-<!-- {code-block} bash -->
-
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
-
-#### Matriz de Resolución de Problemas:
-
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-corbel-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `corbel`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `corbel build include/ -o docs/` | Genera el sitio web o manual Markdown a partir de los headers C. |
-| `corbel test-snippets docs/` | Extrae y compila todos los bloques de código C de la documentación. |
-| `corbel check-coverage include/` | Calcula el porcentaje de funciones y structs documentadas. |
-| `corbel doctor` | Verifica la disponibilidad de compiladores y formateadores. |
+:::{dropdown} `corbel`
+:open:
 
-::::{tip}
+```text
+ Uso: corbel [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Generador liviano de documentación de APIs, TDAs, man pages (man 3) y scaffolding de comentarios
+ en C
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-corbel-ejemplos)=
-## Ejemplos y Contraejemplos
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Documentá el archivo, todos los parámetros y el valor de retorno. Usá
-`--completitud` para que `corbel lint` verifique los tags Doxygen requeridos:
-
-````{code-block} bash
-cat <<'EOF' | corbel lint /dev/stdin --completitud
-/** @file cola.h */
-#include <stdbool.h>
-/**
- * @brief Inserta un elemento al inicio de la lista.
- * @param lista Lista destino.
- * @param dato Dato a insertar.
- * @return true si inserta el elemento.
- */
-bool lista_insertar_inicio(void *lista, void *dato);
-EOF
-
-````
-<!-- {code-block} bash -->
-
-Corbel confirma que todos los elementos están documentados:
-
-````{code-block} text
-✓ 100% Documentado: Todos los elementos en 'stdin' cuentan con bloques Doxygen.
-
-````
-<!-- {code-block} text -->
-
-### Contraejemplo (Antipatrón o Caso Infractor)
-
-Este bloque no documenta el parámetro `dato` ni el retorno. `corbel lint
---completitud` señala la declaración como documentación incompleta:
-
-````{code-block} bash
-cat <<'EOF' | corbel lint /dev/stdin --completitud
-/** @file cola.h */
-#include <stdbool.h>
-/**
- * @brief Inserta un elemento al inicio de la lista.
- * @param lista Lista destino.
- */
-bool lista_insertar_inicio(void *lista, void *dato);
-EOF
-
-````
-<!-- {code-block} bash -->
-
-La herramienta reporta un elemento sin documentar y sugiere generar
-placeholders:
-
-````{code-block} text
-│     7 │ documentación incompleta │ bool lista_insertar_inicio(void *lista,   │
-│       │                          │ void *dato);                              │
-
-Se encontraron 1 elemento(s) sin documentar. Podés generar los placeholders con:
-  corbel scaffold /dev/stdin --in-place
-
-````
-<!-- {code-block} text -->
-
----
-
-(manual-corbel-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-/**
- * @brief Inserta un elemento al inicio de la lista enlazada.
- * @param lista Puntero a la estructura TDA Lista.
- * @param dato Puntero genérico al dato a almacenar.
- * @return true si se insertó con éxito, false ante fallo de memoria.
- * @code
- * t_lista *l = lista_crear();
- * int x = 42;
- * assert(lista_insertar_inicio(l, &x) == true);
- * @endcode
- */
-bool lista_insertar_inicio(t_lista *lista, void *dato);
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-corbel build include/ -o docs/
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[✓] 14 funciones parseadas en include/lista.h (Cobertura: 100%)
-[✓] 6 snippets de código extraídos de la documentación.
-[✓] Compilación de snippets: 6/6 PASS (GCC -std=c11 -Werror)
-[✓] Documentación generada exitosamente en docs/index.html
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-corbel-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
-
-Practicá el uso avanzado de **`corbel`** resolviendo los siguientes ejercicios:
-
-::::{exercise} Desafío 1: Generación de Manual de TDA
-:label: corbel-desafio-1
-Generar la documentación Markdown de `include/tda_cola.h`.
-
-**Instrucción de ejecución:**
-``` bash
-corbel build include/tda_cola.h -o docs/cola/
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de corbel y sale.                             │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ doc       Genera documentación a partir de comentarios estructurados o inyecta placeholders en   │
+│           cabeceras C.                                                                           │
+│ stub      Agrega placeholders estructurados de documentación (@brief, @param, @return, @pre,     │
+│           @post)                                                                                 │
+│           a todas las funciones, estructuras, uniones, enumeraciones y tipos indocumentados.     │
+│ scaffold  Agrega placeholders estructurados de documentación (@brief, @param, @return, @pre,     │
+│           @post)                                                                                 │
+│           a todas las funciones, estructuras, uniones, enumeraciones y tipos indocumentados.     │
+│ lint      Audita e informa todos los elementos C que carecen de comentarios Doxygen.             │
+│ check     Audita e informa todos los elementos C que carecen de comentarios Doxygen.             │
+│ coverage  Porcentaje de la API pública documentada por completo (docblock, sin relleno y con     │
+│           todos sus tags).                                                                       │
+│ report    Genera directamente la sección de reporte Markdown de CORBEL para Dredd.               │
+│ doctor    Verifica el estado del entorno de documentación CORBEL (Python, man).                  │
+│ acsl      Exporta cláusulas Doxygen @pre y @post hacia contratos formales ACSL legibles por      │
+│           Frama-C WP y Callahan.                                                                 │
+│ manpage   Genera e instala páginas de manual UNIX (man 3) en formato troff estándar para         │
+│           librerías y TDAs de la cátedra.                                                        │
+│ readme    Genera o actualiza el README de una librería (plantilla-libreria) desde su código.     │
+│ version   Muestra la versión de CORBEL.                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Generación de Manual de TDA -->
+:::{dropdown} `corbel doc`
 
-::::{solution} corbel-desafio-1
+```text
+ Uso: corbel doc [OPCIONES] {header_path}
 
-``` bash
-corbel build include/tda_cola.h -o docs/cola/
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Genera documentación a partir de comentarios estructurados o inyecta placeholders en cabeceras C.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    header_path      <path>  Archivo .h a documentar [obligatorio]                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --format                   -f      <str>   Formato de salida: markdown, man, acsl, json          │
+│                                            [por defecto: markdown]                               │
+│ --output                   -o      <path>  Archivo de destino (por defecto imprime en consola o  │
+│                                            genera archivo según formato)                         │
+│ --placeholders,--scaffold  -p              Inyectar placeholders Doxygen en el código fuente en  │
+│                                            lugar de exportar documentación                       │
+│ --in-place                 -i              Modificar el archivo .h directamente al usar          │
+│                                            --placeholders                                        │
+│ --help                     -h              Muestra esta ayuda y sale.                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} corbel-desafio-1 -->
+:::{dropdown} `corbel stub`
 
-::::{exercise} Desafío 2: Verificación de Snippets de Código
-:label: corbel-desafio-2
-Comprobar que los ejemplos en los comentarios compilan sin warnings.
+```text
+ Uso: corbel stub [OPCIONES] {target}
 
-**Instrucción de ejecución:**
-``` bash
-corbel test-snippets docs/cola/
+ Agrega placeholders estructurados de documentación (@brief, @param, @return, @pre, @post) a todas
+ las funciones, estructuras, uniones, enumeraciones y tipos indocumentados.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .h o .c a documentar [obligatorio]                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --in-place     -i                              Modificar el archivo directamente in-place.       │
+│ --output       -o                      <path>  Archivo de destino.                               │
+│ --file-header      --no-file-header            Incluir encabezado general @file al inicio del    │
+│                                                archivo.                                          │
+│                                                [por defecto: file-header]                        │
+│ --help         -h                              Muestra esta ayuda y sale.                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Verificación de Snippets de Código -->
+:::{dropdown} `corbel scaffold`
 
-::::{solution} corbel-desafio-2
+```text
+ Uso: corbel scaffold [OPCIONES] {target}
 
-``` bash
-corbel test-snippets docs/cola/
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
+ Agrega placeholders estructurados de documentación (@brief, @param, @return, @pre, @post) a todas
+ las funciones, estructuras, uniones, enumeraciones y tipos indocumentados.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .h o .c a documentar [obligatorio]                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --in-place     -i                              Modificar el archivo directamente in-place.       │
+│ --output       -o                      <path>  Archivo de destino.                               │
+│ --file-header      --no-file-header            Incluir encabezado general @file al inicio del    │
+│                                                archivo.                                          │
+│                                                [por defecto: file-header]                        │
+│ --help         -h                              Muestra esta ayuda y sale.                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} corbel-desafio-2 -->
+:::{dropdown} `corbel lint`
 
-::::{exercise} Desafío 3: Auditoría de Cobertura de Documentación
-:label: corbel-desafio-3
-Verificar que ninguna función pública carezca de descripción de parámetros.
+```text
+ Uso: corbel lint [OPCIONES] {target}
 
-**Instrucción de ejecución:**
-``` bash
-corbel check-coverage include/
+ Audita e informa todos los elementos C que carecen de comentarios Doxygen.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .h o .c a auditar [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --completitud                     Auditar además los docblocks existentes e informar los tags    │
+│                                   que les faltan (@brief, @param, @return).                      │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 3: Auditoría de Cobertura de Documentación -->
+:::{dropdown} `corbel check`
 
-::::{solution} corbel-desafio-3
+```text
+ Uso: corbel check [OPCIONES] {target}
 
-``` bash
-corbel check-coverage include/
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
+ Audita e informa todos los elementos C que carecen de comentarios Doxygen.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .h o .c a auditar [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json                            Emitir salida en formato JSON estructurado                     │
+│ --md,--output-md          <path>  Generar sección de reporte en formato Markdown para fusión en  │
+│                                   Dredd.                                                         │
+│ --completitud                     Auditar además los docblocks existentes e informar los tags    │
+│                                   que les faltan (@brief, @param, @return).                      │
+│ --help            -h              Muestra esta ayuda y sale.                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} corbel-desafio-3 -->
+:::{dropdown} `corbel coverage`
 
----
+```text
+ Uso: corbel coverage [OPCIONES] {rutas}...
 
-(manual-corbel-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
+ Porcentaje de la API pública documentada por completo (docblock, sin relleno y con todos sus
+ tags).
 
-Para incorporar `corbel` de forma automática a tu flujo de desarrollo, agregá la
-siguiente regla en el `Makefile` de tu proyecto:
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    rutas      <path>  Cabeceras .h (o directorios) de la API a medir. [obligatorio]            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --min           <float>  Porcentaje mínimo: por debajo sale con código 1 (para el CI de la       │
+│                          plantilla).                                                             │
+│ --json                   Emitir salida en formato JSON estructurado                              │
+│ --help  -h               Muestra esta ayuda y sale.                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-````{code-block} makefile
-check-corbel:
-	@echo "=== Ejecutando verificación con corbel ==="
-	corbel check src/ include/
+:::{dropdown} `corbel report`
 
-.PHONY: check-corbel
+```text
+ Uso: corbel report [OPCIONES] {target}
 
-````
-<!-- {code-block} makefile -->
+ Genera directamente la sección de reporte Markdown de CORBEL para Dredd.
 
-Ejecutá `make check-corbel` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <path>  Archivo .h o .c a auditar [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output       -o      <path>  Ruta de destino del archivo Markdown.                             │
+│ --completitud                  Auditar además los docblocks existentes e informar los tags que   │
+│                                les faltan (@brief, @param, @return).                             │
+│ --help         -h              Muestra esta ayuda y sale.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
----
+:::{dropdown} `corbel doctor`
 
-(manual-corbel-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
+```text
+ Uso: corbel doctor [OPCIONES]
 
-La herramienta **`corbel`** implementa un motor de alta precisión basado en:
+ Verifica el estado del entorno de documentación CORBEL (Python, man).
 
-- **Tecnología Núcleo:** `Tree-Sitter C / Doxygen Parser + GCC Test Runner +
-  MyST Markdown Exporter`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
----
+:::{dropdown} `corbel acsl`
 
-(manual-corbel-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
+```text
+ Uso: corbel acsl [OPCIONES] {header_path}
 
-::::{note}
+ Exporta cláusulas Doxygen @pre y @post hacia contratos formales ACSL legibles por Frama-C WP y
+ Callahan.
 
-Ninguna herramienta opera de forma aislada. **`corbel`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    header_path      <path>  Archivo .h documentado desde el cual exportar contratos ACSL.      │
+│                               [obligatorio]                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output    -o      <path>  Archivo .h de salida con los bloques /*@ ... */ inyectados.          │
+│ --in-place  -i              Inyectar los bloques ACSL directamente en el archivo .h.             │
+│ --json                      Emitir los contratos exportados en formato JSON estructurado.        │
+│ --help      -h              Muestra esta ayuda y sale.                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-::::
-<!-- {note} -->
+:::{dropdown} `corbel manpage`
 
-### Diagrama de Flujo e Interoperabilidad
+```text
+ Uso: corbel manpage [OPCIONES] {target}
 
-::::{mermaid}
+ Genera e instala páginas de manual UNIX (man 3) en formato troff estándar para librerías y TDAs de
+ la cátedra.
 
-graph TD
-    HDR[Headers C: include/*.h] --> CRB[Corbel: Generador de Docs]
-    CRB -->|Extracción de Snippets| GCC[GCC: Compilación de Ejemplos]
-    CRB -->|Verificación de Opacidad| MOT[Motoko: Encapsulamiento TDA]
-    CRB -->|Documentación Markdown| MYST[Myst-Tools: Sitio Web y Apuntes]
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target      <str>  Archivo .h, directorio o librería de la cátedra (ej. treadstone.h).      │
+│                         [obligatorio]                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output       -o      <path>  Ruta del archivo troff (.3) de salida.                            │
+│ --install-dir          <path>  Directorio base de manuales donde instalar man3/<modulo>.3.       │
+│ --no-install                   No instalar automáticamente en el directorio man3 del usuario.    │
+│ --json                         Emitir el resultado en formato JSON estructurado.                 │
+│ --help         -h              Muestra esta ayuda y sale.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-::::
-<!-- {mermaid} -->
+:::{dropdown} `corbel readme`
 
-### Matriz de Intercambio de Datos
+```text
+ Uso: corbel readme [OPCIONES] [raiz]
 
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Headers C (.h) con documentación de TDAs y APIs` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `myst-tools (sitios web y apuntes)`
-- `deckard (documentación de consignas)` | Informes Markdown, diagnósticos Rich,
-  JSON, actas |
-| **Sincronización** | `motoko`, `parker`, `myst-tools` | Validación cruzada, flags compartidos y autofix |
+ Genera o actualiza el README de una librería (plantilla-libreria) desde su código.
 
-### Pipeline de Integración Recomendado
+ Escribe uso, cómo agregarla a un TP y la API de las cabeceras públicas entre dos marcas
+ del README.md; lo que esté fuera de ellas no se toca. Las funciones sin documentar
+ aparecen como pendientes.
 
-Podés encadenar `corbel` con otras herramientas del ecosistema en una única
-línea de comando:
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│   raiz      <path>  Carpeta de la librería (la de library.json e include/). [por defecto: .]     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --check             No escribir: salir con 1 si el README no está al día (para la CI).           │
+│ --stdout            Imprimir el README en lugar de escribirlo.                                   │
+│ --help    -h        Muestra esta ayuda y sale.                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-````{code-block} bash
-# Pipeline de integración típico
-corbel build include/ -o docs/ && corbel test-snippets docs/ && myst-tools fmt docs/
+:::{dropdown} `corbel version`
 
-````
-<!-- {code-block} bash -->
+```text
+ Uso: corbel version [OPCIONES]
 
----
+ Muestra la versión de CORBEL.
 
-(manual-corbel-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+:::
 
-Para crear tus propias reglas, conectores de evaluación o integrar `corbel`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`corbel@69a3c81`](https://github.com/INGCOM-UNRN-P1/corbel/tree/69a3c81).
