@@ -259,7 +259,7 @@ Requiere permisos de administración sobre el repositorio u organización.
 
 ### 3.15 `consigna`
 
-Consigna con bloqueo de tiempo (Decisión 1, ex keymaker; diseño en
+Consigna con bloqueo de tiempo (Decisión 1; diseño en
 `uatu/docs/propuesta_liberacion_consignas.md`). Ningún secreto llega a los
 repositorios de los estudiantes: un workflow ahí podría editarse para
 imprimirlo antes de hora.

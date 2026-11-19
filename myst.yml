@@ -37,7 +37,6 @@ project:
         - file: autoria/voight.md
         - file: autoria/moodle_toolbox.md
         - file: autoria/myst_tools.md
-        - file: autoria/keymaker.md
         - file: autoria/scorm_tools.md
         - file: autoria/tyrell.md
         - file: autoria/corbel.md
