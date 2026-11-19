@@ -62,6 +62,7 @@ project:
         - file: diagnostico_avanzado/index.md
         - file: diagnostico_avanzado/callahan.md
         - file: diagnostico_avanzado/dietrich.md
+        - file: diagnostico_avanzado/tetsuo.md
         - file: diagnostico_avanzado/vasquez.md
         - file: diagnostico_avanzado/vassili.md
     - title: "6. Análisis Estático Especializado"

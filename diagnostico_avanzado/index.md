@@ -1,7 +1,7 @@
 ---
 title: "Diagnóstico Forense y Verificación Formal"
 short_title: "Índice"
-subtitle: "Inyección de fallos POSIX, mutación de pruebas, cobertura MC/DC y verificación formal deductiva"
+subtitle: "Verificación formal, cobertura MC/DC, sanitizers, inyección de fallos y pruebas de mutación"
 ---
 
 (diagnostico-forense-indice)=
@@ -13,7 +13,8 @@ Herramientas avanzadas del perfil análisis y docente destinadas a la verificaci
 
 ## Satélites de Diagnóstico y Verificación
 
-* **[Callahan](callahan.md)**: Verificación formal deductiva de contratos de pre y postcondición expresados en ACSL (ANSI/ISO C Specification Language) integrando Frama-C.
-* **[Dietrich](dietrich.md)**: Análisis y verificación de cobertura de decisiones y condiciones modificadas (MC/DC) para funciones de misión crítica.
-* **[Vasquez](vasquez.md)**: Inyección dinámica y programable de fallos en llamadas del sistema POSIX vía `LD_PRELOAD` sin requerir recompilación.
-* **[Vassili](vassili.md)**: Análisis forense de cobertura de ramas y mutation testing sobre suites de pruebas unitarias.
+* **[callahan](callahan.md)**: Verificación deductiva de contratos ACSL con Frama-C (WP); descarta los provers que demuestran un contrato falso de control.
+* **[dietrich](dietrich.md)**: Cobertura MC/DC de decisiones booleanas compuestas: tabla de verdad y vectores de prueba mínimos ($k + 1$).
+* **[tetsuo](tetsuo.md)**: Compila y ejecuta con AddressSanitizer y UndefinedBehaviorSanitizer y traduce sus diagnósticos al español, con un modo pista para evaluaciones.
+* **[vasquez](vasquez.md)**: Inyección determinista de fallos en `malloc`, `fopen`, `fread` y otras funciones de la biblioteca de C con `LD_PRELOAD`, para verificar el manejo de errores.
+* **[vassili](vassili.md)**: Pruebas de mutación: inyecta mutantes en el código C y calcula qué porcentaje detecta la suite del estudiante (*mutation score*).

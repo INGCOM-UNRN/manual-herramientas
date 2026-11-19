@@ -1,553 +1,319 @@
 ---
 title: "dietrich"
-subtitle: "Dietrich — Validador de Cobertura Lógica MC/DC (Modified Condition/Decision Coverage) en C"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Validador de Cobertura Lógica Avanzada MC/DC en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde dietrich@62c1579: no editar a mano. -->
 
 (manual-dietrich)=
-# Dietrich — Validador de Cobertura Lógica MC/DC (Modified Condition/Decision Coverage) en C
+# dietrich — Validador de Cobertura Lógica Avanzada MC/DC en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Análisis formal de cobertura lógica sobre condiciones
-booleanas complejas en estructuras de control (if, while), manteniendo que cada
-condición atómica afecte independientemente el resultado.
+Repositorio: [github.com/INGCOM-UNRN-P1/dietrich](https://github.com/INGCOM-UNRN-P1/dietrich).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**DIETRICH** analiza las decisiones booleanas compuestas (`if (A && (B || C))`) en código fuente C, desglosa las condiciones atómicas y genera la tabla de verdad y los vectores de prueba mínimos ($k + 1$) requeridos para garantizar **Modified Condition/Decision Coverage (MC/DC)** al 100%.
 
 ---
 
-(manual-dietrich-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`dietrich`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Análisis **estático** (tree-sitter) de la cobertura lógica MC/DC (Modified Condition/Decision Coverage) que una decisión C admite: no ejecuta el programa ni mide qué vectores corre tu suite.
+- Identificación de puntos de decisión condicional (`if`, `while`, operadores `&&`, `||`, ternarios `?:`).
+- Demostración de pares de prueba independientes que demuestran que cada condición elemental afecta el resultado de la decisión.
+- Reporte con el porcentaje de condiciones que tienen par de independencia de causa única y la lista de las que no (`missing_independence_pairs`).
+- Tabla de verdad en Markdown de cada decisión compuesta (`dietrich mcdc archivo.c [-o tablas.md]`): las combinaciones que C distingue (con «—» donde el cortocircuito no evalúa), qué condición **decide** el resultado en cada fila, cuál está **enmascarada** y qué filas forman el conjunto mínimo MC/DC; avisa las condiciones **redundantes** (la decisión no depende de ellas) y en ese caso sale con 1.
+- Cobertura **medida** de líneas, ramas y condiciones (`dietrich lines`, con gcc y gcov): el paso previo a MC/DC. Compila con `--coverage`, ejecuta tus pruebas y dice qué líneas no ejecutó ninguna, qué decisiones tomaron un solo camino, qué condición nunca fue verdadera o falsa (gcc 14 o posterior) y qué funciones nunca se llamaron. Con `--por-entrada --json` agrega la huella de cada entrada por separado (las líneas, ramas y valores de condición que ejecutó, compilando una sola vez): es lo que usa `tyrell cubrir` para generar casos que ejerciten las ramas sin cubrir.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-dietrich-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Mutation testing de mutantes sintéticos (delegado a `vassili`).
+- Generación masiva de datos aleatorios (delegado a `tyrell`).
+- Medir MC/DC de causa única sobre la ejecución: `dietrich check` es estático y `dietrich lines` mide el MC/DC con enmascaramiento de gcc (`-fcondition-coverage`), que es menos estricto.
+- Juzgar si los resultados son correctos: la cobertura dice qué se ejecutó; las aserciones de las pruebas dicen si está bien.
 
 ---
 
-### 2.2 Métodos de Instalación de `dietrich`
+## Requisitos
 
-Podés instalar `dietrich` mediante cualquiera de los siguientes métodos
-estándar:
+### Requisitos de Sistema y Entorno
+- Linux / WSL / POSIX. Python >= 3.10.
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `check`/`analyze`/`report`: ninguno; el motor es estático y no compila ni ejecuta el código analizado.
+- `lines`: `gcc` y su `gcov` (gcc 10 o posterior; con gcc 14 o posterior también mide condiciones). En macOS, el gcc de Homebrew: `--gcc gcc-14 --gcov gcov-14`.
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `dietrich`. Plugin en `ripley.plugins` (`mcdc_coverage`).
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `dietrich` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# Analizar puntos de decisión MC/DC en un archivo C
+dietrich analyze algoritmo_logica.c
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-dietrich --install-completion
+# Exigir un porcentaje mínimo de condiciones con par de independencia (por defecto 100; exit 1 si no se alcanza)
+dietrich analyze algoritmo_logica.c --min-coverage 90
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+# Salida estructurada JSON
+dietrich analyze algoritmo_logica.c --json
 
-````
-<!-- {code-block} bash -->
+# Cobertura medida de tus pruebas: compila lista.c con test_lista.c, ejecuta y reporta lista.c
+dietrich lines lista.c test_lista.c
+```
 
 ---
 
-### 2.4 Verificación del Entorno con `doctor`
+## Concepto MC/DC
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+Para una decisión lógica con $k$ condiciones atómicas:
+- Una tabla de verdad exhaustiva requiere $2^k$ combinaciones.
+- **MC/DC** reduce la suite a $k + 1$ vectores de prueba demostrando que cada condición atómica altera de forma independiente el resultado final de la decisión manteniendo las demás constantes.
 
-````{code-block} bash
-dietrich doctor
+Lo que informa `dietrich check` de cada decisión:
 
-````
-<!-- {code-block} bash -->
+- los vectores elegidos reusando los de otras condiciones, y la cota mínima teórica
+  (`minimum_vectors`, $k + 1$): en las cadenas de `&&` y de `||` se alcanza;
+- en cada vector, las condiciones que C **no evalúa** por el cortocircuito (`not_evaluated`, y `—`
+  en la tabla): con `a > 0 && b > 0`, si `a > 0` es falsa, `b > 0` no se evalúa y su valor no importa;
+- un aviso (`warning`) cuando la decisión combina más de 4 condiciones: conviene extraer parte en
+  una función con nombre o en variables booleanas intermedias.
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+## Referencia rápida
 
-#### Matriz de Resolución de Problemas:
+### Requisitos
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
+
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `dietrich check`, `dietrich analyze` | Analiza condiciones booleanas compuestas (&&, \|\|) y calcula los vectores de prueba requeridos para MC/DC. |
+| `dietrich lines` | Mide qué líneas, ramas y condiciones ejecutan tus pruebas (gcc + gcov): el paso previo a MC/DC. |
+| `dietrich mcdc` | Tabla de verdad en Markdown de cada decisión compuesta: qué condición decide, cuál está enmascarada y cuál sobra. |
+| `dietrich report` | Genera directamente la sección de reporte Markdown de DIETRICH para Dredd. |
+| `dietrich doctor` | Verifica el estado del entorno de análisis MC/DC de DIETRICH. |
+| `dietrich version` | Muestra la versión de DIETRICH. |
+
+Ayuda de cada comando: `dietrich <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `dietrich check`, `dietrich analyze`, `dietrich lines`, `dietrich doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-dietrich-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en
-`dietrich`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `dietrich analyze src/auth.c` | Calcula la matriz de cobertura MC/DC sobre todas las decisiones lógicas. |
-| `dietrich report --md reporte_mcdc.md src/` | Genera el informe de pares de prueba faltantes en Markdown. |
-| `dietrich test-matrix src/controlador.c` | Imprime la tabla de verdad y combinaciones evaluadas. |
-| `dietrich doctor` | Verifica la integración con gcov y llvm-cov. |
+:::{dropdown} `dietrich`
+:open:
 
-::::{tip}
+```text
+ Uso: dietrich [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Validador de cobertura lógica avanzada MC/DC (Modified Condition/Decision Coverage) en C
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-dietrich-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdbool.h>
-
-// Decisión booleana compuesta con 3 condiciones atómicas: (A && B) || C
-bool autorizar_acceso(bool es_admin, bool tiene_token, bool modo_emergencia) {
-    if ((es_admin && tiene_token) || modo_emergencia) {
-        return true;
-    }
-    return false;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-dietrich analyze src/auth.c
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-Decisión: ((es_admin && tiene_token) || modo_emergencia) en auth.c:5
-┌─────────────────────────┬──────────────┬──────────────┬──────────────────┐
-│ Condición Atómica       │ True Outcome │ False Outcome│ MC/DC Satisfecho │
-├─────────────────────────┼──────────────┼──────────────┼──────────────────┤
-│ A (es_admin)            │ Testcase #1  │ Testcase #2  │ ✓ SÍ             │
-│ B (tiene_token)         │ Testcase #1  │ Testcase #3  │ ✓ SÍ             │
-│ C (modo_emergencia)     │ Testcase #4  │ Testcase #5  │ ✓ SÍ             │
-└─────────────────────────┴──────────────┴──────────────┴──────────────────┘
-[✓] Cobertura MC/DC: 100% (4 pares de prueba independientes cubiertos).
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-dietrich-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Suite de pruebas que demuestra independencia de cada condición en `(A && B) || C`:
-
-```{code-block} bash
-dietrich verify control_acceso.c --test suite_acceso.c --mcdc
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de dietrich y sale.                           │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check    Analiza condiciones booleanas compuestas (&&, ||) y calcula los vectores de prueba      │
+│          requeridos para MC/DC.                                                                  │
+│ analyze  Analiza condiciones booleanas compuestas (&&, ||) y calcula los vectores de prueba      │
+│          requeridos para MC/DC.                                                                  │
+│ lines    Mide qué líneas, ramas y condiciones ejecutan tus pruebas (gcc + gcov): el paso previo  │
+│          a MC/DC.                                                                                │
+│ mcdc     Tabla de verdad en Markdown de cada decisión compuesta: qué condición decide, cuál está │
+│          enmascarada y cuál sobra.                                                               │
+│ report   Genera directamente la sección de reporte Markdown de DIETRICH para Dredd.              │
+│ doctor   Verifica el estado del entorno de análisis MC/DC de DIETRICH.                           │
+│ version  Muestra la versión de DIETRICH.                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Decisión 1: '(es_admin && clave_valida) || sesion_activa'
-[✓] Condición 'es_admin': demostró efecto independiente (MC/DC 100%)
-[✓] Condición 'clave_valida': demostró efecto independiente (MC/DC 100%)
-[✓] Condición 'sesion_activa': demostró efecto independiente (MC/DC 100%)
-[✓] Veredicto: COBERTURA_MCDC_COMPLETA (exit 0)
+:::{dropdown} `dietrich check`
+
+```text
+ Uso: dietrich check [OPCIONES] {target_file}
+
+ Analiza condiciones booleanas compuestas (&&, ||) y calcula los vectores de prueba requeridos para
+ MC/DC.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target_file      <path>  Archivo C a auditar por cobertura MC/DC [obligatorio]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --min-coverage    -m      <float range> [0.0<=x<=100.0]  Porcentaje mínimo de condiciones con    │
+│                                                          par de independencia; por debajo, sale  │
+│                                                          con código 1                            │
+│                                                          [por defecto: 100.0]                    │
+│ --json                                                   Emitir salida en formato JSON           │
+│                                                          estructurado                            │
+│ --md,--output-md          <path>                         Generar sección de reporte en formato   │
+│                                                          Markdown para fusión en Dredd.          │
+│ --help            -h                                     Muestra esta ayuda y sale.              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `dietrich analyze`
 
-Suite con pruebas redundantes que cubren ramas pero no demuestran independencia booleana:
+```text
+ Uso: dietrich analyze [OPCIONES] {target_file}
 
-```{code-block} bash
-dietrich verify control_acceso.c --test suite_incompleta.c --mcdc
+ Analiza condiciones booleanas compuestas (&&, ||) y calcula los vectores de prueba requeridos para
+ MC/DC.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target_file      <path>  Archivo C a auditar por cobertura MC/DC [obligatorio]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --min-coverage    -m      <float range> [0.0<=x<=100.0]  Porcentaje mínimo de condiciones con    │
+│                                                          par de independencia; por debajo, sale  │
+│                                                          con código 1                            │
+│                                                          [por defecto: 100.0]                    │
+│ --json                                                   Emitir salida en formato JSON           │
+│                                                          estructurado                            │
+│ --md,--output-md          <path>                         Generar sección de reporte en formato   │
+│                                                          Markdown para fusión en Dredd.          │
+│ --help            -h                                     Muestra esta ayuda y sale.              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ALERTA MC/DC: Cobertura del 66% en decisión línea 18.
-[!] La condición 'clave_valida' nunca fue evaluada con 'es_admin=TRUE' y 'sesion_activa=FALSE'.
-[!] Acción: sumá un caso de prueba donde 'clave_valida' cambie el resultado por sí sola.
+:::{dropdown} `dietrich lines`
+
+```text
+ Uso: dietrich lines [OPCIONES] {fuentes}...
+
+ Mide qué líneas, ramas y condiciones ejecutan tus pruebas (gcc + gcov): el paso previo a MC/DC.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuentes C a compilar juntas: el código y el programa de prueba (con    │
+│                           main).                                                                 │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --input           -i      <file>                         Archivo para la entrada estándar; se    │
+│                                                          repite para varias ejecuciones (una por │
+│                                                          archivo).                               │
+│ --only                    <file>                         Fuente a medir (se repite). Por         │
+│                                                          defecto, las que no tienen main.        │
+│ --cflags                  <str>                          Banderas extra para gcc, por ejemplo    │
+│                                                          '-std=c11 -Wall'.                       │
+│ --timeout                 <float range> [x>=0.1]         Segundos por ejecución; al cortarla se  │
+│                                                          guarda lo ejecutado hasta ahí.          │
+│                                                          [por defecto: 10.0]                     │
+│ --min-lines               <float range> [0.0<=x<=100.0]  Porcentaje mínimo de líneas ejecutadas; │
+│                                                          por debajo, sale con 1.                 │
+│                                                          [por defecto: 0.0]                      │
+│ --min-branches            <float range> [0.0<=x<=100.0]  Porcentaje mínimo de ramas tomadas; por │
+│                                                          debajo, sale con 1.                     │
+│                                                          [por defecto: 0.0]                      │
+│ --gcc                     <str>                          Compilador (gcc-14 en macOS con         │
+│                                                          Homebrew).                              │
+│                                                          [por defecto: gcc]                      │
+│ --gcov                    <str>                          gcov de la misma versión que el         │
+│                                                          compilador.                             │
+│                                                          [por defecto: gcov]                     │
+│ --json                                                   Emitir salida en formato JSON           │
+│                                                          estructurado                            │
+│ --md,--output-md          <path>                         Generar sección de reporte en formato   │
+│                                                          Markdown para fusión en Dredd.          │
+│ --por-entrada                                            Con --json: agregar la huella de cada   │
+│                                                          entrada (líneas, ramas y condiciones    │
+│                                                          que ejecutó), para elegir casos por lo  │
+│                                                          que suman (tyrell cubrir).              │
+│ --help            -h                                     Muestra esta ayuda y sale.              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-dietrich-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `dietrich mcdc`
 
-Practicá el uso avanzado de **`dietrich`** resolviendo los siguientes
-ejercicios:
+```text
+ Uso: dietrich mcdc [OPCIONES] {target_file}
 
-::::{exercise} Desafío 1: Auditoría de Validador de Acceso
-:label: dietrich-desafio-1
-Evaluar si la suite de tests actual cubre todas las ramas atómicas de
-`autorizar_acceso()`.
+ Tabla de verdad en Markdown de cada decisión compuesta: qué condición decide, cuál está
+ enmascarada y cuál sobra.
 
-**Instrucción de ejecución:**
-``` bash
-dietrich analyze src/auth.c
+ Sale con 1 si alguna condición es redundante (la decisión no depende de ella).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target_file      <file>  Archivo C con las decisiones a tabular [obligatorio]               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Escribir el Markdown en este archivo en lugar de la salida estándar.   │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Auditoría de Validador de Acceso -->
+:::{dropdown} `dietrich report`
 
-::::{solution} dietrich-desafio-1
+```text
+ Uso: dietrich report [OPCIONES] {target_file}
 
-``` bash
-dietrich analyze src/auth.c
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Genera directamente la sección de reporte Markdown de DIETRICH para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    target_file      <path>  Archivo C a auditar por cobertura MC/DC [obligatorio]              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} dietrich-desafio-1 -->
+:::{dropdown} `dietrich doctor`
 
-::::{exercise} Desafío 2: Generación de Pares de Prueba Faltantes
-:label: dietrich-desafio-2
-Obtener los casos de prueba requeridos para satisfacer 100% MC/DC en un
-clasificador.
+```text
+ Uso: dietrich doctor [OPCIONES]
 
-**Instrucción de ejecución:**
-``` bash
-dietrich test-matrix src/clasificador.c
+ Verifica el estado del entorno de análisis MC/DC de DIETRICH.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Generación de Pares de Prueba Faltantes -->
+:::{dropdown} `dietrich version`
 
-::::{solution} dietrich-desafio-2
+```text
+ Uso: dietrich version [OPCIONES]
 
-``` bash
-dietrich test-matrix src/clasificador.c
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
+ Muestra la versión de DIETRICH.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} dietrich-desafio-2 -->
-
-::::{exercise} Desafío 3: Informe para Certificación Docente
-:label: dietrich-desafio-3
-Exportar el informe Markdown de cobertura lógica de la entrega.
-
-**Instrucción de ejecución:**
-``` bash
-dietrich report --md reporte_mcdc.md src/
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Informe para Certificación Docente -->
-
-::::{solution} dietrich-desafio-3
-
-``` bash
-dietrich report --md reporte_mcdc.md src/
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} dietrich-desafio-3 -->
-
----
-
-(manual-dietrich-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `dietrich` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-dietrich:
-	@echo "=== Ejecutando verificación con dietrich ==="
-	dietrich check src/ include/
-
-.PHONY: check-dietrich
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-dietrich` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-dietrich-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`dietrich`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `gcov / llvm-cov AST Instrumenter + Boolean Condition
-  Parser + Truth Table Evaluator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-dietrich-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`dietrich`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C + Tests Unitarios] --> DTR[Dietrich: Cobertura MC/DC]
-    DTR -->|Instrumentación Lógica| GCOV[gcov / llvm-cov Engine]
-    DTR -->|Tabla de Verdad y Pares| REP[Reporte de Cobertura]
-    DTR -->|Casos Faltantes| VAS[Vassili: Mutation Testing]
-    DTR -->|Métricas de Calidad| DRD[Dredd: Calificador Masivo]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código C y suites de pruebas unitarias` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `dredd (reporte de cobertura lógica)`
-- `vassili (mutation testing)` | Informes Markdown, diagnósticos Rich, JSON,
-  actas |
-| **Sincronización** | `vassili`, `drake`, `dredd` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `dietrich` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-dietrich analyze src/auth.c --tests bin/test_suite --md reporte_mcdc.md
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-dietrich-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `dietrich`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`dietrich@62c1579`](https://github.com/INGCOM-UNRN-P1/dietrich/tree/62c1579).

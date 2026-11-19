@@ -1,560 +1,478 @@
 ---
 title: "vasquez"
-subtitle: "Vasquez — Inyector de Fallos en Runtime vía LD_PRELOAD sobre malloc, fopen y Syscalls"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Motor de Inyección de Fallos de Entorno en C (Fault Injection Engine)"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde vasquez@1d42e85: no editar a mano. -->
 
 (manual-vasquez)=
-# Vasquez — Inyector de Fallos en Runtime vía LD_PRELOAD sobre malloc, fopen y Syscalls
+# vasquez — Motor de Inyección de Fallos de Entorno en C (Fault Injection Engine)
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Inyección no invasiva de fallos de hardware y sistema
-operativo en tiempo de ejecución interceptando llamadas a glibc mediante una
-librería `LD_PRELOAD` sin recompilar el código del estudiante.
+Repositorio: [github.com/INGCOM-UNRN-P1/vasquez](https://github.com/INGCOM-UNRN-P1/vasquez).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**VASQUEZ** intercepta llamadas estándar a la biblioteca de C (`malloc`, `calloc`, `realloc`, `strdup`, `fopen`, `fwrite`, `fread`, `fclose`) mediante `LD_PRELOAD` para inyectar fallos deterministas en tiempo de ejecución (retornos `NULL` o códigos de error simulando falta de memoria o accesos denegados a disco), verificando si el estudiante implementó manejo defensivo de errores o si el programa sufre un `SIGSEGV`.
 
 ---
 
-(manual-vasquez-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`vasquez`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Inyección de fallos en tiempo de ejecución (Runtime Fault Injection) sin deadlocks para programas C.
+- Intercepción transparente mediante biblioteca compartida `libvasquez_inject.so` precargada con `LD_PRELOAD`.
+- Simulación de fallos controlados en memoria dinámica (`malloc`, `calloc`, `realloc`, `strdup`, `posix_memalign` retornando `NULL` según contadores o patrones).
+- Simulación de fallos de sistema de archivos (`fopen`, `fread`, `fwrite`, `fclose` retornando error o `ENOSPC`).
+- Detección de fugas de recursos y omisión de manejo de errores en caminos de fallo.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
-
----
-
-(manual-vasquez-instalacion)=
-## 2. Instalación y Verificación del Entorno
-
-::::{important}
-
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
-
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Qué no cubre (Límites y Delegación)
+- Mocks estáticos en tiempo de compilación o enlazado (delegado a `holden`).
+- Aislamiento en sandbox de llamadas al sistema mediante bwrap (delegado a `nostromo`).
+- Análisis forense de core dumps (delegado a `hal`).
+- Orquestación masiva de entregas (delegado a `dredd`).
 
 ---
 
-### 2.2 Métodos de Instalación de `vasquez`
+## Requisitos
 
-Podés instalar `vasquez` mediante cualquiera de los siguientes métodos estándar:
+### Requisitos de Sistema y Entorno
+- Linux / POSIX compatible con `LD_PRELOAD`. Python >= 3.11.
+- Windows nativo (GCC MinGW-w64 UCRT64 de MSYS2): soportado mediante interceptación en enlace; ver [Windows nativo](#manual-vasquez-windows-nativo-interceptacion-en-enlace).
 
-::::{tab-set}
+### Dependencias Externas y Binarios
+- `gcc` (para compilar la biblioteca interceptora nativa).
+- `objcopy` (binutils; sólo en Windows nativo, se instala junto con `gcc` en UCRT64).
 
-:::{tab-item} uv tool (Recomendado)
-
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `vasquez`.
+- Plugin registrado en `ripley.plugins` (`fault_injection`).
+- Integración con `hal` para inyección runtime (`hal --inject-vasquez`).
+- Generación de secciones de informe Markdown para `dredd` (`vasquez report`).
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Uso Rápido
 
-La interfaz CLI de `vasquez` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+```bash
+# Inyectar fallos por defecto (malloc y fopen) sobre código fuente o binario
+vasquez inject solucion_alumno.c
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-vasquez --install-completion
+# Especificar fallos exactos (fallar en el 2do malloc y 1er fopen)
+vasquez inject app --faults "malloc:2,fopen:1"
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+# Salida estructurada JSON
+vasquez inject solucion_alumno.c --json
 
-````
-<!-- {code-block} bash -->
+# Proyecto de varios archivos: el .c con main, sus módulos y la carpeta de headers
+vasquez check src/main.c src/lista.c src/procesador.c -I include
 
----
+# Flags adicionales para gcc
+vasquez check src/main.c src/lista.c -I include --cflags "-std=c11 -DDEBUG"
+```
 
-### 2.4 Verificación del Entorno con `doctor`
+`inject`/`check`, `stress` y `report` salen con `0` si el programa resiste todos los
+fallos, `1` si alguno lo hace caer y `2` si no se pudo evaluar. Si el programa no
+compila, VASQUEZ muestra el error de gcc con una pista (falta `-I`, falta el archivo
+con `main`, faltan módulos) en lugar de un traceback.
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+(manual-vasquez-windows-nativo-interceptacion-en-enlace)=
+## Windows nativo (interceptación en enlace)
 
-````{code-block} bash
+Windows no tiene `LD_PRELOAD` ni `<dlfcn.h>`, y los ejecutables PE no admiten precarga de librerías. En esa plataforma VASQUEZ elige automáticamente otra vía:
+
+1. Compila el `.c` del alumno a objeto con los mismos flags que en Linux (`-O0 -g -fno-builtin-free`).
+2. Con `objcopy --redefine-sym` redirige en ese objeto las referencias a `malloc`, `calloc`, `realloc`, `strdup`/`_strdup`, `free`, `fopen`, `fwrite`, `fread` y `fclose` hacia los ganchos `vasquez_hook_*`.
+3. Enlaza el resultado con el objeto inyector (`~/.cache/vasquez/libvasquez_link_<hash>.o`), que lee las mismas variables `VASQUEZ_*` que la librería de Linux.
+
+Diferencias respecto de la vía `LD_PRELOAD`:
+
+- **Requiere el fuente `.c`**: un binario ya compilado no puede instrumentarse y se rechaza con un error.
+- **Sólo cuenta las llamadas del código del alumno.** En Linux, `LD_PRELOAD` ve también las reservas internas de glibc (por ejemplo, el buffer de `stdout` que reserva el primer `printf`), así que `malloc:1` puede caer en esa reserva. En Windows, `malloc:1` es siempre el primer `malloc` escrito por el alumno.
+- `posix_memalign` no existe en UCRT, así que no se intercepta.
+- Las caídas se detectan por el código de salida: `0xC0000005` (violación de acceso) se informa como `SIGSEGV`; `0xC0000374` (heap corrupto, p. ej. double free), `0xC0000409` (`__fastfail`) y `3` (`abort()`/`assert()` del UCRT) como `SIGABRT`, entre otros. Como consecuencia, un programa que termina con `return 3` o `exit(3)` se clasifica como abort, no como salida controlada: conviene que los ejercicios usen otros códigos de error.
+
+`vasquez doctor` informa qué vía está activa y verifica `objcopy` y la compilación del objeto inyector.
+
+## Intercepción Avanzada y Sintaxis de Fallos
+
+La opción `--faults` (disponible en `vasquez inject` y `vasquez report`) admite combinaciones separadas por comas de:
+- `malloc:<N>`: Falla la N-ésima invocación de `malloc`.
+- `calloc:<N>`: Falla la N-ésima invocación de `calloc`.
+- `realloc:<N>`: Falla la N-ésima invocación de `realloc`.
+- `strdup:<N>`: Falla la N-ésima invocación de `strdup`.
+- `posix_memalign:<N>`: Falla la N-ésima invocación de `posix_memalign`.
+- `fopen:<N>`: Falla la N-ésima invocación de `fopen` (fija `errno = EACCES` por defecto).
+- `fread:<N>`: Falla la N-ésima lectura `fread` retornando 0 y fijando `errno = EIO`.
+- `fwrite:<bytes>` / `write:<bytes>` / `write:ENOSPC`: Falla la escritura luego de `<bytes>` o simula disco lleno (`ENOSPC`).
+- `fclose:<N>`: Falla la N-ésima invocación de `fclose` retornando `EOF` y fijando `errno = EIO`.
+- `<tipo>:<N>:<ERRNO>`: el mismo fallo con otro `errno` (`fopen:1:EMFILE`, `fread:2:EINTR`, `fwrite:0:EROFS`).
+- `fread_corto:<N>`: lecturas parciales: cada `fread` devuelve a lo sumo N elementos aunque haya más. Revela los programas que asumen que un `fread` siempre llena el búfer.
+
+### Plan de fallos en YAML
+
+Los escenarios de una actividad pueden quedar escritos en un `vasquez.scenario.yaml` (con
+`--plan archivo.yaml`, o sin opciones si está en el directorio del primer fuente), que dredd usa
+igual para todo el curso:
+
+```yaml
+escenarios:
+  - tipo: malloc
+    llamada: 2              # falla la segunda reserva
+  - tipo: fopen
+    errno: EACCES           # permiso denegado
+  - tipo: fwrite
+    despues_de_bytes: 1024  # disco lleno después de 1 KiB
+  - tipo: fread_corto
+    elementos: 1            # cada fread lee de a un elemento
+opciones:
+  fugas: true               # además, fugas en los caminos de error
+```
+
+Tipos: `malloc`, `calloc`, `realloc`, `strdup`, `posix_memalign`, `fopen`, `fwrite`, `fread`,
+`fclose`, `fread_corto`, `probabilistico`, `cascada`, `basura`. Un plan inválido (un tipo, una
+clave o un errno desconocidos) sale con código 2 y dice qué escenario está mal.
+
+#### Generar el plan: `vasquez plan`
+
+`vasquez plan <fuentes.c | binario> -o fallos.yaml` arma la matriz sistemática en vez de escribirla a
+mano: ejecuta el programa una vez sin fallos (con `--input` para su entrada), cuenta cuántas veces
+llamó a `malloc`, `calloc`, `realloc`, `strdup`, `fopen`, `fread`, `fwrite` y `fclose`, y genera un
+escenario por cada llamada (hasta `--max-llamadas`, 10 por defecto) y por cada causa: `fopen` con
+`ENOENT` y `EACCES`, `fread`/`fclose` con `EIO`, `fwrite` con disco lleno y `fread_corto`. Con una
+biblioteca sin `main` (o con `--estatico`) cuenta los sitios de llamada en el fuente, sin ejecutar.
+El conteo de `malloc` incluye las reservas internas de la biblioteca de C (la de `fopen`, la de
+`printf`): hacerlas fallar también es un caso real. El archivo pasa la validación de `--plan` antes
+de escribirse.
+
+```bash
+vasquez plan tp.c --input casos/entrada.txt -o fallos.yaml
+vasquez inject tp.c --plan fallos.yaml --input "$(cat casos/entrada.txt)"
+vasquez plan lista.c --estatico -o fallos.yaml   # biblioteca sin main
+```
+
+```bash
+# Inyectar fallo en realloc en la 1ra ocurrencia
+vasquez inject app --faults "realloc:1"
+
+# Simular disco lleno (ENOSPC) en escrituras
+vasquez inject app --faults "write:ENOSPC"
+
+# Auditoría estricta de fugas de memoria en caminos de error
+vasquez inject app --faults "malloc:1" --check-leaks
+
+# Auditoría del entorno y compilador de interceptor
 vasquez doctor
+```
 
-````
-<!-- {code-block} bash -->
+## Referencia rápida
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Requisitos
 
-#### Matriz de Resolución de Problemas:
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `vasquez check`, `vasquez inject` | Inyecta fallos controlados (malloc/calloc/realloc NULL, cascada, memoria basura) evaluando la resiliencia del código C. |
+| `vasquez plan` | Genera un plan de fallos (fallos.yaml): cada llamada a malloc, calloc, realloc, strdup, fopen, fread, fwrite y fclose que hace el programa, con sus causas (errno), para `vasquez inject --plan`. |
+| `vasquez stress` | Ejecuta una prueba de estrés repetitiva con fallos probabilísticos de asignación. |
+| `vasquez doctor` | Audita el entorno y verifica la disponibilidad del compilador y la librería de inyección. |
+| `vasquez report` | Genera directamente la sección de reporte Markdown de VASQUEZ para Dredd. |
+| `vasquez version` | Muestra la versión de VASQUEZ. |
+
+Ayuda de cada comando: `vasquez <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `vasquez check`, `vasquez inject`, `vasquez plan`, `vasquez stress`, `vasquez doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-vasquez-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `vasquez`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `vasquez inject --target ./bin/programa --fail-malloc-at 3` | Fuerza a que la 3ra llamada a malloc() devuelva NULL. |
-| `vasquez inject --target ./bin/programa --faults "fopen:1,malloc:2"` | Simula fallos secuenciales en apertura de archivos y memoria. |
-| `vasquez check-leaks ./bin/programa` | Verifica que el programa no pierda memoria en los caminos de error. |
-| `vasquez doctor` | Verifica que el compilador y soporte de LD_PRELOAD funcionen correctamente. |
+:::{dropdown} `vasquez`
+:open:
 
-::::{tip}
+```text
+ Uso: vasquez [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Motor de inyección de fallos de entorno y hardware en C vía LD_PRELOAD
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-vasquez-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-#include <stdlib.h>
-#include <stdio.h>
-
-// Código defensivo evaluado bajo inyección Vasquez
-int* crear_vector(size_t n) {
-    int *v = malloc(sizeof(int) * n);
-    if (v == NULL) { // Vasquez fuerza este camino devolviendo NULL
-        fprintf(stderr, "Error: Memoria insuficiente\n");
-        return NULL;
-    }
-    return v;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-vasquez inject --target ./bin/programa --fail-malloc-at 3
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-INYECCIÓN DE FALLOS VASQUEZ:
-┌─────────────────┬──────────────┬──────────────┬──────────────────────────────────┐
-│ Escenario       │ Invocación # │ Resultado    │ Estado Defensivo                 │
-├─────────────────┼──────────────┼──────────────┼──────────────────────────────────┤
-│ malloc -> NULL  │ 1            │ ✓ MANEJADO   │ Retornó NULL limpiamente (PASS)  │
-│ malloc -> NULL  │ 2            │ ✓ MANEJADO   │ Liberó recursos previos (PASS)   │
-│ fopen -> NULL   │ 1            │ ❌ CRASH     │ SIGSEGV en procesar.c:28 (FAIL)  │
-└─────────────────┴──────────────┴──────────────┴──────────────────────────────────┘
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-vasquez-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Código C con manejo defensivo que libera recursos ante fallo inyectado en `malloc`:
-
-```{code-block} c
-int *v = malloc(n * sizeof(int));
-if (!v) {
-    return ERR_SIN_MEMORIA;
-}
-// uso seguro de v...
-free(v);
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de vasquez y sale.                            │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check    Inyecta fallos controlados (malloc/calloc/realloc NULL, cascada, memoria basura)        │
+│          evaluando la resiliencia del código C.                                                  │
+│ inject   Inyecta fallos controlados (malloc/calloc/realloc NULL, cascada, memoria basura)        │
+│          evaluando la resiliencia del código C.                                                  │
+│ plan     Genera un plan de fallos (fallos.yaml): cada llamada a malloc, calloc, realloc, strdup, │
+│          fopen,                                                                                  │
+│          fread, fwrite y fclose que hace el programa, con sus causas (errno), para `vasquez      │
+│          inject --plan`.                                                                         │
+│ stress   Ejecuta una prueba de estrés repetitiva con fallos probabilísticos de asignación.       │
+│ doctor   Audita el entorno y verifica la disponibilidad del compilador y la librería de          │
+│          inyección.                                                                              │
+│ report   Genera directamente la sección de reporte Markdown de VASQUEZ para Dredd.               │
+│ version  Muestra la versión de VASQUEZ.                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Inyección y prueba de robustez:
+:::{dropdown} `vasquez check`
 
-```{code-block} bash
-vasquez inject --fault "malloc:ENOMEM:1" ./programa_seguro
+```text
+ Uso: vasquez check [OPCIONES] {fuentes}...
+
+ Inyecta fallos controlados (malloc/calloc/realloc NULL, cascada, memoria basura) evaluando la
+ resiliencia del código C.
+
+ Sale con 0 si el programa resiste todos los fallos, 1 si alguno lo hace caer y 2 si no se pudo
+ evaluar (por ejemplo, porque no compila).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuente(s) .c del programa (el que tiene main y sus módulos) o un       │
+│                           binario ya compilado.                                                  │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --include                         -I      <path>   Carpeta de headers para gcc (como -I); se     │
+│                                                    puede repetir.                                │
+│ --cflags                                  <str>    Flags adicionales para gcc, entre comillas    │
+│                                                    (por ejemplo: "-std=c11 -DDEBUG").            │
+│ --faults                          -f      <str>    Especificación:                               │
+│                                                    'malloc:1,malloc:2,fopen:1,fwrite:1024,write… │
+│ --fail-malloc-at                          <int>    Fallar en la llamada N a malloc.              │
+│ --fail-malloc-prob                        <float>  Probabilidad de fallo en malloc (0.0 a 1.0).  │
+│ --fail-realloc-at                         <int>    Fallar en la llamada N a realloc devolviendo  │
+│                                                    NULL (Mejora 11).                             │
+│ --fail-calloc-at                          <int>    Fallar en la llamada N a calloc devolviendo   │
+│                                                    NULL (Mejora 16).                             │
+│ --fail-posix-memalign-at                  <int>    Fallar en la llamada N a posix_memalign con   │
+│                                                    ENOMEM (Mejora 16).                           │
+│ --cascade,--cascade-failures                       Habilitar modo fallo en cascada (tras el      │
+│                                                    primer error, todas las llamadas fallan)      │
+│                                                    (Mejora 17).                                  │
+│ --audit-free-null                                  Auditar invocaciones inocuas a free(NULL) en  │
+│                                                    ramas de limpieza (Mejora 20).                │
+│ --garbage-memory,--poison-memory                   Rellenar bloques con patrón de memoria basura │
+│                                                    (0xA5) para detectar lecturas sin inicializar │
+│                                                    (Mejora 25).                                  │
+│ --poison-byte                             <int>    Valor byte para envenenamiento de memoria     │
+│                                                    (por defecto 0xA5 / 165).                     │
+│                                                    [por defecto: 165]                            │
+│ --fail-write-after                        <int>    Simular disco lleno tras N bytes escritos.    │
+│ --trace                                            Habilitar registro detallado de funciones     │
+│                                                    interceptadas.                                │
+│ --check-leaks                                      Verificar que no haya fugas de memoria en     │
+│                                                    caminos de error.                             │
+│ --input                           -i      <str>    Entrada estándar (stdin)                      │
+│ --json                                             Emitir salida en formato JSON estructurado    │
+│ --md,--output-md                          <path>   Generar sección de reporte en formato         │
+│                                                    Markdown para fusión en Dredd.                │
+│ --plan                                    <file>   Plan de fallos en YAML                        │
+│                                                    (vasquez.scenario.yaml). Sin --plan ni otros  │
+│                                                    escenarios, se usa el que esté junto al       │
+│                                                    primer fuente.                                │
+│ --help                            -h               Muestra esta ayuda y sale.                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Fallo inyectado en llamada 1 a malloc (retornó NULL y seteó errno=ENOMEM)
-[✓] El programa capturó el error ordenadamente y retornó código ERR_SIN_MEMORIA
-[✓] Sin segfault ni fugas en Valgrind
+:::{dropdown} `vasquez inject`
+
+```text
+ Uso: vasquez inject [OPCIONES] {fuentes}...
+
+ Inyecta fallos controlados (malloc/calloc/realloc NULL, cascada, memoria basura) evaluando la
+ resiliencia del código C.
+
+ Sale con 0 si el programa resiste todos los fallos, 1 si alguno lo hace caer y 2 si no se pudo
+ evaluar (por ejemplo, porque no compila).
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuente(s) .c del programa (el que tiene main y sus módulos) o un       │
+│                           binario ya compilado.                                                  │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --include                         -I      <path>   Carpeta de headers para gcc (como -I); se     │
+│                                                    puede repetir.                                │
+│ --cflags                                  <str>    Flags adicionales para gcc, entre comillas    │
+│                                                    (por ejemplo: "-std=c11 -DDEBUG").            │
+│ --faults                          -f      <str>    Especificación:                               │
+│                                                    'malloc:1,malloc:2,fopen:1,fwrite:1024,write… │
+│ --fail-malloc-at                          <int>    Fallar en la llamada N a malloc.              │
+│ --fail-malloc-prob                        <float>  Probabilidad de fallo en malloc (0.0 a 1.0).  │
+│ --fail-realloc-at                         <int>    Fallar en la llamada N a realloc devolviendo  │
+│                                                    NULL (Mejora 11).                             │
+│ --fail-calloc-at                          <int>    Fallar en la llamada N a calloc devolviendo   │
+│                                                    NULL (Mejora 16).                             │
+│ --fail-posix-memalign-at                  <int>    Fallar en la llamada N a posix_memalign con   │
+│                                                    ENOMEM (Mejora 16).                           │
+│ --cascade,--cascade-failures                       Habilitar modo fallo en cascada (tras el      │
+│                                                    primer error, todas las llamadas fallan)      │
+│                                                    (Mejora 17).                                  │
+│ --audit-free-null                                  Auditar invocaciones inocuas a free(NULL) en  │
+│                                                    ramas de limpieza (Mejora 20).                │
+│ --garbage-memory,--poison-memory                   Rellenar bloques con patrón de memoria basura │
+│                                                    (0xA5) para detectar lecturas sin inicializar │
+│                                                    (Mejora 25).                                  │
+│ --poison-byte                             <int>    Valor byte para envenenamiento de memoria     │
+│                                                    (por defecto 0xA5 / 165).                     │
+│                                                    [por defecto: 165]                            │
+│ --fail-write-after                        <int>    Simular disco lleno tras N bytes escritos.    │
+│ --trace                                            Habilitar registro detallado de funciones     │
+│                                                    interceptadas.                                │
+│ --check-leaks                                      Verificar que no haya fugas de memoria en     │
+│                                                    caminos de error.                             │
+│ --input                           -i      <str>    Entrada estándar (stdin)                      │
+│ --json                                             Emitir salida en formato JSON estructurado    │
+│ --md,--output-md                          <path>   Generar sección de reporte en formato         │
+│                                                    Markdown para fusión en Dredd.                │
+│ --plan                                    <file>   Plan de fallos en YAML                        │
+│                                                    (vasquez.scenario.yaml). Sin --plan ni otros  │
+│                                                    escenarios, se usa el que esté junto al       │
+│                                                    primer fuente.                                │
+│ --help                            -h               Muestra esta ayuda y sale.                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `vasquez plan`
 
-Código que asume alocación infalible y desreferencia inmediatamente el puntero:
+```text
+ Uso: vasquez plan [OPCIONES] {fuentes}...
 
-```{code-block} c
-int *v = malloc(n * sizeof(int));
-v[0] = 42; // Si malloc retorna NULL -> SIGSEGV
+ Genera un plan de fallos (fallos.yaml): cada llamada a malloc, calloc, realloc, strdup, fopen,
+ fread, fwrite y fclose que hace el programa, con sus causas (errno), para `vasquez inject --plan`.
+
+ Las llamadas se cuentan ejecutando el programa una vez sin fallos (con la entrada de --input); en
+ una biblioteca sin main, o con --estatico, se cuentan los sitios de llamada en el fuente.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuente(s) .c del programa (el que tiene main y sus módulos) o un       │
+│                           binario ya compilado.                                                  │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --include       -I      <path>              Carpeta de headers para gcc (como -I); se puede      │
+│                                             repetir.                                             │
+│ --cflags                <str>               Flags adicionales para gcc, entre comillas (por      │
+│                                             ejemplo: "-std=c11 -DDEBUG").                        │
+│ --output        -o      <path>              Archivo del plan (lo lee `vasquez inject --plan`).   │
+│                                             [por defecto: fallos.yaml]                           │
+│ --max-llamadas          <int range> [x>=1]  Cuántas llamadas de cada función hacer fallar, como  │
+│                                             máximo.                                              │
+│                                             [por defecto: 10]                                    │
+│ --estatico                                  Contar los sitios de llamada en el fuente en vez de  │
+│                                             ejecutar el programa (lo que se hace con una         │
+│                                             biblioteca sin main).                                │
+│ --sin-fugas                                 No pedir la verificación de fugas en los caminos de  │
+│                                             error.                                               │
+│ --input         -i      <str>               Entrada estándar para la ejecución que cuenta las    │
+│                                             llamadas.                                            │
+│ --json                                      Emitir el plan y los conteos en JSON.                │
+│ --help          -h                          Muestra esta ayuda y sale.                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] CRÍTICO: Fallo inyectado en malloc causó caída por señal SIGSEGV.
-[!] Desreferencia de puntero NULL en línea 12 de 'procesar.c'.
-[!] Infracción de robustez 0x7001h: ausencia de validación defensiva de alocación.
+:::{dropdown} `vasquez stress`
+
+```text
+ Uso: vasquez stress [OPCIONES] {fuentes}...
+
+ Ejecuta una prueba de estrés repetitiva con fallos probabilísticos de asignación.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuente(s) .c del programa (el que tiene main y sus módulos) o un       │
+│                           binario ya compilado.                                                  │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --include     -I      <path>   Carpeta de headers para gcc (como -I); se puede repetir.          │
+│ --cflags              <str>    Flags adicionales para gcc, entre comillas (por ejemplo:          │
+│                                "-std=c11 -DDEBUG").                                              │
+│ --iterations  -n      <int>    Cantidad de corridas bajo inyección aleatoria. [por defecto: 10]  │
+│ --prob        -p      <float>  Probabilidad de fallo por llamada a malloc (0.0 a 1.0).           │
+│                                [por defecto: 0.25]                                               │
+│ --json                         Emitir salida en formato JSON.                                    │
+│ --help        -h               Muestra esta ayuda y sale.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-vasquez-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `vasquez doctor`
 
-Practicá el uso avanzado de **`vasquez`** resolviendo los siguientes ejercicios:
+```text
+ Uso: vasquez doctor [OPCIONES]
 
-::::{exercise} Desafío 1: Simulación de Memoria Agotada en `malloc`
-:label: vasquez-desafio-1
-Comprobar si el programa maneja el retorno `NULL` de memoria.
+ Audita el entorno y verifica la disponibilidad del compilador y la librería de inyección.
 
-**Instrucción de ejecución:**
-``` bash
-vasquez inject --target ./bin/tp1 --fail-malloc-at 1
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json               Emitir diagnóstico en formato JSON.                                         │
+│ --verbose  -v        Mostrar detalle completo.                                                   │
+│ --help     -h        Muestra esta ayuda y sale.                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Simulación de Memoria Agotada en `malloc` -->
+:::{dropdown} `vasquez report`
 
-::::{solution} vasquez-desafio-1
+```text
+ Uso: vasquez report [OPCIONES] {fuentes}...
 
-``` bash
-vasquez inject --target ./bin/tp1 --fail-malloc-at 1
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Genera directamente la sección de reporte Markdown de VASQUEZ para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuentes      <file>  Fuente(s) .c del programa (el que tiene main y sus módulos) o un       │
+│                           binario ya compilado.                                                  │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --include  -I      <path>  Carpeta de headers para gcc (como -I); se puede repetir.              │
+│ --cflags           <str>   Flags adicionales para gcc, entre comillas (por ejemplo: "-std=c11    │
+│                            -DDEBUG").                                                            │
+│ --output   -o      <path>  Ruta de destino del archivo Markdown.                                 │
+│ --faults   -f      <str>   Especificación de fallos (e.g. 'malloc:1,fopen:2,write:ENOSPC').      │
+│ --input    -i      <str>   Entrada estándar.                                                     │
+│ --help     -h              Muestra esta ayuda y sale.                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} vasquez-desafio-1 -->
+:::{dropdown} `vasquez version`
 
-::::{exercise} Desafío 2: Inyección de Falla en Archivo de Configuración
-:label: vasquez-desafio-2
-Forzar a que `fopen()` devuelva NULL y verificar mensaje de error.
+```text
+ Uso: vasquez version [OPCIONES]
 
-**Instrucción de ejecución:**
-``` bash
-vasquez inject --target ./bin/tp1 --faults "fopen:1"
+ Muestra la versión de VASQUEZ.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 2: Inyección de Falla en Archivo de Configuración -->
-
-::::{solution} vasquez-desafio-2
-
-``` bash
-vasquez inject --target ./bin/tp1 --faults "fopen:1"
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} vasquez-desafio-2 -->
-
-::::{exercise} Desafío 3: Auditoría Integrada con Diagnóstico Forense HAL
-:label: vasquez-desafio-3
-Capturar el crash ante un fallo inyectado y visualizar la línea origen.
-
-**Instrucción de ejecución:**
-``` bash
-vasquez inject --target ./bin/tp1 --fail-malloc-at 2 --diagnose
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Auditoría Integrada con Diagnóstico Forense HAL -->
-
-::::{solution} vasquez-desafio-3
-
-``` bash
-vasquez inject --target ./bin/tp1 --fail-malloc-at 2 --diagnose
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} vasquez-desafio-3 -->
-
----
-
-(manual-vasquez-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `vasquez` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-vasquez:
-	@echo "=== Ejecutando verificación con vasquez ==="
-	vasquez check src/ include/
-
-.PHONY: check-vasquez
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-vasquez` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-vasquez-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`vasquez`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `C Dynamic Preload Library (LD_PRELOAD) + Function
-  Interception Engine (dlsym RTLD_NEXT) + Fault State Machine`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-vasquez-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`vasquez`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    BIN[Binario del Estudiante] --> VAS[Vasquez: Inyector LD_PRELOAD]
-    VAS -->|Intercepta malloc/fopen/write| GLIBC[glibc Calls (RTLD_NEXT)]
-    VAS -->|Fuerza Retorno NULL| FAULT[Simulación OOM / Falla I/O]
-    FAULT -->|Código sin Chequeo Crash SIGSEGV| HAL[Hal: Forense de Core Dumps]
-    VAS -->|Reporte de Manejo Defensivo| DRD[Dredd: Informe alumno_rN.md]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Binarios C compilados de estudiantes` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `hal (diagnóstico correlacionado de caídas)`
-- `dredd (evaluación de robustez defensiva)` | Informes Markdown, diagnósticos
-  Rich, JSON, actas |
-| **Sincronización** | `hal`, `holden`, `nostromo`, `dredd` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `vasquez` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-vasquez inject --target ./bin/app --faults "malloc:1" --diagnose
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-vasquez-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `vasquez`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`vasquez@1d42e85`](https://github.com/INGCOM-UNRN-P1/vasquez/tree/1d42e85).

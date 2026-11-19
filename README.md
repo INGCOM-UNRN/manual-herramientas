@@ -16,7 +16,7 @@ El [catálogo por rol](catalogo_por_rol.md) reúne los componentes del manifiest
 * **`autoria/`**: Satélites de autoría (`deckard`, `alucard`, `idkfa`, `voight`, `moodle_toolbox`, `myst_tools`, `scorm_tools`, `tyrell`, `corbel`).
 * **`evaluacion/`**: Infraestructura de evaluación y gestión (`dredd`, `weyl`, `cyberdeck`, `meet_tools`, `slide_tools`, `gestion`, `p1_tools`).
 * **`aula/`**: Entornos en VM, prácticas de laboratorio y control de exámenes (`construct`, `hardboiled`, `uatu_tools`).
-* **`diagnostico_avanzado/`**: Verificación formal y análisis de fallos (`callahan`, `dietrich`, `vasquez`, `vassili`).
+* **`diagnostico_avanzado/`**: Verificación formal y análisis de fallos (`callahan`, `dietrich`, `tetsuo`, `vasquez`, `vassili`).
 * **`analisis_estatico/`**: Satélites de cátedra para inspección profunda (`brett`, `crowe`, `drake`, `ferro`, `giger`, `holden`, `kane`, `motoko`, `parker`, `rachel`, `sebastian`, `wierzbowski`, `zhora`).
 
 ---

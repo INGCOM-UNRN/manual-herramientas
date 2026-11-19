@@ -25,7 +25,7 @@ Consultá el [catálogo completo por rol](catalogo_por_rol.md) para encontrar he
 | **[2. Autoría Didáctica](autoria/index.md)** | Curaduría de guías según Taxonomía de Bloom, generación procedural de variantes, maquetación Typst y bancos Moodle. | `deckard`, `alucarD`, `idkfa`, `voight`, `myst-tools`, `tyrell`, `corbel`, `scorm-tools` |
 | **[3. Evaluación y Gestión](evaluacion/index.md)** | Calificación masiva batch, ingesta Moodle ZIP / GitHub Classroom, detección de plagio Winnowing y telemetría. | `dredd`, `weyl`, `cyberdeck`, `meet-tools`, `slide-tools`, `gestion`, `p1-tools` |
 | **[4. Aula y Exámenes](aula/index.md)** | Entornos reproducibles en VM (Linux, Windows, macOS), emulación de hardware bare-metal RV32I con MMIO y auditoría criptográfica. | `construct`, `hardboiled`, `uatu-tools` |
-| **[5. Diagnóstico Forense](diagnostico_avanzado/index.md)** | Verificación formal con contratos ACSL, cobertura lógica MC/DC, análisis de mutación e inyección dinámica de fallos POSIX. | `callahan`, `dietrich`, `vasquez`, `vassili` |
+| **[5. Diagnóstico Forense](diagnostico_avanzado/index.md)** | Verificación formal con contratos ACSL, cobertura MC/DC, traducción de sanitizers, inyección de fallos con `LD_PRELOAD` y pruebas de mutación. | `callahan`, `dietrich`, `tetsuo`, `vasquez`, `vassili` |
 | **[6. Análisis Estático](analisis_estatico/index.md)** | Satélites de cátedra para inspección estática profunda: alineación de structs, portabilidad, ABI, call graphs y macros. | `brett`, `crowe`, `drake`, `ferro`, `giger`, `holden`, `kane`, `motoko`, `parker`, `rachel`, `sebastian`, `wierzbowski`, `zhora` |
 
 ---

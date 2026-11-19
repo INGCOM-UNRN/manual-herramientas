@@ -1,551 +1,335 @@
 ---
 title: "vassili"
-subtitle: "Vassili — Motor de Mutation Testing en C para Evaluación de Calidad de Suites de Pruebas"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Motor de Mutation Testing en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde vassili@65826b0: no editar a mano. -->
 
 (manual-vassili)=
-# Vassili — Motor de Mutation Testing en C para Evaluación de Calidad de Suites de Pruebas
+# vassili — Motor de Mutation Testing en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Evaluación de la efectividad de los tests unitarios
-mediante la inyección de mutaciones deliberadas en el código fuente (cambio de
-operadores `+` por `-`, `<` por `<=`, constantes) para verificar si los tests
-fallan.
+Repositorio: [github.com/INGCOM-UNRN-P1/vassili](https://github.com/INGCOM-UNRN-P1/vassili).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+**VASSILI** evalúa la calidad y exhaustividad real de las suites de prueba de los estudiantes mediante la inyección procedural de mutantes sintéticos en el código fuente C (operadores aritméticos, relacionales y lógicos) y calcula el **Mutation Score** (% de mutantes detectados).
 
 ---
 
-(manual-vassili-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`vassili`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Motor de Mutation Testing para código fuente C y evaluación de calidad de suites de pruebas.
+- Aplicación de operadores de mutación por **sustitución textual** línea a línea (no sobre un AST): inversión de comparaciones, operadores aritméticos, incrementos, conectores y negaciones lógicas, retornos constantes y, con `--sanitizers`, reservas de memoria y liberaciones. Antes de mutar se enmascaran comentarios y literales de cadena/carácter, así que un `+` dentro de un `"..."` no se toca. No muta literales numéricos salvo los de un `return`.
+- Ejecución de la suite de pruebas contra cada mutante generado.
+- Cálculo cuantitativo del Mutation Score (porcentaje de mutantes eliminados respecto al total) y reporte de mutantes supervivientes.
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Cobertura lógica estructural MC/DC (delegado a `dietrich`).
+- Fuzzing de entradas extremas de I/O (delegado a `drake`).
+- Orquestación de calificaciones masivas de cursos (delegado a `dredd`).
 
 ---
 
-(manual-vassili-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Linux / POSIX o Windows (MSYS2 / WSL). Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `gcc`.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `vassili`. Plugin registrado en `ripley.plugins` (`mutation_testing`).
+- Extra `ecosistema`: `daedalus` compila los mutantes y `nostromo` los ejecuta aislados.
 
 ---
 
-### 2.2 Métodos de Instalación de `vassili`
+## Uso Rápido
 
-Podés instalar `vassili` mediante cualquiera de los siguientes métodos estándar:
+```bash
+# Ejecutar análisis de mutación sobre un archivo C con testcases
+vassili mutate solucion_alumno.c --tests-dir tests/
 
-::::{tab-set}
+# Exigir un Mutation Score mínimo del 80%
+vassili mutate solucion_alumno.c --tests-dir tests/ --min-score 80
 
-:::{tab-item} uv tool (Recomendado)
+# Salida estructurada JSON
+vassili mutate solucion_alumno.c --tests-dir tests/ --json
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
-
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
+# Un módulo de TP (sin main) contra su suite de p1_test
+vassili mutate ejercicios/ejercicio1/fraccion.c --suite ejercicios/ejercicio1/prueba.c
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
+### Perfil de cátedra
 
-:::{tab-item} pip / venv
+`--perfil catedra` deja los operadores que más enseñan en P1 y los ordena por prioridad antes
+de aplicar el tope de 50 mutantes:
 
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
+1. las cotas y el sentido de los lazos: `ROR`, `LCR` y `AOR` en la condición de un `for` o
+   `while`, y `UOI` en la cabecera de un `for`;
+2. la memoria dinámica: `MSR` y `FDR` (con `--sanitizers`) y `ECR` (con `--plan-vasquez`);
+3. las condiciones relacionales y lógicas de los `if` y del operador `?:`.
 
-# Instalar en modo editable para desarrollo
-pip install -e .
+No muta negaciones sueltas (`LNR`), retornos constantes (`RVR`) ni aritmética fuera de la
+cabecera de un lazo, y descarta del listado los mutantes equivalentes (siguen contados en
+`equivalent_count` y en `por_operador`). El perfil por omisión es `completo`.
+
+### Plan de fallos para vasquez
+
+Con `--plan-vasquez <ruta>` vassili suma los mutantes `ECR` y, con los que sobreviven (los
+chequeos de error que ningún caso ejercita), escribe un plan en el formato de `vasquez inject
+--plan`: un escenario por cada invocación de esa función (hasta 10; `fopen` con `ENOENT` y
+`EACCES`) y `fugas: true` para revisar también las fugas en esos caminos. Si la ruta es un
+directorio se escribe `vasquez.scenario.yaml`, que vasquez toma solo cuando está junto al primer
+fuente:
+
+```bash
+vassili mutate lista.c --tests-dir tests/ --plan-vasquez .
+vasquez inject main.c lista.c   # usa ./vasquez.scenario.yaml, junto a main.c
 ```
-<!-- bash -->
 
-:::
-<!-- {tab-item} pip / venv -->
+El número de invocación no se deduce del fuente: el plan cubre todas las de esa función, pero
+sólo de las funciones cuyo chequeo sobrevivió.
 
-:::{tab-item} pipx
+### Con una suite de p1_test
 
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
+Con `--suite prueba.c` el oráculo no son los `.in`/`.out` sino la suite de la plantilla: cada
+mutante del módulo se enlaza con `prueba.c` y se corre con `-q -f`. p1_test (treadstone ≥
+`41b344d`) deja en stderr una línea `P1_FALLO` por la aserción que falló, así que de cada mutante
+asesinado se informa el test y la aserción (`prueba.c:42: ASSERT_INT_EQ(…)`, o la señal si se
+cayó); con `-f` la suite se detiene en el primer test que falla. Los headers y la biblioteca se
+toman del `libs/p1_test` de la plantilla (sus fuentes o `libp1_test.a`); si no está, se indican
+con `-I` y `--enlazar`. El reporte trae además el resumen por operador (`por_operador`):
+cuántos mutantes de cada familia generó, mató y dejó vivos la suite.
 
 ---
 
-### 2.3 Autocompletado en la Shell
+## Operadores de Mutación
 
-La interfaz CLI de `vassili` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
+- **`AOR`** (Arithmetic Operator Replacement): `+` ➔ `-`, `-` ➔ `+`, `*` ➔ `/` (el `*` de puntero o desreferencia no se muta).
+- **`ROR`** (Relational Operator Replacement): `==` ➔ `!=`, `!=` ➔ `==`, `<` ➔ `<=`, `<=` ➔ `>`, `>` ➔ `>=`, `>=` ➔ `<`.
+- **`LCR`** (Logical Connector Replacement): `&&` ➔ `||` y `||` ➔ `&&`.
+- **`UOI`** (Unary Operator Increment): `++` ➔ `--` y `--` ➔ `++`; junto con `<` ➔ `<=` revela los errores de borde de los lazos.
+- **`LNR`** (Logical Negation Removal): `!condicion` ➔ `condicion`.
+- **`RVR`** (Return Value Replacement): `return 0;` ➔ `return 1;` y cualquier otra constante ➔ `return 0;` (no en `main`, donde solo cambiaría el código de salida).
+- **`MSR`** (Memory Size Reduction, solo con `--sanitizers`): `malloc(tam)` ➔ `malloc((tam) - 1)`.
+- **`FDR`** (Free Deletion, solo con `--sanitizers`): `free(p)` ➔ `(void)0`, una fuga.
 
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-vassili --install-completion
+- **`ECR`** (Error Check Removal, solo con `--plan-vasquez`): `if (p == NULL)`, `if (!p)` o
+  `if ((f = fopen(…)) == NULL)` ➔ `if ((…) && 0)`, cuando el puntero viene de `malloc`, `calloc`,
+  `realloc`, `strdup` o `fopen`. Mide si la suite recorre el camino de error, no su calidad sobre
+  el camino normal: queda **fuera del score** (está en `por_operador`). Los que sobreviven van al
+  plan de fallos de vasquez (ver abajo).
 
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
+`MSR` y `FDR` solo se generan con `--sanitizers`, que compila y corre con AddressSanitizer: sin
+él ningún test puede detectar una reserva de menos o una fuga, y esos mutantes bajarían el score
+sin culpa de la suite.
 
-````
-<!-- {code-block} bash -->
+Además:
 
----
+- **Equivalentes:** si un mutante compila (con `-O2`) al mismo código objeto que el original,
+  ningún test puede distinguirlo; se marca `equivalent` y queda fuera del score.
+- **Aislamiento:** cada corrida es un proceso aparte con límite de tiempo, de CPU, de memoria
+  (512 MB) y de salida (8 MB): un mutante con un bucle infinito o que imprime sin parar no
+  cuelga el análisis. Con el extra `ecosistema` corre además dentro del sandbox de `nostromo`
+  (bwrap: sin red y sin escribir fuera de él), así que un mutante que borra o pisa archivos no
+  toca la máquina del evaluador. El reporte dice cuál se usó (`aislamiento`).
+- **Qué caso falta:** de cada mutante que sobrevive se sugiere el caso de prueba que lo mataría
+  (en la tabla, el JSON —`sugerencia`— y la sección Markdown).
 
-### 2.4 Verificación del Entorno con `doctor`
+## Referencia rápida
 
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
+### Requisitos
 
-````{code-block} bash
-vassili doctor
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`.
 
-````
-<!-- {code-block} bash -->
+| Sistema | `gcc` |
+|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` |
+| Fedora | `sudo dnf install gcc` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) |
+| macOS | `xcode-select --install` (clang como `gcc`) |
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+### Comandos
 
-#### Matriz de Resolución de Problemas:
+| Comando | Descripción |
+|:--|:--|
+| `vassili check`, `vassili mutate` | Genera mutantes sintéticos del código C y evalúa qué porcentaje es detectado por los tests. |
+| `vassili report` | Genera directamente la sección de reporte Markdown de VASSILI para Dredd. |
+| `vassili version` | Muestra la versión de VASSILI. |
+| `vassili doctor` | Verifica el estado del entorno de VASSILI (Python, GCC). |
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+Ayuda de cada comando: `vassili <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `vassili check`, `vassili mutate`, `vassili doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-vassili-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en `vassili`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `vassili mutate src/calculadora.c --tests ./bin/test_suite` | Aplica operadores de mutación y calcula el Mutation Score. |
-| `vassili report --format html -o reporte_mutaciones.html` | Exporta el informe visual de mutantes vivos y muertos. |
-| `vassili list-mutators` | Lista todos los operadores de mutación disponibles (AOR, ROR, LCR, UOI). |
-| `vassili doctor` | Verifica compiladores y suites de pruebas. |
+:::{dropdown} `vassili`
+:open:
 
-::::{tip}
+```text
+ Uso: vassili [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ Motor de Mutation Testing en C para evaluar la efectividad de los tests
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-vassili-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-// Código original
-int maximo(int a, int b) {
-    if (a > b) return a;
-    return b;
-}
-
-// Mutante #1 generado por Vassili (Operador Relacional ROR: '>' cambiado por '>=')
-// Si tus tests no prueban el caso 'a == b', este mutante SOBREVIVE.
-int maximo_mutante1(int a, int b) {
-    if (a >= b) return a;
-    return b;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-vassili mutate src/calculadora.c --tests ./bin/test_suite
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-:linenos:
-MUTATION TESTING REPORT (Vassili):
-┌───────────────────────────┬────────┬───────────┐
-│ Estado de Mutantes        │ Cant   │ Porcentaje│
-├───────────────────────────┼────────┼───────────┤
-│ Mutantes Asesinados (Killed)│ 42   │ 87.5%     │
-│ Mutantes Vivos (Survived) │ 6      │ 12.5%     │
-│ Mutantes Inválidos        │ 0      │ 0.0%      │
-└───────────────────────────┴────────┴───────────┘
-🎯 Mutation Score: 87.5% (Se recomienda > 80% para aprobación docente).
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-vassili-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Suite de pruebas con aserciones estrictas que eliminan mutantes de límites y operadores:
-
-```{code-block} bash
-vassili mutate calculadora.c --test test_calculadora.c
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de vassili y sale.                            │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ check    Genera mutantes sintéticos del código C y evalúa qué porcentaje es detectado por los    │
+│          tests.                                                                                  │
+│ mutate   Genera mutantes sintéticos del código C y evalúa qué porcentaje es detectado por los    │
+│          tests.                                                                                  │
+│ report   Genera directamente la sección de reporte Markdown de VASSILI para Dredd.               │
+│ version  Muestra la versión de VASSILI.                                                          │
+│ doctor   Verifica el estado del entorno de VASSILI (Python, GCC).                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] 24 mutantes generados (operadores aritméticos, relacionales y constantes)
-[✓] Mutantes eliminados (killed): 24/24 (Mutation Score: 100%)
-[✓] Mutantes sobrevivientes: 0
-[✓] Veredicto: SUITE_ROBUSTA (exit 0)
+:::{dropdown} `vassili check`
+
+```text
+ Uso: vassili check [OPCIONES] {source_file}
+
+ Genera mutantes sintéticos del código C y evalúa qué porcentaje es detectado por los tests.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    source_file      <path>  Archivo C a mutar [obligatorio]                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --tests-dir       -t      <path>   Directorio con casos de prueba .in/.out [por defecto: tests]  │
+│ --min-score       -m      <float>  Score mínimo de mutación para aprobar (0-100%)                │
+│                                    [por defecto: 70.0]                                           │
+│ --timeout                 <float>  Tiempo límite por prueba en segundos [por defecto: 2.0]       │
+│ --json                             Emitir salida en formato JSON estructurado                    │
+│ --md,--output-md          <path>   Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --sanitizers                       Compilar y correr con AddressSanitizer: suma los mutantes de  │
+│                                    reserva de menos (MSR) y sin free (FDR), que solo así se      │
+│                                    detectan.                                                     │
+│ --suite           -s      <file>   Suite de p1_test (prueba.c con su main) que se enlaza con el  │
+│                                    módulo mutado en lugar de los casos .in/.out; informa la      │
+│                                    aserción que mató a cada mutante.                             │
+│ --incluir         -I      <path>   Directorio de headers para compilar con la suite (repetible). │
+│                                    Sin -I ni --enlazar se usa el libs/p1_test de la plantilla.   │
+│ --enlazar                 <path>   Fuente .c o biblioteca .a a enlazar con la suite (repetible), │
+│                                    p. ej. libs/p1_test/libp1_test.a.                             │
+│ --perfil                  <str>    Operadores: completo (todos) o catedra (cotas y sentido de    │
+│                                    los lazos, memoria dinámica y condiciones, en ese orden de    │
+│                                    prioridad; sin los equivalentes en el listado).               │
+│                                    [por defecto: completo]                                       │
+│ --plan-vasquez            <path>   Suma los mutantes ECR (sin el chequeo de error de malloc,     │
+│                                    realloc, fopen…) y escribe en esta ruta (o en                 │
+│                                    <dir>/vasquez.scenario.yaml) el plan de fallos de vasquez     │
+│                                    para los que sobreviven.                                      │
+│ --help            -h               Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `vassili mutate`
 
-Pruebas unitarias que ejecutan el código sin verificar el resultado (`tests placebo`):
+```text
+ Uso: vassili mutate [OPCIONES] {source_file}
 
-```{code-block} bash
-vassili mutate calculadora.c --test test_placebo.c
+ Genera mutantes sintéticos del código C y evalúa qué porcentaje es detectado por los tests.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    source_file      <path>  Archivo C a mutar [obligatorio]                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --tests-dir       -t      <path>   Directorio con casos de prueba .in/.out [por defecto: tests]  │
+│ --min-score       -m      <float>  Score mínimo de mutación para aprobar (0-100%)                │
+│                                    [por defecto: 70.0]                                           │
+│ --timeout                 <float>  Tiempo límite por prueba en segundos [por defecto: 2.0]       │
+│ --json                             Emitir salida en formato JSON estructurado                    │
+│ --md,--output-md          <path>   Generar sección de reporte en formato Markdown para fusión en │
+│                                    Dredd.                                                        │
+│ --sanitizers                       Compilar y correr con AddressSanitizer: suma los mutantes de  │
+│                                    reserva de menos (MSR) y sin free (FDR), que solo así se      │
+│                                    detectan.                                                     │
+│ --suite           -s      <file>   Suite de p1_test (prueba.c con su main) que se enlaza con el  │
+│                                    módulo mutado en lugar de los casos .in/.out; informa la      │
+│                                    aserción que mató a cada mutante.                             │
+│ --incluir         -I      <path>   Directorio de headers para compilar con la suite (repetible). │
+│                                    Sin -I ni --enlazar se usa el libs/p1_test de la plantilla.   │
+│ --enlazar                 <path>   Fuente .c o biblioteca .a a enlazar con la suite (repetible), │
+│                                    p. ej. libs/p1_test/libp1_test.a.                             │
+│ --perfil                  <str>    Operadores: completo (todos) o catedra (cotas y sentido de    │
+│                                    los lazos, memoria dinámica y condiciones, en ese orden de    │
+│                                    prioridad; sin los equivalentes en el listado).               │
+│                                    [por defecto: completo]                                       │
+│ --plan-vasquez            <path>   Suma los mutantes ECR (sin el chequeo de error de malloc,     │
+│                                    realloc, fopen…) y escribe en esta ruta (o en                 │
+│                                    <dir>/vasquez.scenario.yaml) el plan de fallos de vasquez     │
+│                                    para los que sobreviven.                                      │
+│ --help            -h               Muestra esta ayuda y sale.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] ALERTA: Mutation Score deficiente: 25% (6/24 mutantes eliminados).
-[!] 18 mutantes sobrevivieron: mutación de '>' a '>=' en línea 15 no falló ningún test.
-[!] Acción: agregá aserciones específicas para los valores de frontera.
+:::{dropdown} `vassili report`
+
+```text
+ Uso: vassili report [OPCIONES] {source_file}
+
+ Genera directamente la sección de reporte Markdown de VASSILI para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    source_file      <path>  Archivo C a mutar [obligatorio]                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output     -o      <path>  Ruta de destino del archivo Markdown.                               │
+│ --tests-dir  -t      <path>  Directorio con casos de prueba. [por defecto: tests]                │
+│ --help       -h              Muestra esta ayuda y sale.                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-vassili-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `vassili version`
 
-Practicá el uso avanzado de **`vassili`** resolviendo los siguientes ejercicios:
+```text
+ Uso: vassili version [OPCIONES]
 
-::::{exercise} Desafío 1: Cálculo de Mutation Score
-:label: vassili-desafio-1
-Evaluar la suite de pruebas unitarias contra mutaciones en `src/tda_cola.c`.
+ Muestra la versión de VASSILI.
 
-**Instrucción de ejecución:**
-``` bash
-vassili mutate src/tda_cola.c --tests ./bin/test_cola
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Cálculo de Mutation Score -->
+:::{dropdown} `vassili doctor`
 
-::::{solution} vassili-desafio-1
+```text
+ Uso: vassili doctor [OPCIONES]
 
-``` bash
-vassili mutate src/tda_cola.c --tests ./bin/test_cola
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Verifica el estado del entorno de VASSILI (Python, GCC).
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir diagnóstico en formato JSON estructurado.                               │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} vassili-desafio-1 -->
-
-::::{exercise} Desafío 2: Identificación de Mutantes Vivos
-:label: vassili-desafio-2
-Descubrir qué casos borde no están siendo testeados por la suite.
-
-**Instrucción de ejecución:**
-``` bash
-vassili report --survived-only
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Identificación de Mutantes Vivos -->
-
-::::{solution} vassili-desafio-2
-
-``` bash
-vassili report --survived-only
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} vassili-desafio-2 -->
-
-::::{exercise} Desafío 3: Generación de Informe HTML de Calidad
-:label: vassili-desafio-3
-Exportar el informe gráfico con diffs de mutantes para revisión docente.
-
-**Instrucción de ejecución:**
-``` bash
-vassili report --format html -o mutaciones.html
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Generación de Informe HTML de Calidad -->
-
-::::{solution} vassili-desafio-3
-
-``` bash
-vassili report --format html -o mutaciones.html
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} vassili-desafio-3 -->
-
----
-
-(manual-vassili-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `vassili` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-vassili:
-	@echo "=== Ejecutando verificación con vassili ==="
-	vassili check src/ include/
-
-.PHONY: check-vassili
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-vassili` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-vassili-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`vassili`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Tree-Sitter C AST Mutation Engine + GCC Subprocess
-  Pool + Test Suite Mutation Score Evaluator`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-vassili-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`vassili`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C del TDA] --> VAS[Vassili: Mutation Testing]
-    TEST[Suite de Pruebas Unitarias] --> VAS
-    VAS -->|Operadores AOR, ROR, LCR| MUT[Generación de Mutantes en C]
-    VAS -->|Ejecución Paralela de Tests| GCC[GCC Test Runner Pool]
-    VAS -->|Cálculo de Mutation Score| DRD[Dredd: Calificación de Tests]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código C y suites de pruebas unitarias` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `dietrich (análisis de cobertura)`
-- `dredd (calificación de calidad de tests)` | Informes Markdown, diagnósticos
-  Rich, JSON, actas |
-| **Sincronización** | `dietrich`, `holden`, `deckard` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `vassili` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-vassili mutate src/tda.c --tests ./bin/test_tda --md reporte_mutantes.md
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-vassili-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `vassili`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`vassili@65826b0`](https://github.com/INGCOM-UNRN-P1/vassili/tree/65826b0).

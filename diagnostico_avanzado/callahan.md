@@ -1,574 +1,284 @@
 ---
 title: "callahan"
-subtitle: "Callahan — Verificador Formal de Contratos ACSL y Demostración Deductiva con Frama-C"
-author: "Cátedra de Algoritmos y Programación"
-date: "2026-08-31"
+subtitle: "Verificador Formal de Contratos ACSL en C"
 ---
+
+<!-- Generado por scripts/generar_paginas.py desde callahan@1fd8c9d: no editar a mano. -->
 
 (manual-callahan)=
-# Callahan — Verificador Formal de Contratos ACSL y Demostración Deductiva con Frama-C
+# callahan — Verificador Formal de Contratos ACSL en C
 
-:::{admonition} Resumen Técnico del Satélite
-:class: note
-**Rol en el ecosistema:** Verificación matemática de precondiciones,
-postcondiciones, invariantes de lazo y ausencia de desbordes aritméticos con
-Frama-C WP.
+Repositorio: [github.com/INGCOM-UNRN-P1/callahan](https://github.com/INGCOM-UNRN-P1/callahan).
 
-:::
-<!-- {admonition} Resumen Técnico del Satélite -->
+CALLAHAN realiza análisis y verificación deductiva de contratos formales de software en C escritos en lenguaje de especificación ACSL (`/*@ requires ... ensures ... */`) integrándose con Frama-C (WP).
 
 ---
 
-(manual-callahan-proposito)=
-## 1. Propósito y Filosofía Pedagógica
+## Alcance
 
-La herramienta **`callahan`** forma parte del ecosistema oficial de software de
-la cátedra. Su diseño sigue principios pedagógicos rigurosos:
+### Qué cubre
+- Verificación deductiva formal de código C basada en contratos ACSL (ANSI/ISO C Specification Language).
+- Validación de precondiciones (`requires`), postcondiciones (`ensures`) y aserciones intermedias (`assert`).
+- Comprobación matemática de invariantes de bucle (`loop invariant`) y variantes de terminación (`loop variant`).
+- Control de contratos de enmarcado de memoria (`assigns`).
+- Integración automatizada con Frama-C y el plugin WP (Weakest Precondition).
 
-1. **Evidencia Técnica Directa**: Todo diagnóstico se fundamenta en la norma ISO
-   C (C11/C23), en el modelo de memoria del sistema o en convenciones
-   arquitectónicas formales.
-2. **Acción Correctiva Concreta**: Cada advertencia incluye la prescripción
-   técnica inmediata para resolver el defecto sin recurrir a conjeturas.
-3. **Autonomía del Estudiante**: Facilita la autoevaluación local antes de la
-   entrega final del trabajo práctico.
-4. **Objetividad Docente**: Estandariza la corrección automática removiendo
-   discrepancias subjetivas en la evaluación.
+### Qué no cubre (Límites y Delegación)
+- Pruebas dinámicas basadas en ejecución de casos de test (delegado a `nostromo`).
+- Generación de documentación técnica en Markdown/HTML (delegado a `corbel`).
+- Verificación de cobertura estructural MC/DC (delegado a `dietrich`).
 
 ---
 
-(manual-callahan-instalacion)=
-## 2. Instalación y Verificación del Entorno
+## Requisitos
 
-::::{important}
+### Requisitos de Sistema y Entorno
+- Linux o Windows mediante WSL. Python >= 3.10.
 
-Para proveer la reproducibilidad técnica de la cátedra, verificá instalar las
-dependencias nativas del sistema operativo antes de instalar el paquete Python.
+### Dependencias Externas y Binarios
+- `frama-c` con plugin `wp` y al menos un SMT prover (`alt-ergo` o `z3`; `verify` invoca `-wp-prover alt-ergo,z3`).
+  Antes de usar un prover, callahan le pide demostrar una meta falsa; si la demuestra (Z3 4.16 con Frama-C 33 lo hace), no lo usa y `verify` y `doctor` lo avisan. El resultado queda en `~/.cache/callahan/provers.json` hasta que se actualiza el prover o Frama-C.
 
-::::
-<!-- {important} -->
-
-### 2.1 Requisitos Previos del Sistema
-
-Instalá los paquetes del sistema requeridos según tu distribución o entorno:
-
-::::{tab-set}
-
-:::{tab-item} Ubuntu / Debian
-
-```{code-block} bash
-:linenos:
-sudo apt update && sudo apt install -y \
-    build-essential \
-    gcc \
-    gdb \
-    valgrind \
-    clang-format \
-    libclang-dev \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip \
-    python3-venv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Ubuntu / Debian -->
-
-:::{tab-item} Arch Linux / Manjaro
-
-```{code-block} bash
-:linenos:
-sudo pacman -S --needed \
-    base-devel \
-    gcc \
-    gdb \
-    valgrind \
-    clang \
-    bubblewrap \
-    typst \
-    graphviz \
-    python-pip \
-    uv
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Arch Linux / Manjaro -->
-
-:::{tab-item} Fedora / RHEL
-
-```{code-block} bash
-:linenos:
-sudo dnf install -y \
-    gcc \
-    gcc-c++ \
-    gdb \
-    valgrind \
-    clang-tools-extra \
-    bubblewrap \
-    typst \
-    graphviz \
-    python3-pip
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Fedora / RHEL -->
-
-:::{tab-item} macOS (Homebrew)
-
-``` bash
-brew install gcc gdb clang-format typst graphviz uv
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} macOS (Homebrew) -->
-
-:::{tab-item} Windows (MSYS2 / WSL2)
-
-```{code-block} bash
-:linenos:
-# En WSL2 (Ubuntu): utilizar los paquetes de Ubuntu/Debian arriba.
-# En MSYS2 MINGW64:
-pacman -S --needed \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-clang-tools-extra
-
-```
-<!-- {code-block} bash -->
-
-:::
-<!-- {tab-item} Windows (MSYS2 / WSL2) -->
-
-::::
-<!-- {tab-set} -->
+### Integración en el Ecosistema
+- CLI `callahan`. Plugin registrado en `ripley.plugins` (`formal_contracts`). Subcomando `callahan doctor`.
 
 ---
 
-### 2.2 Métodos de Instalación de `callahan`
+## Uso Rápido
 
-Podés instalar `callahan` mediante cualquiera de los siguientes métodos
-estándar:
+```bash
+# 1. Extraer e inspeccionar contratos ACSL de un archivo
+callahan extract algoritmo.c
 
-::::{tab-set}
+# 2. Probar formalmente contratos con Frama-C
+callahan verify algoritmo.c
 
-:::{tab-item} uv tool (Recomendado)
+# 2b. Generar la sección de reporte Markdown para Dredd
+callahan report algoritmo.c -o callahan.md
 
-``` bash
-# Instalación aislada de alta velocidad con uv
-uv tool install . --editable
+# 3. Salida estructurada JSON
+callahan extract algoritmo.c --json
 
-# O instalar todo el ecosistema de herramientas de la cátedra en lote:
-source ./install_tools.sh
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} uv tool (Recomendado) -->
-
-:::{tab-item} pip / venv
-
-``` bash
-# Crear y activar un entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Instalar en modo editable para desarrollo
-pip install -e .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pip / venv -->
-
-:::{tab-item} pipx
-
-``` bash
-# Instalación global aislada en tu PATH
-pipx install --editable .
-```
-<!-- bash -->
-
-:::
-<!-- {tab-item} pipx -->
-
-::::
-<!-- {tab-set} -->
-
----
-
-### 2.3 Autocompletado en la Shell
-
-La interfaz CLI de `callahan` cuenta con autocompletado nativo para comandos,
-flags y archivos. Para configurarlo permanentemente en tu shell:
-
-````{code-block} bash
-# Configuración automática en Bash / Zsh / Fish
-callahan --install-completion
-
-# Para cargar el autocompletado en la sesión actual de inmediato:
-source ./install_tools.sh
-
-````
-<!-- {code-block} bash -->
-
----
-
-### 2.4 Verificación del Entorno con `doctor`
-
-Toda herramienta del ecosistema cuenta con el subcomando unificado `doctor`.
-Ejecutalo para auditar el estado del entorno:
-
-````{code-block} bash
+# 4. Comprobar provers SMT disponibles (Z3, Alt-Ergo)
 callahan doctor
 
-````
-<!-- {code-block} bash -->
+# 5. Esqueletos de contratos ACSL desde los docblocks (@pre, @post, @param, @return)
+callahan skeleton tda_lista.h -o contratos.acsl
 
-#### Comprobaciones Ejecutadas por el Diagnóstico:
-- **Compilador C**: Verifica disponibilidad de `gcc` o `clang` con soporte de
-  estándares C11 y C23.
-- **Depurador y Core Dumps**: Comprueba que `gdb` esté instalado y que `ulimit
-  -c` permita generación de core dumps.
-- **Herramientas de Memoria**: Valida la presencia de `valgrind` y librerías
-  `libasan`/`libubsan`.
-- **Formateo y Estilo**: Verifica el binario `clang-format` (versión 16+).
-- **Sandboxing de Kernel**: Audita permisos no privilegiados de `bwrap`
-  (Bubblewrap namespaces).
-- **Generador de Tipografía y Documentos**: Comprueba `typst` ($\ge 0.11$) y
-  `dot` (Graphviz).
+# 6. Validar que los contratos estén bien escritos, sin correr los provers
+callahan check algoritmo.c
 
-#### Matriz de Resolución de Problemas:
+# 7. Contratos desde los docblocks de corbel (corbel acsl tda_lista.h -i los deja en el .h)
+callahan verify tda_lista.c --header tda_lista.h
+```
 
-| Síntoma / Alerta de `doctor` | Causa Raíz | Acción Correctiva |
-| :--- | :--- | :--- |
-| `❌ gcc / clang no encontrado` | Toolchain C faltante | Instalá `build-essential` o `base-devel`. |
-| `❌ bwrap permisos insuficientes` | User namespaces desactivados | Habilitá `sysctl kernel.unprivileged_userns_clone=1`. |
-| `❌ typst no disponible` | Motor de PDF faltante | Descargá Typst vía `cargo install typst-cli` o gestor de paquetes. |
-| `❌ gdb no responde` | GDB sin interfaz MI/Python | Reinstalá `gdb` completo desde el repositorio oficial. |
+`skeleton` traduce las condiciones que ya están escritas en C (`n >= 0`, `p != NULL` →
+`\valid(p)`) y deja como `TODO` las que están en prosa, junto con sugerencias de `requires
+\valid(...)` para los parámetros puntero. `verify` explica cada meta que Frama-C no pudo demostrar
+(poscondición, invariante de lazo, acceso a memoria, desborde…) con lo que suele faltar.
+
+`verify` demuestra también la ausencia de desbordes, accesos fuera de rango y divisiones por cero
+(`-wp-rte`, salvo con `--sin-rte`), valida antes los contratos como `check` y, si una meta no se
+demuestra, busca con qué valores de los parámetros falla: «La función absol no asegura la
+postcondición si el parámetro n recibe un valor negativo (ej: n = -1)». En `ejemplos/` hay
+algoritmos clásicos anotados (búsqueda binaria, ordenamiento por inserción…) que se demuestran
+completos.
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `frama-c`.
+
+| Sistema | `frama-c` |
+|:--|:--|
+| Debian / Ubuntu | `opam install frama-c` |
+| Fedora | `opam install frama-c` |
+| Windows | no existe: usar WSL |
+| macOS | `opam install frama-c` |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `callahan verify` | Verifica deductivamente las precondiciones, postcondiciones e invariantes del archivo C. |
+| `callahan report` | Genera directamente la sección de reporte Markdown de CALLAHAN para Dredd. |
+| `callahan check` | Valida que los contratos ACSL estén bien escritos, sin correr los provers. |
+| `callahan extract` | Extrae e imprime las cláusulas de contratos ACSL encontradas en el código. |
+| `callahan skeleton` | Esqueletos de contratos ACSL a partir de los docblocks (\@pre, \@post, \@param, \@return). |
+| `callahan doctor` | Comprueba si el entorno cuenta con Frama-C y provers SMT (Alt-Ergo, Z3). |
+
+Ayuda de cada comando: `callahan <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `callahan verify`, `callahan check`, `callahan extract`, `callahan doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 (manual-callahan-comandos)=
-## 3. Referencia Completa de Comandos CLI
+## Ayuda de los comandos
 
-A continuación se detallan los subcomandos principales disponibles en
-`callahan`:
+La ayuda que muestra cada comando (`--help`), tal como la imprime la versión documentada.
 
-| Sintaxis del Comando | Descripción y Efecto |
-| :--- | :--- |
-| `callahan check <archivo.c>` | Verifica los contratos ACSL del archivo con Frama-C WP. |
-| `callahan gen-contracts <archivo.h>` | Genera plantillas de pre/postcondiciones para funciones C. |
-| `callahan doctor` | Verifica la instalación de Frama-C, Alt-Ergo y Z3. |
-| `callahan verify-loop <archivo.c> --function <fn>` | Demuestra formalmente la terminación e invariantes de un lazo. |
+:::{dropdown} `callahan`
+:open:
 
-::::{tip}
+```text
+ Uso: callahan [OPCIONES] COMANDO [ARGUMENTOS]...
 
-Podés agregar el flag `--json` a la mayoría de los comandos para exportar
-resultados en formato estructurado o `--md` para generar reportes Markdown para
-el informe de entrega.
+ 📜 CALLAHAN — Verificador formal de contratos ACSL (pre/post condiciones) y Frama-C WP.
 
-::::
-<!-- {tip} -->
-
----
-
-(manual-callahan-tutorial)=
-## 4. Tutorial Paso a Paso con Ejemplos Reales
-
-### Caso de Estudio
-
-Considerá el siguiente fragmento de código representativo:
-
-````{code-block} c
-:linenos:
-/*@
-  @ requires \valid(v + (0 .. n-1));
-  @ requires n > 0;
-  @ assigns \nothing;
-  @ ensures \forall integer i; 0 <= i < n ==> \result >= v[i];
-  @*/
-int buscar_maximo(const int *v, int n) {
-    int max = v[0];
-    /*@
-      @ loop invariant 1 <= i <= n;
-      @ loop invariant \forall integer k; 0 <= k < i ==> max >= v[k];
-      @ loop assigns i, max;
-      @ loop variant n - i;
-      @*/
-    for (int i = 1; i < n; i++) {
-        if (v[i] > max) max = v[i];
-    }
-    return max;
-}
-
-````
-<!-- {code-block} c -->
-
-### Ejecución de la Herramienta
-
-Ejecutá el análisis desde tu terminal:
-
-````{code-block} bash
-callahan check <archivo.c>
-
-````
-<!-- {code-block} bash -->
-
-### Salida Obtenida en Consola
-
-````{code-block} text
-[WP] Proving goal buscar_maximo_ensures_1: Valid (Alt-Ergo 2.4)
-[WP] Proving goal buscar_maximo_loop_invariant_1: Valid (Qed)
-[WP] Proving goal buscar_maximo_loop_variant: Valid (Qed)
-[✓] Todas las metas demostradas formalmente. 0 desbordes.
-
-````
-<!-- {code-block} text -->
-
-::::{note}
-
-Prestá atención a la explicación pedagógica generada: la herramienta no solo
-señala la línea del problema, sino que explica la causa raíz y el impacto en
-memoria o arquitectura.
-
-::::
-<!-- {note} -->
-
----
-
-(manual-callahan-ejemplos)=
-## Ejemplos y Contraejemplos
-
-En esta sección se contrastan patrones de uso correctos recomendados por la cátedra frente a contraejemplos, antipatrones o configuraciones defectuosas que la herramienta diagnostica o rechaza.
-
-### Ejemplo Válido (Patrón Recomendado)
-
-Contrato formal ACSL con precondición que descarta puntero nulo y divisor cero:
-
-```{code-block} c
-/*@
-  @ requires \valid(res) && b != 0;
-  @ assigns *res;
-  @ ensures *res == a / b && \result == 0;
-  @*/
-int division_segura(int a, int b, int *res) {
-    *res = a / b;
-    return 0;
-}
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --version             -v        Muestra la versión de callahan y sale.                           │
+│ --install-completion            Instala el autocompletado para la terminal actual.               │
+│ --show-completion               Muestra el autocompletado para la terminal actual, para copiarlo │
+│                                 o adaptarlo.                                                     │
+│ --help                -h        Muestra esta ayuda y sale.                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Comandos ───────────────────────────────────────────────────────────────────────────────────────╮
+│ verify    Verifica deductivamente las precondiciones, postcondiciones e invariantes del archivo  │
+│           C.                                                                                     │
+│ report    Genera directamente la sección de reporte Markdown de CALLAHAN para Dredd.             │
+│ check     Valida que los contratos ACSL estén bien escritos, sin correr los provers.             │
+│ extract   Extrae e imprime las cláusulas de contratos ACSL encontradas en el código.             │
+│ skeleton  Esqueletos de contratos ACSL a partir de los docblocks (@pre, @post, @param, @return). │
+│ doctor    Comprueba si el entorno cuenta con Frama-C y provers SMT (Alt-Ergo, Z3).               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Ejecución y verificación formal:
+:::{dropdown} `callahan verify`
 
-```{code-block} bash
-callahan verify division.c
+```text
+ Uso: callahan verify [OPCIONES] {fuente}
+
+ Verifica deductivamente las precondiciones, postcondiciones e invariantes del archivo C.
+
+ Además del contrato, demuestra que no hay desbordes de enteros, accesos fuera de rango ni
+ divisiones por cero (salvo con --sin-rte). Antes valida que los contratos estén bien
+ escritos (como `callahan check`), y si una meta no se demuestra busca con qué valores
+ de los parámetros falla.
+
+ Sale con 0 si todo se probó, 1 si Frama-C rechazó algún contrato (o están mal escritos)
+ y 2 si no se pudo verificar (Frama-C no está instalado): un script distingue así una
+ regresión real de una dependencia opcional ausente.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C con anotaciones ACSL a verificar. [obligatorio]               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --header              -H      <path>              Encabezado .h con docblocks Doxygen            │
+│                                                   (@pre/@post) de corbel o contratos ACSL.       │
+│ --json                                            Salida estructurada en JSON.                   │
+│ --md,--output-md      -o      <path>              Generar sección de reporte en formato Markdown │
+│                                                   para fusión en Dredd.                          │
+│ --sin-rte                                         No demostrar la ausencia de desbordes, accesos │
+│                                                   inválidos ni divisiones por cero: sólo el      │
+│                                                   contrato.                                      │
+│ --timeout                     <int range> [x>=1]  Segundos por meta para cada prover.            │
+│                                                   [por defecto: 10]                              │
+│ --sin-contraejemplos                              No buscar con qué valores de los parámetros    │
+│                                                   falla una meta (es más rápido).                │
+│ --help                -h                          Muestra esta ayuda y sale.                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Salida esperada:
-```{code-block} text
-[✓] Precondición '\valid(res) && b != 0' demostrada (WP/Alt-Ergo)
-[✓] Postcondición '*res == a / b' demostrada
-[✓] Ausencia de Runtime Errors (RTE): división por cero descartada
-[✓] Veredicto: CONTRATO_VERIFICADO (exit 0)
+:::{dropdown} `callahan report`
+
+```text
+ Uso: callahan report [OPCIONES] {fuente}
+
+ Genera directamente la sección de reporte Markdown de CALLAHAN para Dredd.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C con contratos ACSL a verificar. [obligatorio]                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Ruta de destino del archivo Markdown.                                  │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-### Contraejemplo (Antipatrón o Caso Infractor)
+:::{dropdown} `callahan check`
 
-Función con precondición deficiente donde es posible desreferenciar `NULL`:
+```text
+ Uso: callahan check [OPCIONES] {fuente}
 
-```{code-block} c
-/*@
-  @ requires b != 0;  // Falta \valid(res)
-  @ assigns *res;
-  @*/
-int division_riesgosa(int a, int b, int *res) {
-    *res = a / b;
-    return 0;
-}
+ Valida que los contratos ACSL estén bien escritos, sin correr los provers.
+
+ Lista todos los errores (no sólo el primero, como Frama-C) explicados: una variable
+ que no existe, un punto y coma que falta, `=` en lugar de `==`. Sale con 1 si hay errores
+ y con 2 si Frama-C no está instalado.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C (o .h) con contratos ACSL. [obligatorio]                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Salida en JSON.                                                                │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-Diagnóstico emitido por la herramienta:
-```{code-block} text
-[!] FALLA: Objetivo de prueba 'mem_access: \valid(res)' no pudo ser demostrado.
-[!] Riesgo de fallo de memoria en 'division.c:7': puntero 'res' potencialmente inválido.
-[!] Acción: agregá 'requires \valid(res);' a la cláusula ACSL.
+:::{dropdown} `callahan extract`
+
+```text
+ Uso: callahan extract [OPCIONES] {fuente}
+
+ Extrae e imprime las cláusulas de contratos ACSL encontradas en el código.
+
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    fuente      <path>  Archivo C a inspeccionar. [obligatorio]                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Salida en JSON.                                                                │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+:::
 
-(manual-callahan-ejercicios)=
-## 5. Ejercicios Prácticos y Desafíos
+:::{dropdown} `callahan skeleton`
 
-Practicá el uso avanzado de **`callahan`** resolviendo los siguientes
-ejercicios:
+```text
+ Uso: callahan skeleton [OPCIONES] {archivo}
 
-::::{exercise} Desafío 1: Verificación de Búsqueda Binaria
-:label: callahan-desafio-1
-Demostrar que `busqueda_binaria()` no sufre desbordes al calcular `mid`.
+ Esqueletos de contratos ACSL a partir de los docblocks (@pre, @post, @param, @return).
 
-**Instrucción de ejecución:**
-``` bash
-callahan check src/busqueda.c
+╭─ Argumentos ─────────────────────────────────────────────────────────────────────────────────────╮
+│ *    archivo      <file>  Cabecera o fuente con prototipos documentados (@pre, @post).           │
+│                           [obligatorio]                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --output  -o      <path>  Guardar los contratos en este archivo.                                 │
+│ --help    -h              Muestra esta ayuda y sale.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {exercise} Desafío 1: Verificación de Búsqueda Binaria -->
+:::{dropdown} `callahan doctor`
 
-::::{solution} callahan-desafio-1
+```text
+ Uso: callahan doctor [OPCIONES]
 
-``` bash
-callahan check src/busqueda.c
-# Verificá que la operación concluya exitosamente con código de salida 0.
+ Comprueba si el entorno cuenta con Frama-C y provers SMT (Alt-Ergo, Z3).
+
+ Sale con 1 si falta Frama-C: sin él `callahan verify` no puede verificar.
+
+╭─ Opciones ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --json            Emitir el diagnóstico como JSON (schema_version 1.0.0).                        │
+│ --help  -h        Muestra esta ayuda y sale.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-<!-- bash -->
+:::
 
-::::
-<!-- {solution} callahan-desafio-1 -->
-
-::::{exercise} Desafío 2: Invariante de Lazo en Inversión de Vector
-:label: callahan-desafio-2
-Escribir contratos ACSL para invertir un vector.
-
-**Instrucción de ejecución:**
-``` bash
-callahan check src/invertir.c
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 2: Invariante de Lazo en Inversión de Vector -->
-
-::::{solution} callahan-desafio-2
-
-``` bash
-callahan check src/invertir.c
-# Revisá el archivo generado o el informe en terminal para confirmar la resolución del problema.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} callahan-desafio-2 -->
-
-::::{exercise} Desafío 3: Generación Automática de Contratos
-:label: callahan-desafio-3
-Generar precondiciones de punteros válidos para `include/lista.h`.
-
-**Instrucción de ejecución:**
-``` bash
-callahan gen-contracts include/lista.h -o include/lista_contratos.h
-```
-<!-- bash -->
-
-::::
-<!-- {exercise} Desafío 3: Generación Automática de Contratos -->
-
-::::{solution} callahan-desafio-3
-
-``` bash
-callahan gen-contracts include/lista.h -o include/lista_contratos.h
-# Comprobá que la salida confirme la ausencia de advertencias o errores pendientes.
-```
-<!-- bash -->
-
-::::
-<!-- {solution} callahan-desafio-3 -->
-
----
-
-(manual-callahan-makefile)=
-## 6. Integración en el Flujo de Trabajo y Makefile
-
-Para incorporar `callahan` de forma automática a tu flujo de desarrollo, agregá
-la siguiente regla en el `Makefile` de tu proyecto:
-
-````{code-block} makefile
-check-callahan:
-	@echo "=== Ejecutando verificación con callahan ==="
-	callahan check src/ include/
-
-.PHONY: check-callahan
-
-````
-<!-- {code-block} makefile -->
-
-Ejecutá `make check-callahan` antes de cada commit para mantener que tu código
-conserve el estado de aprobación.
-
----
-
-(manual-callahan-arquitectura)=
-## 7. Arquitectura Interna y Mecanismo Técnico
-
-La herramienta **`callahan`** implementa un motor de alta precisión basado en:
-
-- **Tecnología Núcleo:** `Frama-C Kernel 28.0 + WP Plugin (Weakest Precondition)
-  + Solvers Alt-Ergo / Z3`.
-- **Aislamiento y Determinismo:** Diseñada para operar sin efectos colaterales
-  en entornos de integración continua (CI), terminales de estudiantes y
-  servidores docentes headless.
-- **Manejo de Errores Pedagógico:** Todo fallo de sintaxis, memoria o lógica se
-  traduce en una acción prescriptiva concreta con su respectiva justificación
-  técnica.
-
----
-
-(manual-callahan-ecosistema)=
-## 8. Integración y Conexión con el Ecosistema
-
-::::{note}
-
-Ninguna herramienta opera de forma aislada. **`callahan`** forma parte del
-pipeline integral de evaluación, verificación y enseñanza de la cátedra.
-
-::::
-<!-- {note} -->
-
-### Diagrama de Flujo e Interoperabilidad
-
-::::{mermaid}
-
-graph TD
-    SRC[Código C + ACSL] --> CAL[Callahan: Verificador Formal]
-    CAL -->|Metas Deductivas| WP[Frama-C WP Plugin]
-    WP -->|Demostración Matemática| Z3[Alt-Ergo / Z3 Provers]
-    CAL -->|resolvé Libres de UB| DK[Deckard: Banco Canónico]
-    CAL -->|Contratos de API| CORB[Corbel: Documentación de TDAs]
-
-::::
-<!-- {mermaid} -->
-
-### Matriz de Intercambio de Datos
-
-| Canal | Herramientas Conectadas | Tipo de Datos Transferidos |
-| :--- | :--- | :--- |
-| **Entradas (Inputs)** | - `Código C con especificaciones formales ACSL` | Código fuente, AST, binarios, testcases, contratos |
-| **Salidas (Outputs)** | - `deckard (resolvé canónicas certificadas)`
-- `dredd (oráculo formal)` | Informes Markdown, diagnósticos Rich, JSON, actas |
-| **Sincronización** | `weyl`, `daedalus`, `deckard` | Validación cruzada, flags compartidos y autofix |
-
-### Pipeline de Integración Recomendado
-
-Podés encadenar `callahan` con otras herramientas del ecosistema en una única
-línea de comando:
-
-````{code-block} bash
-# Pipeline de integración típico
-callahan check src/tda.c && weyl diff src/tda.c canon/tda.c
-
-````
-<!-- {code-block} bash -->
-
----
-
-(manual-callahan-seccion-plugins)=
-## 9. Extensión, Desarrollo de Plugins y API Python
-
-Para crear tus propias reglas, conectores de evaluación o integrar `callahan`
-programáticamente en pipelines de CI/CD:
-
-- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de
-  Plugins](plugins.md)
+Generado desde [`callahan@1fd8c9d`](https://github.com/INGCOM-UNRN-P1/callahan/tree/1fd8c9d).
